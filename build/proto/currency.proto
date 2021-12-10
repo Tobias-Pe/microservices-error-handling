@@ -1,0 +1,15 @@
+syntax = "proto3";
+package currency;
+option go_package = "./;proto";
+
+service Currency {
+  rpc GetExchangeRate(RequestExchangeRate) returns (ReplyExchangeRate) {}
+}
+
+message RequestExchangeRate {
+  string targetCurrency = 1;
+}
+
+message ReplyExchangeRate {
+  float exchangeRate = 1;
+}
