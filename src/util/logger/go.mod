@@ -1,4 +1,4 @@
-module gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/logger
+module gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/util/logger
 
 go 1.17
 

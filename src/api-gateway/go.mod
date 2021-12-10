@@ -5,6 +5,13 @@ go 1.17
 require github.com/gin-gonic/gin v1.7.7
 
 require (
+	github.com/toorop/gin-logrus v0.0.0-20210225092905-2c785434f26f
+	gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/util/logger v0.0.0
+)
+
+replace gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/util/logger => ./../util/logger
+
+require (
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
@@ -15,6 +22,7 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/ugorji/go/codec v1.2.6 // indirect
 	golang.org/x/crypto v0.0.0-20211209193657-4570a0811e8b // indirect
 	golang.org/x/sys v0.0.0-20211210111614-af8b64212486 // indirect
