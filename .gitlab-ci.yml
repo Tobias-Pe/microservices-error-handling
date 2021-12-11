@@ -29,7 +29,7 @@ compile:
   script:
     - go install ./...
 
-docker:
+build-api-gateway:
   image: docker:latest
   stage: build
   services:
@@ -47,7 +47,7 @@ docker:
         tag=":$CI_COMMIT_REF_SLUG"
         echo "Running on branch '$CI_COMMIT_BRANCH': tag = $tag"
       fi
-    - docker build --pull -t "$CI_REGISTRY_IMAGE${tag}" .
+    - docker build --pull -t "$CI_REGISTRY_IMAGE${tag}" services/api-gateway/Dockerfile
     - docker push "$CI_REGISTRY_IMAGE${tag}"
   # Run this job in a branch where a Dockerfile exists
   rules:
