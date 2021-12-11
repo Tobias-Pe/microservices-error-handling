@@ -1,46 +1,31 @@
+# To contribute improvements to CI/CD templates, please follow the Development guide at:
+# https://docs.gitlab.com/ee/development/cicd/templates.html
+# This specific template is located at:
+# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Go.gitlab-ci.yml
+
+image: golang:latest
+
+before_script:
+  - go mod tidy
+
 stages:
   - test
   - build
+  - deploy
 
-before_script:
-  - make dep
-
-unit_tests:
+format:
   stage: test
   script:
-    - make test
+    - go fmt $(go list ./... | grep -v /vendor/)
+    - go vet $(go list ./... | grep -v /vendor/)
+    - go test -race $(go list ./... | grep -v /vendor/)
 
-race_detector:
-  stage: test
-  script:
-    - make race
-
-memory_sanitizer:
-  stage: test
-  script:
-    - make msan
-
-code_coverage:
-  stage: test
-  script:
-    - make coverage
-
-code_coverage_report:
-  stage: test
-  script:
-    - make coverhtml
-  only:
-    - master
-
-lint_code:
-  stage: test
-  script:
-    - make lint
-
-build:
+compile:
   stage: build
   script:
-    - make
+    - go build -race -ldflags "-extldflags '-static'" -o api-gateway ./services/api-gateway/cmd/main.go
+    - go build -race -ldflags "-extldflags '-static'" -o currency ./services/currency/cmd/main.go
   artifacts:
     paths:
-      - demo-tools
+      - currency
+      - api-gateway
