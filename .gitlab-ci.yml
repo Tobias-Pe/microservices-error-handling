@@ -41,8 +41,6 @@ test:
     - go install ./...
 
 build-api-gateway:
-  needs:
-    - compile
   stage: build
   image:
     name: gcr.io/kaniko-project/executor:debug
