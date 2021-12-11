@@ -22,5 +22,5 @@
  * SOFTWARE.
  */
 
-//go:generate protoc --go_out=../src/gitlab.lrz.de/peslalz/errorhandling-microservices-thesis --go_opt=paths=source_relative --go-grpc_out=../src/gitlab.lrz.de/peslalz/errorhandling-microservices-thesis  --go-grpc_opt=paths=source_relative proto/*.proto
+//go:generate protoc --go_out=../src --go_opt=paths=source_relative --go-grpc_out=../src  --go-grpc_opt=paths=source_relative proto/*.proto
 package build

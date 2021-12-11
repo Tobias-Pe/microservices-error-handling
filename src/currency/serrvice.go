@@ -27,6 +27,7 @@ package currency
 import (
 	"context"
 	"fmt"
+	loggrus "github.com/sirupsen/logrus"
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/util/logger"
 	"strings"
@@ -63,5 +64,8 @@ func getExchangeRate(targetCurrency string) (float32, error) {
 
 func (s *Server) GetExchangeRate(ctx context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
 	exchangeRate, err := getExchangeRate(req.TargetCurrency)
+	if err != nil {
+		logger.WithFields(loggrus.Fields{"Request:": req.TargetCurrency}).WithError(err).Error("Responding with an error in GetExchangeRate")
+	}
 	return &proto.ReplyExchangeRate{ExchangeRate: exchangeRate}, err
 }

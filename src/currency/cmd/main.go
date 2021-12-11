@@ -25,21 +25,26 @@
 package main
 
 import (
+	"github.com/spf13/viper"
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/currency"
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/util/logger"
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"strings"
 )
 
-const (
-	port = ":50051"
-)
+type configuration struct {
+	port string
+}
+
+var logger = loggingUtil.InitLogger()
 
 func main() {
-	logger := loggingUtil.InitLogger()
-	lis, err := net.Listen("tcp", port)
+	config := readConfig()
+
+	lis, err := net.Listen("tcp", ":"+config.port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -49,4 +54,19 @@ func main() {
 	if err := s.Serve(lis); err != nil {
 		logger.Fatalf("failed to serve: %v", err)
 	}
+}
+
+func readConfig() configuration {
+	viper.SetConfigType("yaml")
+	viper.SetConfigName("config")
+	viper.AddConfigPath("./currency")
+	err := viper.ReadInConfig()
+	if err != nil {
+		logger.Fatalf("failed to read in config.yml: %s", err)
+	}
+	replacer := strings.NewReplacer(".", "_")
+	viper.SetEnvKeyReplacer(replacer)
+	viper.AutomaticEnv()
+
+	return configuration{port: viper.GetString("server.port")}
 }
