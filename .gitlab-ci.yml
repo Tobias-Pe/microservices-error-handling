@@ -1,0 +1,48 @@
+image: registry.gitlab.com/pantomath-io/demo-tools:latest
+
+stages:
+  - test
+  - build
+
+before_script:
+  - make dep
+
+unit_tests:
+  stage: test
+  script:
+    - make test
+
+race_detector:
+  stage: test
+  script:
+    - make race
+
+memory_sanitizer:
+  stage: test
+  script:
+    - make msan
+
+code_coverage:
+  stage: test
+  script:
+    - make coverage
+
+code_coverage_report:
+  stage: test
+  script:
+    - make coverhtml
+  only:
+    - master
+
+lint_code:
+  stage: test
+  script:
+    - make lint
+
+build:
+  stage: build
+  script:
+    - make
+  artifacts:
+    paths:
+      - demo-tools
