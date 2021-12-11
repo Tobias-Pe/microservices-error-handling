@@ -49,8 +49,3 @@ build-api-gateway:
       fi
     - docker build --pull -t "$CI_REGISTRY_IMAGE${tag}" services/api-gateway/Dockerfile
     - docker push "$CI_REGISTRY_IMAGE${tag}"
-  # Run this job in a branch where a Dockerfile exists
-  rules:
-    - if: $CI_COMMIT_BRANCH
-      exists:
-        - Dockerfile
