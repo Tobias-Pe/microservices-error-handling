@@ -1,5 +1,3 @@
-image: golangci/golangci-lint:latest-alpine
-
 stages:
   - test
   - build
