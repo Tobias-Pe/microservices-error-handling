@@ -18,14 +18,13 @@ format:
   script:
     - go fmt $(go list ./... | grep -v /vendor/)
     - go vet $(go list ./... | grep -v /vendor/)
-    - go test -race $(go list ./... | grep -v /vendor/)
+
+test:
+  stage: test
+  script:
+    - go test $(go list ./... | grep -v /vendor/)
 
 compile:
   stage: build
   script:
-    - go build -race -ldflags "-extldflags '-static'" -o api-gateway ./services/api-gateway/cmd/main.go
-    - go build -race -ldflags "-extldflags '-static'" -o currency ./services/currency/cmd/main.go
-  artifacts:
-    paths:
-      - currency
-      - api-gateway
+    - go install ./...
