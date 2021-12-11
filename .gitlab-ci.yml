@@ -1,7 +1,26 @@
-# To contribute improvements to CI/CD templates, please follow the Development guide at:
-# https://docs.gitlab.com/ee/development/cicd/templates.html
-# This specific template is located at:
-# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Go.gitlab-ci.yml
+#   /*
+#    * MIT License
+#    *
+#    * Copyright (c) 2021 Tobias Leonhard Joschka Peslalz
+#    *
+#    * Permission is hereby granted, free of charge, to any person obtaining a copy
+#    * of this software and associated documentation files (the "Software"), to deal
+#    * in the Software without restriction, including without limitation the rights
+#    * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#    * copies of the Software, and to permit persons to whom the Software is
+#    * furnished to do so, subject to the following conditions:
+#    *
+#    * The above copyright notice and this permission notice shall be included in all
+#    * copies or substantial portions of the Software.
+#    *
+#    * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#    * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#    * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#    * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#    * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#    * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#    * SOFTWARE.
+#    */
 
 image: golang:latest
 
@@ -13,39 +32,26 @@ stages:
   - build
   - deploy
 
-format:
+test:
   stage: test
   script:
     - go fmt $(go list ./... | grep -v /vendor/)
     - go vet $(go list ./... | grep -v /vendor/)
-
-test:
-  stage: test
-  script:
     - go test $(go list ./... | grep -v /vendor/)
-
-compile:
-  stage: build
-  script:
     - go install ./...
 
 build-api-gateway:
-  image: docker:latest
+  needs:
+    - compile
   stage: build
-  services:
-    - docker:dind
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  # Default branch leaves tag empty (= latest tag)
-  # All other branches are tagged with the escaped branch name (commit ref slug)
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
   script:
-    - |
-      if [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
-        tag=""
-        echo "Running on default branch '$CI_DEFAULT_BRANCH': tag = 'latest'"
-      else
-        tag=":$CI_COMMIT_REF_SLUG"
-        echo "Running on branch '$CI_COMMIT_BRANCH': tag = $tag"
-      fi
-    - docker build --pull -t "$CI_REGISTRY_IMAGE${tag}" services/api-gateway/Dockerfile
-    - docker push "$CI_REGISTRY_IMAGE${tag}"
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - >-
+      /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/services/api-gateway/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}"
