@@ -97,5 +97,5 @@ var Currency_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/currency.proto",
+	Metadata: "currency.proto",
 }

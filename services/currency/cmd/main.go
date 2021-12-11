@@ -26,9 +26,9 @@ package main
 
 import (
 	"github.com/spf13/viper"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/currency"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/proto"
-	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/util/logger"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
+	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/services/currency"
 	"google.golang.org/grpc"
 	"log"
 	"net"
@@ -59,10 +59,10 @@ func main() {
 func readConfig() configuration {
 	viper.SetConfigType("yaml")
 	viper.SetConfigName("config")
-	viper.AddConfigPath("./currency")
+	viper.AddConfigPath("./services/currency")
 	err := viper.ReadInConfig()
 	if err != nil {
-		logger.Fatalf("failed to read in config.yml: %s", err)
+		logger.Infof("failed to read in config.yml: %s \t if using docker this is not a problem", err)
 	}
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)

@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package logger
+package log
 
 import (
 	"github.com/sirupsen/logrus"

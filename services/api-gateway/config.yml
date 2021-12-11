@@ -1,0 +1,7 @@
+server:
+  address:
+  port: 50000
+
+currency:
+  address: localhost
+  port: 50001

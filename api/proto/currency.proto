@@ -7,7 +7,7 @@ service Currency {
 }
 
 message RequestExchangeRate {
-  string targetCurrency = 1;
+  string customerCurrency = 1;
 }
 
 message ReplyExchangeRate {

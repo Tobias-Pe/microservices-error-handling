@@ -26,28 +26,56 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"net/http"
+	"github.com/spf13/viper"
+	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/services/api-gateway"
+	"google.golang.org/grpc"
+	"strings"
 )
 
+type configuration struct {
+	port            string
+	currencyAddress string
+}
+
+var logger = loggingUtil.InitLogger()
+
+func readConfig() configuration {
+	viper.SetConfigType("yaml")
+	viper.SetConfigName("config")
+	viper.AddConfigPath("./services/api-gateway")
+	err := viper.ReadInConfig()
+	if err != nil {
+		logger.Infof("failed to read in config.yml: %s \t if using docker this is not a problem", err)
+	}
+	replacer := strings.NewReplacer(".", "_")
+	viper.SetEnvKeyReplacer(replacer)
+	viper.AutomaticEnv()
+
+	return configuration{port: viper.GetString("server.port"), currencyAddress: viper.GetString("currency.address") + ":" + viper.GetString("currency.port")}
+}
+
 func main() {
+	configuration := readConfig()
+	service := api_gateway.NewService(configuration.currencyAddress)
+	defer func(Conn *grpc.ClientConn) {
+		err := Conn.Close()
+		if err != nil {
+			logger.WithError(err).Warnf("Could not close grpc connection")
+		}
+	}(service.Conn)
+
 	gin.SetMode(gin.DebugMode)
 	// Creates a gin router with default middleware:
 	// logger and recovery (crash-free) middleware
 	router := gin.Default()
 
-	router.GET("/ping", handlePing())
+	router.GET("/exchange/:currency", service.GetExchangeRate())
 
 	// By default it serves on :8080 unless a
 	// PORT environment variable was defined.
-	err := router.Run()
+	err := router.Run(viper.GetString("server.address") + ":" + configuration.port)
 	if err != nil {
 		return
-	}
-	// router.Run(":3000") for a hard coded port
-}
-
-func handlePing() func(c *gin.Context) {
-	return func(c *gin.Context) {
-		c.String(http.StatusOK, "pong")
 	}
 }

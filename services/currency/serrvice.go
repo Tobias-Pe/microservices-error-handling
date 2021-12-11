@@ -28,15 +28,15 @@ import (
 	"context"
 	"fmt"
 	loggrus "github.com/sirupsen/logrus"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/proto"
-	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/util/logger"
+	proto2 "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
+	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
 	"strings"
 )
 
 var logger = loggingUtil.InitLogger()
 
 type Server struct {
-	proto.UnimplementedCurrencyServer
+	proto2.UnimplementedCurrencyServer
 }
 
 func getExchangeRate(targetCurrency string) (float32, error) {
@@ -62,10 +62,10 @@ func getExchangeRate(targetCurrency string) (float32, error) {
 	}
 }
 
-func (s *Server) GetExchangeRate(ctx context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
-	exchangeRate, err := getExchangeRate(req.TargetCurrency)
+func (s *Server) GetExchangeRate(_ context.Context, req *proto2.RequestExchangeRate) (*proto2.ReplyExchangeRate, error) {
+	exchangeRate, err := getExchangeRate(req.CustomerCurrency)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"Request:": req.TargetCurrency}).WithError(err).Error("Responding with an error in GetExchangeRate")
+		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency}).WithError(err).Warn("Responding with an error in GetExchangeRate")
 	}
-	return &proto.ReplyExchangeRate{ExchangeRate: exchangeRate}, err
+	return &proto2.ReplyExchangeRate{ExchangeRate: exchangeRate}, err
 }
