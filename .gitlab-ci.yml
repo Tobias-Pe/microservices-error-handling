@@ -4,7 +4,7 @@
 # This specific template is located at:
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Go.gitlab-ci.yml
 
-image: golang:latest
+image: golang:alpine
 
 variables:
   # Please edit to your GitLab project
@@ -16,10 +16,10 @@ variables:
 # the default GOPATH being /go, then you'd need to have your
 # repository in /go/src/gitlab.lrz.de/peslalz/errorhandling-microservices-thesis
 # Thus, making a symbolic link corrects this.
-before_script:
-  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
-  - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
-  - cd $GOPATH/src/$REPO_NAME
+#before_script:
+#  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+#  - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+#  - cd $GOPATH/src/$REPO_NAME
 
 stages:
   - test
