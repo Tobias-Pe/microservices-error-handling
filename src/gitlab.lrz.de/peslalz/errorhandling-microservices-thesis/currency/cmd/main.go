@@ -22,12 +22,31 @@
  * SOFTWARE.
  */
 
-package currency
+package main
 
 import (
-	"context"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/currency"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/proto"
+	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/util/logger"
+	"google.golang.org/grpc"
+	"log"
+	"net"
 )
 
-func (s *proto.CurrencyServer) GetExchangeRate(ctx context.Context) {
+const (
+	port = ":50051"
+)
 
+func main() {
+	logger := loggingUtil.InitLogger()
+	lis, err := net.Listen("tcp", port)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+	proto.RegisterCurrencyServer(s, &currency.Server{})
+	logger.Printf("server listening at %v", lis.Addr())
+	if err := s.Serve(lis); err != nil {
+		logger.Fatalf("failed to serve: %v", err)
+	}
 }

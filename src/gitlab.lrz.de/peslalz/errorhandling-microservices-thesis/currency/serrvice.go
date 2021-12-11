@@ -22,8 +22,46 @@
  * SOFTWARE.
  */
 
-package main
+package currency
 
-func main() {
+import (
+	"context"
+	"fmt"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/proto"
+	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/util/logger"
+	"strings"
+)
 
+var logger = loggingUtil.InitLogger()
+
+type Server struct {
+	proto.UnimplementedCurrencyServer
+}
+
+func getExchangeRate(targetCurrency string) (float32, error) {
+	targetCurrency = strings.ToUpper(strings.TrimSpace(targetCurrency))
+	switch targetCurrency {
+	case "USD": //USA
+		return 1.1317644, nil
+	case "GBP": //GB
+		return 0.85286078, nil
+	case "INR": //INDIA
+		return 85.754929, nil
+	case "CAS": //CANADA
+		return 1.4400515, nil
+	case "JPY": //JAPAN
+		return 128.30817, nil
+	case "SEK": //SWEDEN
+		return 10.244315, nil
+	case "PLN": // POLAND
+		return 4.6181471, nil
+	default:
+		return -1, fmt.Errorf("target currency not supported: %s", targetCurrency)
+
+	}
+}
+
+func (s *Server) GetExchangeRate(ctx context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
+	exchangeRate, err := getExchangeRate(req.TargetCurrency)
+	return &proto.ReplyExchangeRate{ExchangeRate: exchangeRate}, err
 }
