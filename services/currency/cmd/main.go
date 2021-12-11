@@ -25,6 +25,7 @@
 package main
 
 import (
+	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
@@ -32,11 +33,11 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"net"
-	"strings"
 )
 
 type configuration struct {
-	port string
+	port    string
+	address string
 }
 
 var logger = loggingUtil.InitLogger()
@@ -44,7 +45,7 @@ var logger = loggingUtil.InitLogger()
 func main() {
 	config := readConfig()
 
-	lis, err := net.Listen("tcp", ":"+config.port)
+	lis, err := net.Listen("tcp", config.address+":"+config.port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -57,16 +58,19 @@ func main() {
 }
 
 func readConfig() configuration {
-	viper.SetConfigType("yaml")
-	viper.SetConfigName("config")
-	viper.AddConfigPath("./services/currency")
+	viper.SetConfigType("env")
+	viper.SetConfigName("local")
+	viper.AddConfigPath("./config")
+	viper.AutomaticEnv()
 	err := viper.ReadInConfig()
 	if err != nil {
-		logger.Infof("failed to read in config.yml: %s \t if using docker this is not a problem", err)
+		logger.Info(err)
 	}
-	replacer := strings.NewReplacer(".", "_")
-	viper.SetEnvKeyReplacer(replacer)
-	viper.AutomaticEnv()
 
-	return configuration{port: viper.GetString("server.port")}
+	serverPort := viper.GetString("CURRENCY_PORT")
+	serverAddress := viper.GetString("CURRENCY_ADDRESS")
+
+	logger.WithFields(loggrus.Fields{"CURRENCY_PORT": serverPort, "CURRENCY_ADDRESS": serverAddress}).Info("config variables read")
+
+	return configuration{address: serverAddress, port: serverPort}
 }
