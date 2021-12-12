@@ -72,7 +72,7 @@ func (currencyClient CurrencyClient) GetExchangeRate() func(c *gin.Context) {
 				c.JSON(http.StatusOK, gin.H{"exchangeRate": response.ExchangeRate})
 			}
 		} else {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("only letters in param allowed, your param: %currencyClient", currency)})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("only letters in param allowed, your param: %s", currency)})
 		}
 	}
 }
