@@ -28,7 +28,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	proto2 "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
+	proto "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
 	"google.golang.org/grpc"
 	"net/http"
@@ -41,7 +41,7 @@ var logger = loggingUtil.InitLogger()
 type Service struct {
 	currencyAddress string
 	Conn            *grpc.ClientConn
-	client          proto2.CurrencyClient
+	client          proto.CurrencyClient
 }
 
 func NewService(currencyAddress string) *Service {
@@ -50,7 +50,7 @@ func NewService(currencyAddress string) *Service {
 	if err != nil {
 		logger.Fatalf("did not connect: %v", err)
 	}
-	client := proto2.NewCurrencyClient(conn)
+	client := proto.NewCurrencyClient(conn)
 	return &Service{currencyAddress: currencyAddress, Conn: conn, client: client}
 }
 
@@ -61,7 +61,7 @@ func (s Service) GetExchangeRate() func(c *gin.Context) {
 		if len(currency) > 0 && isOnlyLetters {
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 			defer cancel()
-			targetCurrency := &proto2.RequestExchangeRate{CustomerCurrency: currency}
+			targetCurrency := &proto.RequestExchangeRate{CustomerCurrency: currency}
 			response, err := s.client.GetExchangeRate(ctx, targetCurrency)
 			if err != nil {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})

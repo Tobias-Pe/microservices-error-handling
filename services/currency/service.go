@@ -28,7 +28,7 @@ import (
 	"context"
 	"fmt"
 	loggrus "github.com/sirupsen/logrus"
-	proto2 "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
+	proto "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
 	"strings"
 )
@@ -36,7 +36,7 @@ import (
 var logger = loggingUtil.InitLogger()
 
 type Server struct {
-	proto2.UnimplementedCurrencyServer
+	proto.UnimplementedCurrencyServer
 }
 
 func getExchangeRate(targetCurrency string) (float32, error) {
@@ -62,10 +62,10 @@ func getExchangeRate(targetCurrency string) (float32, error) {
 	}
 }
 
-func (s *Server) GetExchangeRate(_ context.Context, req *proto2.RequestExchangeRate) (*proto2.ReplyExchangeRate, error) {
+func (s *Server) GetExchangeRate(_ context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
 	exchangeRate, err := getExchangeRate(req.CustomerCurrency)
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency}).WithError(err).Warn("Responding with an error in GetExchangeRate")
 	}
-	return &proto2.ReplyExchangeRate{ExchangeRate: exchangeRate}, err
+	return &proto.ReplyExchangeRate{ExchangeRate: exchangeRate}, err
 }

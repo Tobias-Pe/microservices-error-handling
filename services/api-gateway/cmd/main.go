@@ -79,7 +79,7 @@ func main() {
 
 	router.GET("/exchange/:currency", service.GetExchangeRate())
 
-	// By default it serves on :8080 unless a
+	// By default, it serves on :8080 unless a
 	// PORT environment variable was defined.
 	err := router.Run(configuration.address + ":" + configuration.port)
 	if err != nil {
