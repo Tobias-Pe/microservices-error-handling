@@ -1,0 +1,21 @@
+syntax = "proto3";
+package stock;
+option go_package = "./;proto";
+
+service Stock {
+  rpc GetArticles(RequestArticles) returns (ResponseArticles);
+}
+
+message RequestArticles {
+  string query = 1;
+}
+
+message ResponseArticles {
+  message Article {
+    string name = 1;
+    string category = 2;
+    float priceEuro = 3;
+    int32 amount = 4;
+  }
+  repeated Article articles = 1;
+}

@@ -28,8 +28,9 @@ import (
 	"github.com/gin-gonic/gin"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/thinkerou/favicon"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/services/api-gateway"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/services/api-gateway/internal"
 	"google.golang.org/grpc"
 )
 
@@ -37,6 +38,14 @@ type configuration struct {
 	port            string
 	address         string
 	currencyAddress string
+	currencyPort    string
+	stockAddress    string
+	stockPort       string
+}
+
+type service struct {
+	currencyClient *internal.CurrencyClient
+	stockClient    *internal.StockClient
 }
 
 var logger = loggingUtil.InitLogger()
@@ -44,7 +53,10 @@ var logger = loggingUtil.InitLogger()
 func main() {
 	configuration := readConfig()
 
-	service := createGrpcClient(configuration)
+	service := &service{}
+
+	service.currencyClient = createGrpcCurrencyClient(configuration)
+	service.stockClient = createGrpcStockClient(configuration)
 
 	createRouter(service, configuration)
 }
@@ -62,32 +74,33 @@ func readConfig() configuration {
 	serverAddress := viper.GetString("API_GATEWAY_ADDRESS")
 	currencyAddress := viper.GetString("CURRENCY_ADDRESS")
 	currencyPort := viper.GetString("CURRENCY_PORT")
+	stockAddress := viper.GetString("STOCK_ADDRESS")
+	stockPort := viper.GetString("STOCK_PORT")
 
-	logger.WithFields(loggrus.Fields{"API_GATEWAY_PORT": serverPort, "API_GATEWAY_ADDRESS": serverAddress, "CURRENCY_PORT": currencyPort, "CURRENCY_ADDRESS": currencyAddress}).Info("config variables read")
+	logger.WithFields(loggrus.Fields{"API_GATEWAY_PORT": serverPort, "API_GATEWAY_ADDRESS": serverAddress, "CURRENCY_PORT": currencyPort, "CURRENCY_ADDRESS": currencyAddress, "STOCK_ADDRESS": stockAddress, "STOCK_PORT": stockPort}).Info("config variables read")
 
-	return configuration{address: serverAddress, port: serverPort, currencyAddress: currencyAddress + ":" + currencyPort}
+	return configuration{address: serverAddress, port: serverPort, currencyAddress: currencyAddress, currencyPort: currencyPort, stockAddress: stockAddress, stockPort: stockPort}
 }
 
-func createGrpcClient(configuration configuration) *api_gateway.Service {
-	service := api_gateway.NewService(configuration.currencyAddress)
-	defer func(Conn *grpc.ClientConn) {
-		err := Conn.Close()
-		if err != nil {
-			logger.WithError(err).Warnf("Could not close grpc connection")
-		}
-	}(service.Conn)
-
-	logger.Infoln("Connection to currency service successfully!")
-	return service
+func createGrpcCurrencyClient(configuration configuration) *internal.CurrencyClient {
+	currencyClient := internal.NewCurrencyClient(configuration.currencyAddress, configuration.currencyPort)
+	return currencyClient
 }
 
-func createRouter(service *api_gateway.Service, configuration configuration) {
-	gin.SetMode(gin.DebugMode)
+func createGrpcStockClient(configuration configuration) *internal.StockClient {
+	stockClient := internal.NewStockClient(configuration.stockAddress, configuration.stockPort)
+	return stockClient
+}
+
+func createRouter(service *service, configuration configuration) {
+	gin.SetMode(gin.ReleaseMode)
 	// Creates a gin router with default middleware:
 	// logger and recovery (crash-free) middleware
 	router := gin.Default()
+	router.Use(favicon.New("./assets/favicon.ico")) // set favicon middleware
 
-	router.GET("/exchange/:currency", service.GetExchangeRate())
+	router.GET("/exchange/:currency", service.currencyClient.GetExchangeRate())
+	router.GET("/articles", service.stockClient.GetArticles())
 
 	// By default, it serves on :8080 unless a
 	// PORT environment variable was defined.
@@ -95,4 +108,21 @@ func createRouter(service *api_gateway.Service, configuration configuration) {
 	if err != nil {
 		return
 	}
+
+	defer func(Conn *grpc.ClientConn) {
+		if Conn != nil {
+			err := Conn.Close()
+			if err != nil {
+				logger.WithError(err).Warnf("Could not close grpc connection")
+			}
+		}
+	}(service.currencyClient.Conn)
+	defer func(Conn *grpc.ClientConn) {
+		if Conn != nil {
+			err := Conn.Close()
+			if err != nil {
+				logger.WithError(err).Warnf("Could not close grpc connection")
+			}
+		}
+	}(service.stockClient.Conn)
 }

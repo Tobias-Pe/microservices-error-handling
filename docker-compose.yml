@@ -11,9 +11,17 @@ services:
       - ./config/docker.env
     depends_on:
       - currency
+      - stock
 
   currency:
     env_file:
       - ./config/docker.env
     build:
       dockerfile: ./services/currency/Dockerfile
+
+
+  stock:
+    env_file:
+      - ./config/docker.env
+    build:
+      dockerfile: ./services/stock/Dockerfile

@@ -1,4 +1,4 @@
-ARG SERVICE_DIR=api-gateway
+ARG SERVICE_DIR=stock
 
 FROM golang:alpine as builder
 
@@ -19,5 +19,5 @@ ARG SERVICE_DIR
 
 COPY --from=builder /app/services/$SERVICE_DIR .
 COPY config/local.env ./config/
-COPY assets/favicon.ico assets/favicon.ico
+
 CMD "./main"

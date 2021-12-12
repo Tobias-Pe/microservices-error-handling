@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package api_gateway
+package internal
 
 import (
 	"context"
@@ -38,23 +38,26 @@ import (
 
 var logger = loggingUtil.InitLogger()
 
-type Service struct {
-	currencyAddress string
-	Conn            *grpc.ClientConn
-	client          proto.CurrencyClient
+type CurrencyClient struct {
+	Conn   *grpc.ClientConn
+	client proto.CurrencyClient
 }
 
-func NewService(currencyAddress string) *Service {
+func NewCurrencyClient(currencyAddress string, currencyPort string) *CurrencyClient {
 	// Set up a connection to the server.
-	conn, err := grpc.Dial(currencyAddress, grpc.WithInsecure(), grpc.WithBlock())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, currencyAddress+":"+currencyPort, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		logger.Fatalf("did not connect: %v", err)
+		logger.Errorf("did not connect to currency-service: %v", err)
+	} else {
+		logger.Infoln("Connection to currency-service successfully!")
 	}
 	client := proto.NewCurrencyClient(conn)
-	return &Service{currencyAddress: currencyAddress, Conn: conn, client: client}
+	return &CurrencyClient{Conn: conn, client: client}
 }
 
-func (s Service) GetExchangeRate() func(c *gin.Context) {
+func (currencyClient CurrencyClient) GetExchangeRate() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		currency := c.Param("currency")
 		isOnlyLetters := regexp.MustCompile("^[a-zA-Z]+$").MatchString(currency)
@@ -62,14 +65,14 @@ func (s Service) GetExchangeRate() func(c *gin.Context) {
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 			defer cancel()
 			targetCurrency := &proto.RequestExchangeRate{CustomerCurrency: currency}
-			response, err := s.client.GetExchangeRate(ctx, targetCurrency)
+			response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)
 			if err != nil {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			} else {
 				c.JSON(http.StatusOK, gin.H{"exchangeRate": response.ExchangeRate})
 			}
 		} else {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("only letters in param allowed, your param: %s", currency)})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("only letters in param allowed, your param: %currencyClient", currency)})
 		}
 	}
 }
