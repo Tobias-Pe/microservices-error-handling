@@ -41,6 +41,14 @@ type configuration struct {
 
 var logger = loggingUtil.InitLogger()
 
+func main() {
+	configuration := readConfig()
+
+	service := createGrpcClient(configuration)
+
+	createRouter(service, configuration)
+}
+
 func readConfig() configuration {
 	viper.SetConfigType("env")
 	viper.SetConfigName("local")
@@ -60,8 +68,7 @@ func readConfig() configuration {
 	return configuration{address: serverAddress, port: serverPort, currencyAddress: currencyAddress + ":" + currencyPort}
 }
 
-func main() {
-	configuration := readConfig()
+func createGrpcClient(configuration configuration) *api_gateway.Service {
 	service := api_gateway.NewService(configuration.currencyAddress)
 	defer func(Conn *grpc.ClientConn) {
 		err := Conn.Close()
@@ -71,7 +78,10 @@ func main() {
 	}(service.Conn)
 
 	logger.Infoln("Connection to currency service successfully!")
+	return service
+}
 
+func createRouter(service *api_gateway.Service, configuration configuration) {
 	gin.SetMode(gin.DebugMode)
 	// Creates a gin router with default middleware:
 	// logger and recovery (crash-free) middleware
