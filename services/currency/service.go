@@ -66,6 +66,8 @@ func (s *Server) GetExchangeRate(_ context.Context, req *proto.RequestExchangeRa
 	exchangeRate, err := getExchangeRate(req.CustomerCurrency)
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency}).WithError(err).Warn("Responding with an error in GetExchangeRate")
+	} else {
+		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency, "Response": exchangeRate}).Info("Request handled")
 	}
 	return &proto.ReplyExchangeRate{ExchangeRate: exchangeRate}, err
 }

@@ -71,10 +71,10 @@ func readConfig() configuration {
 		logger.Info(err)
 	}
 	serverPort := viper.GetString("API_GATEWAY_PORT")
-	serverAddress := viper.GetString("API_GATEWAY_ADDRESS")
-	currencyAddress := viper.GetString("CURRENCY_ADDRESS")
+	serverAddress := ""
+	currencyAddress := viper.GetString("CURRENCY_NGINX_ADDRESS")
 	currencyPort := viper.GetString("CURRENCY_PORT")
-	stockAddress := viper.GetString("STOCK_ADDRESS")
+	stockAddress := viper.GetString("STOCK_NGINX_ADDRESS")
 	stockPort := viper.GetString("STOCK_PORT")
 
 	logger.WithFields(loggrus.Fields{"API_GATEWAY_PORT": serverPort, "API_GATEWAY_ADDRESS": serverAddress, "CURRENCY_PORT": currencyPort, "CURRENCY_ADDRESS": currencyAddress, "STOCK_ADDRESS": stockAddress, "STOCK_PORT": stockPort}).Info("config variables read")
@@ -93,7 +93,7 @@ func createGrpcStockClient(configuration configuration) *internal.StockClient {
 }
 
 func createRouter(service *service, configuration configuration) {
-	gin.SetMode(gin.ReleaseMode)
+	gin.SetMode(gin.DebugMode)
 	// Creates a gin router with default middleware:
 	// logger and recovery (crash-free) middleware
 	router := gin.Default()
@@ -104,7 +104,7 @@ func createRouter(service *service, configuration configuration) {
 
 	// By default, it serves on :8080 unless a
 	// PORT environment variable was defined.
-	err := router.Run(configuration.address + ":" + configuration.port)
+	err := router.Run(":" + configuration.port)
 	if err != nil {
 		return
 	}

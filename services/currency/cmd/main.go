@@ -71,7 +71,7 @@ func readConfig() configuration {
 	}
 
 	serverPort := viper.GetString("CURRENCY_PORT")
-	serverAddress := viper.GetString("CURRENCY_ADDRESS")
+	serverAddress := ""
 
 	logger.WithFields(loggrus.Fields{"CURRENCY_PORT": serverPort, "CURRENCY_ADDRESS": serverAddress}).Info("config variables read")
 

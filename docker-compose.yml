@@ -1,17 +1,53 @@
-version: "3"
+version: "3.9"
+
+#  interesting for docker swarm:
+#  deploy:
+#    mode: replicated
+#    replicas: 2
+#    endpoint_mode: dnsrr
+#    placement:
+#      max_replicas_per_node: 4
+#    resources:
+#      limits:
+#        cpus: '0.50'
+#        memory: 50M
+#      reservations:
+#        cpus: '0.25'
+#        memory: 20M
+#    restart_policy:
+#      condition: on-failure
+#      delay: 5s
+#      max_attempts: 3
+#      window: 30s
 
 services:
 
-  api-gateway:
+  api-gateway-nginx:
     build:
-      dockerfile: ./services/api-gateway/Dockerfile
+      dockerfile: build/nginx/api-gateway/Dockerfile
     ports:
       - "50000:50000"
     env_file:
       - ./config/docker.env
     depends_on:
+      - api-gateway
+
+  api-gateway:
+    build:
+      dockerfile: ./services/api-gateway/Dockerfile
+    env_file:
+      - ./config/docker.env
+    depends_on:
       - currency
       - stock
+
+  currency-nginx:
+    build:
+      dockerfile: build/nginx/currency/Dockerfile
+    env_file:
+      - ./config/docker.env
+    depends_on:
+      - currency
 
   currency:
     env_file:
@@ -19,6 +55,13 @@ services:
     build:
       dockerfile: ./services/currency/Dockerfile
 
+  stock-nginx:
+    build:
+      dockerfile: build/nginx/stock/Dockerfile
+    env_file:
+      - ./config/docker.env
+    depends_on:
+      - stock
 
   stock:
     env_file:

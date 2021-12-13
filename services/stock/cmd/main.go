@@ -70,7 +70,7 @@ func readConfig() configuration {
 		logger.Info(err)
 	}
 	serverPort := viper.GetString("STOCK_PORT")
-	serverAddress := viper.GetString("STOCK_ADDRESS")
+	serverAddress := ""
 
 	logger.WithFields(loggrus.Fields{"STOCK_PORT": serverPort, "STOCK_ADDRESS": serverAddress}).Info("config variables read")
 
