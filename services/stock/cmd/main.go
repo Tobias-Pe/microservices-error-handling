@@ -25,19 +25,24 @@
 package main
 
 import (
+	"context"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/services/stock"
+	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"time"
 )
 
 type configuration struct {
-	port    string
-	address string
+	serverPort    string
+	serverAddress string
+	mongoPort     string
+	mongoAddress  string
 }
 
 var logger = loggingUtil.InitLogger()
@@ -48,12 +53,23 @@ func main() {
 }
 
 func createGrpcServer(config configuration) {
-	lis, err := net.Listen("tcp", config.address+":"+config.port)
+	lis, err := net.Listen("tcp", config.serverAddress+":"+config.serverPort)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	proto.RegisterStockServer(s, &stock.Server{})
+	service := stock.NewService(config.mongoAddress, config.mongoPort)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	defer func(MongoClient *mongo.Client, ctx context.Context) {
+		err := MongoClient.Disconnect(ctx)
+		if err != nil {
+
+		}
+	}(service.MongoClient, ctx)
+
+	proto.RegisterStockServer(s, service)
 	logger.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		logger.Fatalf("failed to serve: %v", err)
@@ -71,8 +87,10 @@ func readConfig() configuration {
 	}
 	serverPort := viper.GetString("STOCK_PORT")
 	serverAddress := ""
+	mongoAddress := viper.GetString("MONGO_ADDRESS")
+	mongoPort := viper.GetString("MONGO_PORT")
 
 	logger.WithFields(loggrus.Fields{"STOCK_PORT": serverPort, "STOCK_ADDRESS": serverAddress}).Info("config variables read")
 
-	return configuration{address: serverAddress, port: serverPort}
+	return configuration{serverAddress: serverAddress, serverPort: serverPort, mongoAddress: mongoAddress, mongoPort: mongoPort}
 }

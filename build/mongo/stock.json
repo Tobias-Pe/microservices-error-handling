@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Pen",
+    "category": "Office",
+    "priceEuro": 1.50,
+    "amount": 100
+  },
+  {
+    "name": "Paper",
+    "category": "Office",
+    "priceEuro": 0.50,
+    "amount": 100
+  }
+]

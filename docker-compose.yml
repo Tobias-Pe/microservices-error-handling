@@ -50,10 +50,10 @@ services:
       - currency
 
   currency:
-    env_file:
-      - ./config/docker.env
     build:
       dockerfile: ./services/currency/Dockerfile
+    env_file:
+      - ./config/docker.env
 
   stock-nginx:
     build:
@@ -64,7 +64,23 @@ services:
       - stock
 
   stock:
-    env_file:
-      - ./config/docker.env
     build:
       dockerfile: ./services/stock/Dockerfile
+    env_file:
+      - ./config/docker.env
+    depends_on:
+      - mongodb
+      - mongo_seed
+
+  mongodb:
+    image: mongo:5.0
+    ports:
+      - "27017:27017"
+    env_file:
+      - ./config/docker.env
+
+  mongo_seed:
+    build:
+      dockerfile: ./build/mongo/Dockerfile
+    depends_on:
+      - mongodb
