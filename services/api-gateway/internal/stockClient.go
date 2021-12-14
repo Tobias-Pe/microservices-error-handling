@@ -54,9 +54,12 @@ func NewStockClient(stockAddress string, stockPort string) *StockClient {
 
 func (stockClient StockClient) GetArticles() func(c *gin.Context) {
 	return func(c *gin.Context) {
+		queryCategory := c.DefaultQuery("category", "*")
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
-		request := &proto.RequestArticles{Query: ""}
+		request := &proto.RequestArticles{
+			QueryCategoryValue: queryCategory,
+		}
 		response, err := stockClient.client.GetArticles(ctx, request)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})

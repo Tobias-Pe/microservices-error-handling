@@ -26,14 +26,16 @@ package stock
 
 import (
 	"context"
-	"fmt"
 	loggrus "github.com/sirupsen/logrus"
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"strconv"
+	"go.mongodb.org/mongo-driver/mongo/readconcern"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
+	"strings"
 	"time"
 )
 
@@ -43,6 +45,14 @@ type Service struct {
 	proto.UnimplementedStockServer
 	MongoClient     *mongo.Client
 	stockCollection *mongo.Collection
+}
+
+type Article struct {
+	Id       primitive.ObjectID `bson:"_id"`
+	Name     string             `bson:"name"`
+	Category string             `bson:"category"`
+	Price    float64            `bson:"priceEuro"`
+	Amount   int32              `bson:"amount"`
 }
 
 func NewService(mongoAddress string, mongoPort string) *Service {
@@ -65,44 +75,63 @@ func NewService(mongoAddress string, mongoPort string) *Service {
 }
 
 func (s *Service) GetArticles(ctx context.Context, req *proto.RequestArticles) (*proto.ResponseArticles, error) {
-	cursor, err := s.stockCollection.Find(ctx, bson.M{})
-	defer func(cursor *mongo.Cursor, ctx context.Context) {
-		err := cursor.Close(ctx)
-		if err != nil {
 
-		}
-	}(cursor, ctx)
+	wc := writeconcern.New(writeconcern.WMajority())
+	rc := readconcern.Snapshot()
+	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
+	session, err := s.MongoClient.StartSession()
 	if err != nil {
 		return nil, err
 	}
+	defer session.EndSession(context.Background())
 
-	var articles []*proto.ResponseArticles_Article
-	for cursor.Next(ctx) {
-		var article bson.M
-		if err = cursor.Decode(&article); err != nil {
-			return nil, err
-		}
-		name := fmt.Sprint(article["name"])
-		category := fmt.Sprint(article["category"])
-		strPrice := fmt.Sprint(article["priceEuro"])
-		price, err := strconv.ParseFloat(strPrice, 64)
-		if err != nil {
-			logger.Errorf("float parse %s %s", strPrice, err)
-			return nil, err
-		}
-		strAmount := fmt.Sprint(article["amount"])
-		amount, err := strconv.Atoi(strAmount)
-		if err != nil {
-			return nil, err
-		}
-		articles = append(articles, &proto.ResponseArticles_Article{
-			Name:      name,
-			Category:  category,
-			PriceEuro: float32(price),
-			Amount:    int32(amount),
+	callback := s.createReadStockCallback(ctx, req)
+
+	result, err := session.WithTransaction(context.Background(), callback, txnOpts)
+	if err != nil {
+		return nil, err
+	}
+	articles := result.([]Article)
+
+	logger.Info(articles)
+
+	var protoArticles []*proto.ResponseArticles_Article
+	for _, a := range articles {
+		protoArticles = append(protoArticles, &proto.ResponseArticles_Article{
+			Id:        a.Id.Hex(),
+			Name:      a.Name,
+			Category:  a.Category,
+			PriceEuro: float32(a.Price),
+			Amount:    a.Amount,
 		})
 	}
 
 	logger.Info("Request handled")
-	return &proto.ResponseArticles{Articles: articles}, nil
+	return &proto.ResponseArticles{Articles: protoArticles}, nil
+}
+
+func (s *Service) createReadStockCallback(ctx context.Context, req *proto.RequestArticles) func(sessionContext mongo.SessionContext) (interface{}, error) {
+	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
+		var articles []Article
+		var cursor *mongo.Cursor
+		var err error
+		if req.QueryCategoryValue == "*" {
+			cursor, err = s.stockCollection.Find(ctx, bson.M{})
+		} else {
+			cursor, err = s.stockCollection.Find(ctx, bson.M{"category": strings.ToLower(req.QueryCategoryValue)})
+		}
+		defer func(cursor *mongo.Cursor, ctx context.Context) {
+			err := cursor.Close(ctx)
+			if err != nil {
+			}
+		}(cursor, ctx)
+		if err != nil {
+			return nil, err
+		}
+		if err = cursor.All(ctx, &articles); err != nil {
+			return nil, err
+		}
+		return articles, nil
+	}
+	return callback
 }

@@ -7,15 +7,16 @@ service Stock {
 }
 
 message RequestArticles {
-  string query = 1;
+  string queryCategoryValue = 1;
 }
 
 message ResponseArticles {
   message Article {
-    string name = 1;
-    string category = 2;
-    float priceEuro = 3;
-    int32 amount = 4;
+    string id = 1;
+    string name = 2;
+    string category = 3;
+    float priceEuro = 4;
+    int32 amount = 5;
   }
   repeated Article articles = 1;
 }
