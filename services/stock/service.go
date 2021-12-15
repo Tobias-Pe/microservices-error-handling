@@ -48,11 +48,11 @@ type Service struct {
 }
 
 type Article struct {
-	Id       primitive.ObjectID `bson:"_id"`
-	Name     string             `bson:"name"`
-	Category string             `bson:"category"`
-	Price    float64            `bson:"priceEuro"`
-	Amount   int32              `bson:"amount"`
+	Id       primitive.ObjectID `json:"id" bson:"_id"`
+	Name     string             `json:"name" bson:"name"`
+	Category string             `json:"category" bson:"category"`
+	Price    float64            `json:"priceEuro" bson:"priceEuro"`
+	Amount   int32              `json:"amount" bson:"amount"`
 }
 
 func NewService(mongoAddress string, mongoPort string) *Service {
@@ -95,9 +95,9 @@ func (s *Service) GetArticles(ctx context.Context, req *proto.RequestArticles) (
 
 	logger.Info(articles)
 
-	var protoArticles []*proto.ResponseArticles_Article
+	var protoArticles []*proto.Article
 	for _, a := range articles {
-		protoArticles = append(protoArticles, &proto.ResponseArticles_Article{
+		protoArticles = append(protoArticles, &proto.Article{
 			Id:        a.Id.Hex(),
 			Name:      a.Name,
 			Category:  a.Category,

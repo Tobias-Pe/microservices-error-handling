@@ -11,12 +11,13 @@ message RequestArticles {
 }
 
 message ResponseArticles {
-  message Article {
-    string id = 1;
-    string name = 2;
-    string category = 3;
-    float priceEuro = 4;
-    int32 amount = 5;
-  }
   repeated Article articles = 1;
+}
+
+message Article {
+  string id = 1;
+  string name = 2;
+  string category = 3;
+  float priceEuro = 4;
+  int32 amount = 5;
 }
