@@ -40,7 +40,7 @@ type CartClient struct {
 }
 
 type articleId struct {
-	ArticleId string `json:"article_id" xml:"article_id"`
+	ArticleId string `json:"article_id"`
 }
 
 func NewCartClient(cartAddress string, cartPort string) *CartClient {
