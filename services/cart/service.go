@@ -27,6 +27,7 @@ package cart
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gomodule/redigo/redis"
 	loggrus "github.com/sirupsen/logrus"
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
@@ -106,6 +107,9 @@ func (s Service) getCart(strCartId string) (*Cart, error) {
 	jsonArticles, err := client.Do("GET", id)
 	if err != nil {
 		return nil, err
+	}
+	if jsonArticles == nil {
+		return nil, fmt.Errorf("there is no cart for this id: %s", strCartId)
 	}
 	var articles []string
 	err = json.Unmarshal(jsonArticles.([]byte), &articles)
