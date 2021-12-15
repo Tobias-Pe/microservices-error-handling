@@ -43,6 +43,7 @@ services:
       - currency
       - stock
       - cart
+      - order
 
   # ---------------------------------------- CURRENCY ------------------------------------------------------------------
 
@@ -83,8 +84,6 @@ services:
     image: mongo:5.0
     ports:
       - "27017:27017"
-    env_file:
-      - ./config/docker.env
 
   mongo_seed:
     build:
@@ -139,5 +138,3 @@ services:
     image: mongo:5.0
     ports:
       - "27018:27017"
-    env_file:
-      - ./config/docker.env

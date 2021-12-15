@@ -43,12 +43,15 @@ type configuration struct {
 	stockPort       string
 	cartAddress     string
 	cartPort        string
+	orderAddress    string
+	orderPort       string
 }
 
 type service struct {
 	currencyClient *internal.CurrencyClient
 	stockClient    *internal.StockClient
 	cartClient     *internal.CartClient
+	orderClient    *internal.OrderClient
 }
 
 var logger = loggingUtil.InitLogger()
@@ -58,6 +61,7 @@ func main() {
 
 	service := &service{}
 
+	service.orderClient = createGrpcOrderClient(configuration)
 	service.currencyClient = createGrpcCurrencyClient(configuration)
 	service.stockClient = createGrpcStockClient(configuration)
 	service.cartClient = createGrpcCartClient(configuration)
@@ -82,10 +86,31 @@ func readConfig() configuration {
 	stockPort := viper.GetString("STOCK_PORT")
 	cartAddress := viper.GetString("CART_NGINX_ADDRESS")
 	cartPort := viper.GetString("CART_PORT")
+	orderAddress := viper.GetString("ORDER_NGINX_ADDRESS")
+	orderPort := viper.GetString("ORDER_PORT")
 
-	logger.WithFields(loggrus.Fields{"API_GATEWAY_PORT": serverPort, "API_GATEWAY_ADDRESS": serverAddress, "CURRENCY_PORT": currencyPort, "CURRENCY_ADDRESS": currencyAddress, "STOCK_ADDRESS": stockAddress, "STOCK_PORT": stockPort}).Info("config variables read")
+	logger.WithFields(loggrus.Fields{
+		"API_GATEWAY_PORT":    serverPort,
+		"API_GATEWAY_ADDRESS": serverAddress,
+		"CURRENCY_PORT":       currencyPort,
+		"CURRENCY_ADDRESS":    currencyAddress,
+		"STOCK_ADDRESS":       stockAddress,
+		"STOCK_PORT":          stockPort,
+		"ORDER_ADDRESS":       orderAddress,
+		"ORDER_PORT":          orderPort,
+	}).Info("config variables read")
 
-	return configuration{address: serverAddress, port: serverPort, currencyAddress: currencyAddress, currencyPort: currencyPort, stockAddress: stockAddress, stockPort: stockPort, cartAddress: cartAddress, cartPort: cartPort}
+	return configuration{
+		address:         serverAddress,
+		port:            serverPort,
+		currencyAddress: currencyAddress,
+		currencyPort:    currencyPort,
+		stockAddress:    stockAddress,
+		stockPort:       stockPort,
+		cartAddress:     cartAddress,
+		cartPort:        cartPort,
+		orderPort:       orderPort,
+		orderAddress:    orderAddress}
 }
 
 func createGrpcCurrencyClient(configuration configuration) *internal.CurrencyClient {
@@ -103,6 +128,11 @@ func createGrpcCartClient(configuration configuration) *internal.CartClient {
 	return cartClient
 }
 
+func createGrpcOrderClient(configuration configuration) *internal.OrderClient {
+	orderClient := internal.NewOrderClient(configuration.orderAddress, configuration.orderPort)
+	return orderClient
+}
+
 func createRouter(service *service, configuration configuration) {
 	gin.SetMode(gin.DebugMode)
 	// Creates a gin router with default middleware:
@@ -115,6 +145,8 @@ func createRouter(service *service, configuration configuration) {
 	router.POST("/cart", service.cartClient.CreateCart())
 	router.GET("/cart/:id", service.cartClient.GetCart())
 	//router.PUT("/cart/:id", service.cartClient.AddToCart())
+	router.GET("/order/:id", service.orderClient.GetOrder())
+	router.POST("/order", service.orderClient.CreateOrder())
 
 	// By default, it serves on :8080 unless a
 	// PORT environment variable was defined.
