@@ -1,0 +1,7 @@
+### Send POST request with json body
+POST http://localhost:50000/cart
+Content-Type: application/json
+
+{
+  "article_id": "999"
+}
