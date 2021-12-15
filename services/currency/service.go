@@ -35,7 +35,7 @@ import (
 
 var logger = loggingUtil.InitLogger()
 
-type Server struct {
+type Service struct {
 	proto.UnimplementedCurrencyServer
 }
 
@@ -62,7 +62,7 @@ func getExchangeRate(targetCurrency string) (float32, error) {
 	}
 }
 
-func (s *Server) GetExchangeRate(_ context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
+func (s *Service) GetExchangeRate(_ context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
 	exchangeRate, err := getExchangeRate(req.CustomerCurrency)
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency}).WithError(err).Warn("Responding with an error in GetExchangeRate")

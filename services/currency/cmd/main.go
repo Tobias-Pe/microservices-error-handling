@@ -53,7 +53,7 @@ func createGrpcServer(config configuration) {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	proto.RegisterCurrencyServer(s, &currency.Server{})
+	proto.RegisterCurrencyServer(s, &currency.Service{})
 	logger.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		logger.Fatalf("failed to serve: %v", err)
