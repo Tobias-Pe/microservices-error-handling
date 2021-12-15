@@ -77,7 +77,7 @@ func NewService(mongoAddress string, mongoPort string) *Service {
 	} else {
 		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).Info("Connection to DB successfully!")
 	}
-	orderCollection := client.Database("mongo_db").Collection("stock")
+	orderCollection := client.Database("mongo_db").Collection("order")
 	s := &Service{MongoClient: client, orderCollection: orderCollection}
 	return s
 }
@@ -159,7 +159,7 @@ func (s *Service) newCallbackCreateOrder(ctx context.Context, order Order) func(
 		if err != nil {
 			return nil, err
 		}
-		return orderResult, nil
+		return orderResult.InsertedID, nil
 	}
 	return callback
 }
@@ -168,7 +168,7 @@ func (s *Service) newCallbackGetOrder(ctx context.Context, orderId primitive.Obj
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		result := s.orderCollection.FindOne(ctx, bson.M{"_id": orderId})
 		order := Order{}
-		err := result.Decode(order)
+		err := result.Decode(&order)
 		if err != nil {
 			return nil, err
 		}
