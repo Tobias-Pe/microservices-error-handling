@@ -51,7 +51,7 @@ type Article struct {
 	Id       primitive.ObjectID `json:"id" bson:"_id"`
 	Name     string             `json:"name" bson:"name"`
 	Category string             `json:"category" bson:"category"`
-	Price    float64            `json:"priceEuro" bson:"priceEuro"`
+	Price    float64            `json:"price_euro" bson:"price_euro"`
 	Amount   int32              `json:"amount" bson:"amount"`
 }
 
@@ -85,15 +85,13 @@ func (s *Service) GetArticles(ctx context.Context, req *proto.RequestArticles) (
 	}
 	defer session.EndSession(context.Background())
 
-	callback := s.createReadStockCallback(ctx, req)
+	callback := s.newCallbackGetArticles(ctx, req)
 
 	result, err := session.WithTransaction(context.Background(), callback, txnOpts)
 	if err != nil {
 		return nil, err
 	}
 	articles := result.([]Article)
-
-	logger.Info(articles)
 
 	var protoArticles []*proto.Article
 	for _, a := range articles {
@@ -106,11 +104,11 @@ func (s *Service) GetArticles(ctx context.Context, req *proto.RequestArticles) (
 		})
 	}
 
-	logger.Info("Request handled")
+	logger.WithFields(loggrus.Fields{"articles": articles}).Info("Get articles handled")
 	return &proto.ResponseArticles{Articles: protoArticles}, nil
 }
 
-func (s *Service) createReadStockCallback(ctx context.Context, req *proto.RequestArticles) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (s *Service) newCallbackGetArticles(ctx context.Context, req *proto.RequestArticles) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		var articles []Article
 		var cursor *mongo.Cursor
