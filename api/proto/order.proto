@@ -1,0 +1,29 @@
+syntax = "proto3";
+package order;
+option go_package = "./;proto";
+
+service Order {
+  rpc CreateOrder(RequestNewOrder) returns (OrderObject) {}
+  rpc GetOrder(RequestOrder) returns (OrderObject) {}
+}
+
+message RequestNewOrder {
+  string cartId = 1;
+  string customerAddress = 2;
+  string customerName = 3;
+  string customerCreditCard = 4;
+}
+
+message OrderObject {
+  string orderId = 1;
+  string status = 2;
+  string message = 3;
+  float price = 4;
+  string customerAddress = 5;
+  string customerName = 6;
+  string customerCreditCard = 7;
+}
+
+message RequestOrder {
+  string orderId = 1;
+}

@@ -22,6 +22,8 @@ version: "3.9"
 
 services:
 
+  # --------------------------------------- API-GATEWAY ------------------------------------------------------------------
+
   api-gateway-nginx:
     build:
       dockerfile: build/nginx/api-gateway/Dockerfile
@@ -42,6 +44,8 @@ services:
       - stock
       - cart
 
+  # ---------------------------------------- CURRENCY ------------------------------------------------------------------
+
   currency-nginx:
     build:
       dockerfile: build/nginx/currency/Dockerfile
@@ -55,6 +59,8 @@ services:
       dockerfile: ./services/currency/Dockerfile
     env_file:
       - ./config/docker.env
+
+  # ------------------------------------------- STOCK ------------------------------------------------------------------
 
   stock-nginx:
     build:
@@ -70,10 +76,10 @@ services:
     env_file:
       - ./config/docker.env
     depends_on:
-      - mongodb
+      - stock-mongodb
       - mongo_seed
 
-  mongodb:
+  stock-mongodb:
     image: mongo:5.0
     ports:
       - "27017:27017"
@@ -84,7 +90,9 @@ services:
     build:
       dockerfile: ./build/mongo/Dockerfile
     depends_on:
-      - mongodb
+      - stock-mongodb
+
+  # -------------------------------------------- CART ------------------------------------------------------------------
 
   cart-nginx:
     build:
@@ -100,11 +108,36 @@ services:
     env_file:
       - ./config/docker.env
     depends_on:
-      - redis
+      - cart-redis
 
-  redis:
+  cart-redis:
     image: "redis:alpine"
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
     ports:
       - "6379:6379"
+
+  # ------------------------------------------- ORDER ------------------------------------------------------------------
+
+  order-nginx:
+    build:
+      dockerfile: build/nginx/order/Dockerfile
+    env_file:
+      - ./config/docker.env
+    depends_on:
+      - order
+
+  order:
+    build:
+      dockerfile: ./services/order/Dockerfile
+    env_file:
+      - ./config/docker.env
+    depends_on:
+      - order-mongodb
+
+  order-mongodb:
+    image: mongo:5.0
+    ports:
+      - "27018:27017"
+    env_file:
+      - ./config/docker.env
