@@ -53,7 +53,7 @@ func NewStockClient(stockAddress string, stockPort string) *StockClient {
 	return &StockClient{Conn: conn, client: client}
 }
 
-func (stockClient StockClient) GetArticles() func(c *gin.Context) {
+func (stockClient StockClient) GetArticles() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		queryCategory := strings.Trim(c.Param("category"), "/")
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)

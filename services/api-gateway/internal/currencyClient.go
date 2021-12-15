@@ -57,7 +57,7 @@ func NewCurrencyClient(currencyAddress string, currencyPort string) *CurrencyCli
 	return &CurrencyClient{Conn: conn, client: client}
 }
 
-func (currencyClient CurrencyClient) GetExchangeRate() func(c *gin.Context) {
+func (currencyClient CurrencyClient) GetExchangeRate() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		currency := c.Param("currency")
 		isOnlyLetters := regexp.MustCompile("^[a-zA-Z]+$").MatchString(currency)
