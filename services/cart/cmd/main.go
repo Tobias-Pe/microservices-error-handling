@@ -75,10 +75,10 @@ func readConfig() configuration {
 
 	serverPort := viper.GetString("CART_PORT")
 	serverAddress := ""
-	cachePort := viper.GetString("REDIS_PORT")
-	cacheAddress := viper.GetString("REDIS_ADDRESS")
+	cachePort := viper.GetString("CART_REDIS_PORT")
+	cacheAddress := viper.GetString("CART_REDIS_ADDRESS")
 
-	logger.WithFields(loggrus.Fields{"CURRENCY_PORT": serverPort, "CURRENCY_ADDRESS": serverAddress, "REDIS_PORT": cachePort, "REDIS_ADDRESS": cacheAddress}).Info("config variables read")
+	logger.WithFields(loggrus.Fields{"CURRENCY_PORT": serverPort, "CURRENCY_ADDRESS": serverAddress, "CART_REDIS_PORT": cachePort, "CART_REDIS_ADDRESS": cacheAddress}).Info("config variables read")
 
 	return configuration{serverAddress: serverAddress, serverPort: serverPort, cachePort: cachePort, cacheAddress: cacheAddress}
 }

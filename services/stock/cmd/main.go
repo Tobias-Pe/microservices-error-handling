@@ -87,10 +87,10 @@ func readConfig() configuration {
 	}
 	serverPort := viper.GetString("STOCK_PORT")
 	serverAddress := ""
-	mongoAddress := viper.GetString("MONGO_ADDRESS")
-	mongoPort := viper.GetString("MONGO_PORT")
+	mongoAddress := viper.GetString("STOCK_MONGO_ADDRESS")
+	mongoPort := viper.GetString("STOCK_MONGO_PORT")
 
-	logger.WithFields(loggrus.Fields{"STOCK_PORT": serverPort, "STOCK_ADDRESS": serverAddress}).Info("config variables read")
+	logger.WithFields(loggrus.Fields{"STOCK_PORT": serverPort, "STOCK_ADDRESS": serverAddress, "STOCK_MONGO_ADDRESS": mongoAddress, "STOCK_MONGO_PORT": mongoPort}).Info("config variables read")
 
 	return configuration{serverAddress: serverAddress, serverPort: serverPort, mongoAddress: mongoAddress, mongoPort: mongoPort}
 }
