@@ -72,7 +72,7 @@ func (cartClient CartClient) CreateCart() gin.HandlerFunc {
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		} else {
-			c.JSON(http.StatusCreated, gin.H{"cart": response.Id})
+			c.JSON(http.StatusCreated, gin.H{"cart": response.CartId})
 		}
 	}
 }

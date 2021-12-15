@@ -73,7 +73,7 @@ func (s Service) CreateCart(_ context.Context, req *proto.RequestNewCart) (*prot
 
 	strId := strconv.Itoa(int(cart.Id))
 	logger.WithFields(loggrus.Fields{"ID": cart.Id, "Data": cart.ArticleIds, "Request": req.ArticleId}).Info("Created new Cart")
-	return &proto.ResponseNewCart{Id: strId}, nil
+	return &proto.ResponseNewCart{CartId: strId}, nil
 }
 
 func (s Service) GetCart(_ context.Context, req *proto.RequestCart) (*proto.ResponseCart, error) {

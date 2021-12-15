@@ -12,7 +12,7 @@ message RequestNewCart {
 }
 
 message ResponseNewCart {
-  string id = 1;
+  string cartId = 1;
 }
 
 message RequestCart {
