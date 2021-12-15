@@ -1,0 +1,20 @@
+### Send POST request with json body
+POST http://localhost:50000/order
+Content-Type: application/json
+
+{
+  "cart_id": "1",
+  "address": "Max-Mustermann-Allee 42",
+  "name": "Max Mustermann",
+  "credit_card": "123456789-123"
+}
+
+### Successful test: check response status is 200
+GET localhost:50000/order/61ba5846302266098c8c8792
+Accept: application/json
+
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+});
+%}
