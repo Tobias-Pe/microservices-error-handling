@@ -3,13 +3,22 @@ package cart;
 option go_package = "./;proto";
 
 service Cart {
-  rpc CreateCart(RequestCart) returns (ResponseCart) {}
+  rpc CreateCart(RequestNewCart) returns (ResponseNewCart) {}
+  rpc GetCart(RequestCart) returns (ResponseCart) {}
 }
 
-message RequestCart {
+message RequestNewCart {
   string articleId = 1;
 }
 
-message ResponseCart {
+message ResponseNewCart {
   string id = 1;
+}
+
+message RequestCart {
+  string cartId = 1;
+}
+
+message ResponseCart {
+  repeated string articleIds = 1;
 }

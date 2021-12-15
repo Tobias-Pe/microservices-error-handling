@@ -29,7 +29,7 @@ import (
 	"encoding/json"
 	"github.com/gomodule/redigo/redis"
 	loggrus "github.com/sirupsen/logrus"
-	proto "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
 	"strconv"
 )
@@ -65,15 +65,61 @@ func NewService(cacheAddress string, cachePort string) *Service {
 	return &newService
 }
 
-func (s Service) CreateCart(_ context.Context, req *proto.RequestCart) (*proto.ResponseCart, error) {
-
-	newCart := Cart{
-		Id:         -1,
-		ArticleIds: []string{},
+func (s Service) CreateCart(_ context.Context, req *proto.RequestNewCart) (*proto.ResponseNewCart, error) {
+	cart, err := s.createCart(req.ArticleId)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(req.ArticleId) > 0 {
-		newCart.ArticleIds = append(newCart.ArticleIds, req.ArticleId)
+	strId := strconv.Itoa(int(cart.Id))
+	logger.WithFields(loggrus.Fields{"ID": cart.Id, "Data": cart.ArticleIds, "Request": req.ArticleId}).Info("Created new Cart")
+	return &proto.ResponseNewCart{Id: strId}, nil
+}
+
+func (s Service) GetCart(_ context.Context, req *proto.RequestCart) (*proto.ResponseCart, error) {
+	cart, err := s.getCart(req.CartId)
+	if err != nil {
+		return nil, err
+	}
+	logger.WithFields(loggrus.Fields{"ID": cart.Id, "Data": cart.ArticleIds, "Request": req.CartId}).Info("Looked up Cart")
+	return &proto.ResponseCart{ArticleIds: cart.ArticleIds}, nil
+}
+
+func (s Service) getCart(strCartId string) (*Cart, error) {
+	tmpId, err := strconv.Atoi(strCartId)
+	if err != nil {
+		return nil, err
+	}
+	id := int64(tmpId)
+	fetchedCart := Cart{
+		Id:         id,
+		ArticleIds: nil,
+	}
+
+	client := s.connPool.Get()
+	defer func(client redis.Conn) {
+		err := client.Close()
+		if err != nil {
+
+		}
+	}(client)
+	jsonArticles, err := client.Do("GET", id)
+	if err != nil {
+		return nil, err
+	}
+	var articles []string
+	err = json.Unmarshal(jsonArticles.([]byte), &articles)
+	if err != nil {
+		return nil, err
+	}
+	fetchedCart.ArticleIds = articles
+	return &fetchedCart, nil
+}
+
+func (s Service) createCart(strArticleId string) (*Cart, error) {
+	newCart := Cart{
+		Id:         -1,
+		ArticleIds: []string{strArticleId},
 	}
 
 	client := s.connPool.Get()
@@ -99,7 +145,6 @@ func (s Service) CreateCart(_ context.Context, req *proto.RequestCart) (*proto.R
 		return nil, err
 	}
 	_, err = client.Do("EXPIRE", cartId, expireCartSeconds)
-	strId := strconv.Itoa(int(newCart.Id))
-	logger.WithFields(loggrus.Fields{"ID": newCart.Id, "Data": string(marshal), "Request": req.ArticleId}).Info("Created Cart")
-	return &proto.ResponseCart{Id: strId}, nil
+
+	return &newCart, nil
 }

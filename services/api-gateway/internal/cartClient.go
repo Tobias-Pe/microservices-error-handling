@@ -57,10 +57,10 @@ func NewCartClient(cartAddress string, cartPort string) *CartClient {
 	return &CartClient{Conn: conn, client: client}
 }
 
-func (cartClient CartClient) CreateCart() func(c *gin.Context) {
+func (cartClient CartClient) CreateCart() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		objArticleId := articleId{}
-		request := proto.RequestCart{}
+		request := proto.RequestNewCart{}
 		if err := c.ShouldBindWith(&objArticleId, binding.JSON); err == nil {
 			request.ArticleId = objArticleId.ArticleId
 		} else {
@@ -73,6 +73,20 @@ func (cartClient CartClient) CreateCart() func(c *gin.Context) {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		} else {
 			c.JSON(http.StatusCreated, gin.H{"cart": response.Id})
+		}
+	}
+}
+
+func (cartClient CartClient) GetCart() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cartId := c.Param("id")
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		response, err := cartClient.client.GetCart(ctx, &proto.RequestCart{CartId: cartId})
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusOK, gin.H{"article_ids": response.ArticleIds})
 		}
 	}
 }

@@ -113,7 +113,7 @@ func createRouter(service *service, configuration configuration) {
 	router.GET("/exchange/:currency", service.currencyClient.GetExchangeRate())
 	router.GET("/articles/*category", service.stockClient.GetArticles())
 	router.POST("/cart", service.cartClient.CreateCart())
-	//router.GET("/cart/:id", service.cartClient.GetCart())
+	router.GET("/cart/:id", service.cartClient.GetCart())
 	//router.PUT("/cart/:id", service.cartClient.AddToCart())
 
 	// By default, it serves on :8080 unless a

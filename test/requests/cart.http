@@ -3,5 +3,15 @@ POST http://localhost:50000/cart
 Content-Type: application/json
 
 {
-  "article_id": "999"
+  "article_id": "61ba1c7afb01eda18948700f"
 }
+
+### Successful test: check response status is 200
+GET localhost:50000/cart/1
+Accept: application/json
+
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+});
+%}

@@ -18,7 +18,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CartClient interface {
-	CreateCart(ctx context.Context, in *RequestCart, opts ...grpc.CallOption) (*ResponseCart, error)
+	CreateCart(ctx context.Context, in *RequestNewCart, opts ...grpc.CallOption) (*ResponseNewCart, error)
+	GetCart(ctx context.Context, in *RequestCart, opts ...grpc.CallOption) (*ResponseCart, error)
 }
 
 type cartClient struct {
@@ -29,9 +30,18 @@ func NewCartClient(cc grpc.ClientConnInterface) CartClient {
 	return &cartClient{cc}
 }
 
-func (c *cartClient) CreateCart(ctx context.Context, in *RequestCart, opts ...grpc.CallOption) (*ResponseCart, error) {
-	out := new(ResponseCart)
+func (c *cartClient) CreateCart(ctx context.Context, in *RequestNewCart, opts ...grpc.CallOption) (*ResponseNewCart, error) {
+	out := new(ResponseNewCart)
 	err := c.cc.Invoke(ctx, "/cart.Cart/CreateCart", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *cartClient) GetCart(ctx context.Context, in *RequestCart, opts ...grpc.CallOption) (*ResponseCart, error) {
+	out := new(ResponseCart)
+	err := c.cc.Invoke(ctx, "/cart.Cart/GetCart", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +52,8 @@ func (c *cartClient) CreateCart(ctx context.Context, in *RequestCart, opts ...gr
 // All implementations must embed UnimplementedCartServer
 // for forward compatibility
 type CartServer interface {
-	CreateCart(context.Context, *RequestCart) (*ResponseCart, error)
+	CreateCart(context.Context, *RequestNewCart) (*ResponseNewCart, error)
+	GetCart(context.Context, *RequestCart) (*ResponseCart, error)
 	mustEmbedUnimplementedCartServer()
 }
 
@@ -50,8 +61,11 @@ type CartServer interface {
 type UnimplementedCartServer struct {
 }
 
-func (UnimplementedCartServer) CreateCart(context.Context, *RequestCart) (*ResponseCart, error) {
+func (UnimplementedCartServer) CreateCart(context.Context, *RequestNewCart) (*ResponseNewCart, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateCart not implemented")
+}
+func (UnimplementedCartServer) GetCart(context.Context, *RequestCart) (*ResponseCart, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCart not implemented")
 }
 func (UnimplementedCartServer) mustEmbedUnimplementedCartServer() {}
 
@@ -67,7 +81,7 @@ func RegisterCartServer(s grpc.ServiceRegistrar, srv CartServer) {
 }
 
 func _Cart_CreateCart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RequestCart)
+	in := new(RequestNewCart)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -79,7 +93,25 @@ func _Cart_CreateCart_Handler(srv interface{}, ctx context.Context, dec func(int
 		FullMethod: "/cart.Cart/CreateCart",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CartServer).CreateCart(ctx, req.(*RequestCart))
+		return srv.(CartServer).CreateCart(ctx, req.(*RequestNewCart))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Cart_GetCart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestCart)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CartServer).GetCart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/cart.Cart/GetCart",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CartServer).GetCart(ctx, req.(*RequestCart))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -94,6 +126,10 @@ var Cart_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateCart",
 			Handler:    _Cart_CreateCart_Handler,
+		},
+		{
+			MethodName: "GetCart",
+			Handler:    _Cart_GetCart_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
