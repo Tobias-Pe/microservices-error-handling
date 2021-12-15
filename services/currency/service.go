@@ -28,7 +28,7 @@ import (
 	"context"
 	"fmt"
 	loggrus "github.com/sirupsen/logrus"
-	proto "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
 	"strings"
 )

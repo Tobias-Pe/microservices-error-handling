@@ -28,7 +28,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	proto "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
 	"google.golang.org/grpc"
 	"net/http"
