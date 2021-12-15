@@ -30,6 +30,7 @@ import (
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	"google.golang.org/grpc"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -54,11 +55,11 @@ func NewStockClient(stockAddress string, stockPort string) *StockClient {
 
 func (stockClient StockClient) GetArticles() func(c *gin.Context) {
 	return func(c *gin.Context) {
-		queryCategory := c.DefaultQuery("category", "*")
+		queryCategory := strings.Trim(c.Param("category"), "/")
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 		request := &proto.RequestArticles{
-			QueryCategoryValue: queryCategory,
+			CategoryQuery: queryCategory,
 		}
 		response, err := stockClient.client.GetArticles(ctx, request)
 		if err != nil {

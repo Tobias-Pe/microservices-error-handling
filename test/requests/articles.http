@@ -10,7 +10,7 @@ client.test("Request executed successfully", function() {
 %}
 
 ### Successful test: check response status is 200
-GET http://localhost:50000/articles?category=hardware
+GET http://localhost:50000/articles/hardware
 Accept: application/json
 
 > {%
@@ -20,7 +20,7 @@ client.test("Request executed successfully", function() {
 %}
 
 ### Successful test: check response status is 200
-GET http://localhost:50000/articles?category=sport
+GET http://localhost:50000/articles/sport
 Accept: application/json
 
 > {%
@@ -30,7 +30,7 @@ client.test("Request executed successfully", function() {
 %}
 
 ### Successful test: check response status is 200
-GET http://localhost:50000/articles?category=office
+GET http://localhost:50000/articles/office
 Accept: application/json
 
 > {%

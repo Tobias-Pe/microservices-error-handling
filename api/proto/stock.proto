@@ -7,7 +7,7 @@ service Stock {
 }
 
 message RequestArticles {
-  string queryCategoryValue = 1;
+  string categoryQuery = 1;
 }
 
 message ResponseArticles {

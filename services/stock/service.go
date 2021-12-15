@@ -115,10 +115,10 @@ func (s *Service) createReadStockCallback(ctx context.Context, req *proto.Reques
 		var articles []Article
 		var cursor *mongo.Cursor
 		var err error
-		if req.QueryCategoryValue == "*" {
+		if len(strings.TrimSpace(req.CategoryQuery)) == 0 {
 			cursor, err = s.stockCollection.Find(ctx, bson.M{})
 		} else {
-			cursor, err = s.stockCollection.Find(ctx, bson.M{"category": strings.ToLower(req.QueryCategoryValue)})
+			cursor, err = s.stockCollection.Find(ctx, bson.M{"category": strings.ToLower(req.CategoryQuery)})
 		}
 		defer func(cursor *mongo.Cursor, ctx context.Context) {
 			err := cursor.Close(ctx)

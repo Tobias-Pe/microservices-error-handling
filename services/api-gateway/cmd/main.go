@@ -100,7 +100,7 @@ func createRouter(service *service, configuration configuration) {
 	router.Use(favicon.New("./assets/favicon.ico")) // set favicon middleware
 
 	router.GET("/exchange/:currency", service.currencyClient.GetExchangeRate())
-	router.GET("/articles", service.stockClient.GetArticles())
+	router.GET("/articles/*category", service.stockClient.GetArticles())
 
 	// By default, it serves on :8080 unless a
 	// PORT environment variable was defined.
