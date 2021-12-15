@@ -40,6 +40,7 @@ services:
     depends_on:
       - currency
       - stock
+      - cart
 
   currency-nginx:
     build:
@@ -84,3 +85,26 @@ services:
       dockerfile: ./build/mongo/Dockerfile
     depends_on:
       - mongodb
+
+  cart-nginx:
+    build:
+      dockerfile: build/nginx/cart/Dockerfile
+    env_file:
+      - ./config/docker.env
+    depends_on:
+      - cart
+
+  cart:
+    build:
+      dockerfile: ./services/cart/Dockerfile
+    env_file:
+      - ./config/docker.env
+    depends_on:
+      - redis
+
+  redis:
+    image: "redis:alpine"
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - "6379:6379"

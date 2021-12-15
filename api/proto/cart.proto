@@ -1,0 +1,15 @@
+syntax = "proto3";
+package cart;
+option go_package = "./;proto";
+
+service Cart {
+  rpc CreateCart(RequestCart) returns (ResponseCart) {}
+}
+
+message RequestCart {
+  string articleId = 1;
+}
+
+message ResponseCart {
+  string id = 1;
+}
