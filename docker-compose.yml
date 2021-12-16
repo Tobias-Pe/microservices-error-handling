@@ -22,13 +22,18 @@ version: "3.9"
 
 services:
 
-  # --------------------------------------- API-GATEWAY ------------------------------------------------------------------
+  # ----------------------------------------- RABBIT-MQ ----------------------------------------------------------------
+  rabbit-mq:
+    image: rabbitmq:3-management
+    ports:
+      - "15672:15672"
+  # --------------------------------------- API-GATEWAY ----------------------------------------------------------------
 
   api-gateway-nginx:
     build:
       dockerfile: build/nginx/api-gateway/Dockerfile
     ports:
-      - "50000:50000"
+      - "80:50000"
     env_file:
       - ./config/docker.env
     depends_on:
@@ -81,7 +86,7 @@ services:
       - mongo_seed
 
   stock-mongodb:
-    image: mongo:5.0
+    image: mongo:5
     ports:
       - "27017:27017"
 
@@ -110,7 +115,7 @@ services:
       - cart-redis
 
   cart-redis:
-    image: "redis:alpine"
+    image: "redis:6"
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
     ports:
@@ -135,6 +140,6 @@ services:
       - order-mongodb
 
   order-mongodb:
-    image: mongo:5.0
+    image: mongo:5
     ports:
       - "27018:27017"
