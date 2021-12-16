@@ -101,7 +101,7 @@ func (s Service) getCart(strCartId string) (*Cart, error) {
 	defer func(client redis.Conn) {
 		err := client.Close()
 		if err != nil {
-
+			logger.WithError(err).Warn("connection to redis could not be successfully closed")
 		}
 	}(client)
 	jsonArticles, err := client.Do("GET", id)
@@ -130,7 +130,7 @@ func (s Service) createCart(strArticleId string) (*Cart, error) {
 	defer func(client redis.Conn) {
 		err := client.Close()
 		if err != nil {
-
+			logger.WithError(err).Warn("connection to redis could not be successfully closed")
 		}
 	}(client)
 
@@ -149,6 +149,9 @@ func (s Service) createCart(strArticleId string) (*Cart, error) {
 		return nil, err
 	}
 	_, err = client.Do("EXPIRE", cartId, expireCartSeconds)
+	if err != nil {
+		return nil, err
+	}
 
 	return &newCart, nil
 }

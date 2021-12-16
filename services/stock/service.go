@@ -121,6 +121,7 @@ func (s *Service) newCallbackGetArticles(ctx context.Context, req *proto.Request
 		defer func(cursor *mongo.Cursor, ctx context.Context) {
 			err := cursor.Close(ctx)
 			if err != nil {
+				logger.WithError(err).Warn("cursor could not be closed!")
 			}
 		}(cursor, ctx)
 		if err != nil {

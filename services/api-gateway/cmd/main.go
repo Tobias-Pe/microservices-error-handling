@@ -59,12 +59,12 @@ var logger = loggingUtil.InitLogger()
 func main() {
 	configuration := readConfig()
 
-	service := &service{}
-
-	service.orderClient = createGrpcOrderClient(configuration)
-	service.currencyClient = createGrpcCurrencyClient(configuration)
-	service.stockClient = createGrpcStockClient(configuration)
-	service.cartClient = createGrpcCartClient(configuration)
+	service := &service{
+		currencyClient: createGrpcCurrencyClient(configuration),
+		stockClient:    createGrpcStockClient(configuration),
+		cartClient:     createGrpcCartClient(configuration),
+		orderClient:    createGrpcOrderClient(configuration),
+	}
 
 	createRouter(service, configuration)
 }
@@ -75,11 +75,13 @@ func readConfig() configuration {
 	viper.AddConfigPath("./config")
 	viper.AutomaticEnv()
 	err := viper.ReadInConfig()
+
 	if err != nil {
 		logger.Info(err)
 	}
-	serverPort := viper.GetString("API_GATEWAY_PORT")
+
 	serverAddress := ""
+	serverPort := viper.GetString("API_GATEWAY_PORT")
 	currencyAddress := viper.GetString("CURRENCY_NGINX_ADDRESS")
 	currencyPort := viper.GetString("CURRENCY_PORT")
 	stockAddress := viper.GetString("STOCK_NGINX_ADDRESS")
@@ -110,26 +112,31 @@ func readConfig() configuration {
 		cartAddress:     cartAddress,
 		cartPort:        cartPort,
 		orderPort:       orderPort,
-		orderAddress:    orderAddress}
+		orderAddress:    orderAddress,
+	}
 }
 
 func createGrpcCurrencyClient(configuration configuration) *internal.CurrencyClient {
 	currencyClient := internal.NewCurrencyClient(configuration.currencyAddress, configuration.currencyPort)
+
 	return currencyClient
 }
 
 func createGrpcStockClient(configuration configuration) *internal.StockClient {
 	stockClient := internal.NewStockClient(configuration.stockAddress, configuration.stockPort)
+
 	return stockClient
 }
 
 func createGrpcCartClient(configuration configuration) *internal.CartClient {
 	cartClient := internal.NewCartClient(configuration.cartAddress, configuration.cartPort)
+
 	return cartClient
 }
 
 func createGrpcOrderClient(configuration configuration) *internal.OrderClient {
 	orderClient := internal.NewOrderClient(configuration.orderAddress, configuration.orderPort)
+
 	return orderClient
 }
 
@@ -144,7 +151,7 @@ func createRouter(service *service, configuration configuration) {
 	router.GET("/articles/*category", service.stockClient.GetArticles())
 	router.POST("/cart", service.cartClient.CreateCart())
 	router.GET("/cart/:id", service.cartClient.GetCart())
-	//router.PUT("/cart/:id", service.cartClient.AddToCart())
+	// router.PUT("/cart/:id", service.cartClient.AddToCart())
 	router.GET("/order/:id", service.orderClient.GetOrder())
 	router.POST("/order", service.orderClient.CreateOrder())
 

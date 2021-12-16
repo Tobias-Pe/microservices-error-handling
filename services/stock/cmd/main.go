@@ -65,7 +65,7 @@ func createGrpcServer(config configuration) {
 	defer func(MongoClient *mongo.Client, ctx context.Context) {
 		err := MongoClient.Disconnect(ctx)
 		if err != nil {
-
+			logger.WithError(err).Warn("could not disconnect from mongodb")
 		}
 	}(service.MongoClient, ctx)
 

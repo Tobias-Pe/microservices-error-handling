@@ -65,7 +65,7 @@ func createGrpcServer(config configuration) {
 	defer func(MongoClient *mongo.Client, ctx context.Context) {
 		err := MongoClient.Disconnect(ctx)
 		if err != nil {
-
+			logger.WithError(err).Warn("Could not disconnect from mongodb")
 		}
 	}(service.MongoClient, ctx)
 
@@ -82,11 +82,13 @@ func readConfig() configuration {
 	viper.AddConfigPath("./config")
 	viper.AutomaticEnv()
 	err := viper.ReadInConfig()
+
 	if err != nil {
 		logger.Info(err)
 	}
-	serverPort := viper.GetString("ORDER_PORT")
+
 	serverAddress := ""
+	serverPort := viper.GetString("ORDER_PORT")
 	mongoAddress := viper.GetString("ORDER_MONGO_ADDRESS")
 	mongoPort := viper.GetString("ORDER_MONGO_PORT")
 
