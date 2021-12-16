@@ -142,6 +142,7 @@ func (s *Service) GetOrder(ctx context.Context, req *proto.RequestOrder) (*proto
 		return nil, err
 	}
 	order := result.(Order)
+	logger.WithFields(loggrus.Fields{"Order": order}).Info("Fetched order")
 	return &proto.OrderObject{
 		OrderId:            orderId.Hex(),
 		Status:             order.Status,
