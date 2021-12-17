@@ -1,13 +1,8 @@
-
-## Badges
-
-[![MIT License](https://img.shields.io/apm/l/atomic-design-ui.svg?)](https://github.com/tterb/atomic-design-ui/blob/master/LICENSEs)
-
-[![Gitmoji](https://img.shields.io/badge/gitmoji-%20😜%20😍-FFDD67.svg)](https://gitmoji.dev)
-
-
-
 # Errorhandling in a Microservice Architecture
+
+[![MIT License](https://img.shields.io/github/license/Tobias-Pe/Microservices-Errorhandling)](https://github.com/tterb/atomic-design-ui/blob/master/LICENSEs)
+[![Gitmoji](https://img.shields.io/badge/gitmoji-%20😜%20😍-FFDD67.svg)](https://gitmoji.dev)
+![Go-Version](https://img.shields.io/github/go-mod/go-version/Tobias-Pe/Microservices-Errorhandling)
 
 The application is a Demo-Webshop, where 9 Services communicate using synchronous and asynchronous communication. 
 
@@ -128,8 +123,8 @@ _PS: there are some run configurations in the .run folder_
 With docker-swarm TBD
 
 
-## Authors
+## Author
 
-[@tobiaspeslalz](https://github.com/Tobias-Pe)
+[@Tobias Peslalz](https://github.com/Tobias-Pe)
 
-[![linkedin](https://img.shields.io/badge/linkedin-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](www.linkedin.com/in/tobias-peslalz)
+[![linkedin](https://img.shields.io/badge/LinkedIn-0077B5?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/tobias-peslalz)
