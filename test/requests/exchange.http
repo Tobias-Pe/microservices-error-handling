@@ -1,6 +1,6 @@
 
 ### Successful test: check response status is 200
-GET localhost:50000/exchange/USD
+GET localhost/exchange/USD
 Accept: application/json
 
 > {%
@@ -10,7 +10,7 @@ client.test("Request executed successfully", function() {
 %}
 
 ### Successful test: check response status is 200
-GET localhost:50000/exchange/PLN
+GET localhost/exchange/PLN
 Accept: application/json
 
 > {%
@@ -20,7 +20,7 @@ client.test("Request executed successfully", function() {
 %}
 
 ### Successful test: check response status is 200
-GET localhost:50000/exchange/GBP
+GET localhost/exchange/GBP
 Accept: application/json
 
 > {%
@@ -30,7 +30,7 @@ client.test("Request executed successfully", function() {
 %}
 
 ### Successful test: check response status is 200
-GET localhost:50000/exchange/INR
+GET localhost/exchange/INR
 Accept: application/json
 
 > {%
@@ -40,7 +40,7 @@ client.test("Request executed successfully", function() {
 %}
 
 ### Successful test: check response status is 200
-GET localhost:50000/exchange/CAS
+GET localhost/exchange/CAS
 Accept: application/json
 
 > {%
@@ -50,7 +50,7 @@ client.test("Request executed successfully", function() {
 %}
 
 ### Successful test: check response status is 200
-GET localhost:50000/exchange/JPY
+GET localhost/exchange/JPY
 Accept: application/json
 
 > {%
@@ -60,7 +60,7 @@ client.test("Request executed successfully", function() {
 %}
 
 ### Successful test: check response status is 200
-GET localhost:50000/exchange/SEK
+GET localhost/exchange/SEK
 Accept: application/json
 
 > {%
@@ -70,7 +70,7 @@ client.test("Request executed successfully", function() {
 %}
 
 ### Failed test: check response status is 400
-GET localhost:50000/exchange/notwork
+GET localhost/exchange/notwork
 Accept: application/json
 
 > {%
@@ -80,7 +80,7 @@ client.test("Request executed successfully", function() {
 %}
 
 ### Failed test: check response status is 400
-GET localhost:50000/exchange/notwork2
+GET localhost/exchange/notwork2
 Accept: application/json
 
 > {%

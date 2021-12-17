@@ -1,5 +1,5 @@
 ### Send POST request with json body
-POST http://localhost:50000/order
+POST http://localhost/order
 Content-Type: application/json
 
 {
@@ -10,7 +10,7 @@ Content-Type: application/json
 }
 
 ### Successful test: check response status is 200
-GET localhost:50000/order/61ba5846302266098c8c8792
+GET localhost/order/61bc5c42fbb47881d45ced95
 Accept: application/json
 
 > {%

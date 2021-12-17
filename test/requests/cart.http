@@ -1,13 +1,13 @@
 ### Send POST request with json body
-POST http://localhost:50000/cart
+POST http://localhost/cart
 Content-Type: application/json
 
 {
-  "article_id": "61ba1c7afb01eda18948700f"
+  "article_id": "61bc5ac5c1500ae51b83fb1a"
 }
 
 ### Successful test: check response status is 200
-GET localhost:50000/cart/1
+GET localhost/cart/1
 Accept: application/json
 
 > {%
