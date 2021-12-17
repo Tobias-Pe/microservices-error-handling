@@ -16,8 +16,26 @@ jobs:
         include:
           - image: api-gateway
             path: ./services/api-gateway/Dockerfile
+          - image: api-gateway-nginx
+            path: ./build/nginx/api-gateway/Dockerfile
           - image: currency
             path: ./services/currency/Dockerfile
+          - image: currency-nginx
+            path: ./build/nginx/currency/Dockerfile
+          - image: stock
+            path: ./services/stokc/Dockerfile
+          - image: stock-nginx
+            path: ./build/nginx/stock/Dockerfile
+          - image: mongo-seed
+            path: ./build/mongo/Dockerfile
+          - image: cart
+            path: ./services/cart/Dockerfile
+          - image: cart-nginx
+            path: ./build/nginx/cart/Dockerfile
+          - image: order
+            path: ./services/order/Dockerfile
+          - image: order-nginx
+            path: ./build/nginx/order/Dockerfile
 
     steps:
       - name: Check out code
