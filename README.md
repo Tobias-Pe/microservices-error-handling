@@ -11,6 +11,9 @@ The aim of the application is to implement various error handling methods, try t
 
 _This project is part of a Bachelorthesis in Computer Science🎓_
 
+## Overview Architecture
+
+![Architecture](assets/ServicesMessages.png)
 
 ## API Reference
 
@@ -98,6 +101,7 @@ Look at the current status of your order.
 **Asynchronous Communication:** RabbitMQ
 
 **Load Balancing:** NGINX with Docker DNS
+
 ## Run Locally
 
 Clone the project
