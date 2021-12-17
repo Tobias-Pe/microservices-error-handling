@@ -30,6 +30,7 @@ services:
   # --------------------------------------- API-GATEWAY ----------------------------------------------------------------
 
   api-gateway-nginx:
+    image: ghcr.io/tobias-pe/api-gateway-nginx:latest
     build:
       dockerfile: build/nginx/api-gateway/Dockerfile
     ports:
@@ -40,6 +41,7 @@ services:
       - api-gateway
 
   api-gateway:
+    image: ghcr.io/tobias-pe/api-gateway:latest
     build:
       dockerfile: ./services/api-gateway/Dockerfile
     env_file:
@@ -53,6 +55,7 @@ services:
   # ---------------------------------------- CURRENCY ------------------------------------------------------------------
 
   currency-nginx:
+    image: ghcr.io/tobias-pe/currency-nginx:latest
     build:
       dockerfile: build/nginx/currency/Dockerfile
     env_file:
@@ -61,6 +64,7 @@ services:
       - currency
 
   currency:
+    image: ghcr.io/tobias-pe/currency:latest
     build:
       dockerfile: ./services/currency/Dockerfile
     env_file:
@@ -69,6 +73,7 @@ services:
   # ------------------------------------------- STOCK ------------------------------------------------------------------
 
   stock-nginx:
+    image: ghcr.io/tobias-pe/stock-nginx:latest
     build:
       dockerfile: build/nginx/stock/Dockerfile
     env_file:
@@ -77,6 +82,7 @@ services:
       - stock
 
   stock:
+    image: ghcr.io/tobias-pe/stock:latest
     build:
       dockerfile: ./services/stock/Dockerfile
     env_file:
@@ -91,6 +97,7 @@ services:
       - "27017:27017"
 
   mongo_seed:
+    image: ghcr.io/tobias-pe/mongo-seed:latest
     build:
       dockerfile: ./build/mongo/Dockerfile
     depends_on:
@@ -99,6 +106,7 @@ services:
   # -------------------------------------------- CART ------------------------------------------------------------------
 
   cart-nginx:
+    image: ghcr.io/tobias-pe/cart-nginx:latest
     build:
       dockerfile: build/nginx/cart/Dockerfile
     env_file:
@@ -107,6 +115,7 @@ services:
       - cart
 
   cart:
+    image: ghcr.io/tobias-pe/cart:latest
     build:
       dockerfile: ./services/cart/Dockerfile
     env_file:
@@ -124,6 +133,7 @@ services:
   # ------------------------------------------- ORDER ------------------------------------------------------------------
 
   order-nginx:
+    image: ghcr.io/tobias-pe/order-nginx:latest
     build:
       dockerfile: build/nginx/order/Dockerfile
     env_file:
@@ -132,6 +142,7 @@ services:
       - order
 
   order:
+    image: ghcr.io/tobias-pe/order:latest
     build:
       dockerfile: ./services/order/Dockerfile
     env_file:
