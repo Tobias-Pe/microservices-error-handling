@@ -25,7 +25,7 @@ jobs:
 
       - name: Build and push Docker image
         id: docker
-        uses: ./
+        uses: mr-smithers-excellent/docker-build-push@v5
         with:
           dockerfile: ${{ matrix.path }}
           image: ${{ matrix.image }}
