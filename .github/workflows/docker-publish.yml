@@ -23,7 +23,7 @@ jobs:
           - image: currency-nginx
             path: ./build/nginx/currency/Dockerfile
           - image: stock
-            path: ./services/stokc/Dockerfile
+            path: ./services/stock/Dockerfile
           - image: stock-nginx
             path: ./build/nginx/stock/Dockerfile
           - image: mongo-seed
