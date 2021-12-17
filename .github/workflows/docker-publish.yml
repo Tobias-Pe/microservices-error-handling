@@ -70,7 +70,7 @@ jobs:
           context: .
           file: services/api-gateway/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: "api-gateway"
           labels: "api-gateway"
 
       - name: Build and push Docker image
@@ -80,5 +80,5 @@ jobs:
           context: .
           file: services/currency/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: "${{ steps.meta.outputs.labels }}currency"
+          tags: "currency"
+          labels: "currency"
