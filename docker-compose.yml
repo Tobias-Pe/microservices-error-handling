@@ -74,6 +74,7 @@ services:
 
   stock-nginx:
     image: ghcr.io/tobias-pe/stock-nginx:latest
+    pull_policy: always
     build:
       dockerfile: build/nginx/stock/Dockerfile
     env_file:
@@ -83,6 +84,7 @@ services:
 
   stock:
     image: ghcr.io/tobias-pe/stock:latest
+    pull_policy: always
     build:
       dockerfile: ./services/stock/Dockerfile
     env_file:
@@ -98,6 +100,7 @@ services:
 
   mongo_seed:
     image: ghcr.io/tobias-pe/mongo-seed:latest
+    pull_policy: always
     build:
       dockerfile: ./build/mongo/Dockerfile
     depends_on:
@@ -107,6 +110,7 @@ services:
 
   cart-nginx:
     image: ghcr.io/tobias-pe/cart-nginx:latest
+    pull_policy: always
     build:
       dockerfile: build/nginx/cart/Dockerfile
     env_file:
@@ -116,6 +120,7 @@ services:
 
   cart:
     image: ghcr.io/tobias-pe/cart:latest
+    pull_policy: always
     build:
       dockerfile: ./services/cart/Dockerfile
     env_file:
@@ -134,6 +139,7 @@ services:
 
   order-nginx:
     image: ghcr.io/tobias-pe/order-nginx:latest
+    pull_policy: always
     build:
       dockerfile: build/nginx/order/Dockerfile
     env_file:
@@ -143,6 +149,7 @@ services:
 
   order:
     image: ghcr.io/tobias-pe/order:latest
+    pull_policy: always
     build:
       dockerfile: ./services/order/Dockerfile
     env_file:
