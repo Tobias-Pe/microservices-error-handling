@@ -31,7 +31,6 @@ import (
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/thinkerou/favicon"
-	"google.golang.org/grpc"
 )
 
 type configuration struct {
@@ -45,6 +44,8 @@ type configuration struct {
 	cartPort        string
 	orderAddress    string
 	orderPort       string
+	rabbitAddress   string
+	rabbitPort      string
 }
 
 type service struct {
@@ -60,10 +61,10 @@ func main() {
 	configuration := readConfig()
 
 	service := &service{
-		currencyClient: createGrpcCurrencyClient(configuration),
-		stockClient:    createGrpcStockClient(configuration),
-		cartClient:     createGrpcCartClient(configuration),
-		orderClient:    createGrpcOrderClient(configuration),
+		currencyClient: createCurrencyClient(configuration),
+		stockClient:    createStockClient(configuration),
+		cartClient:     createCartClient(configuration),
+		orderClient:    createOrderClient(configuration),
 	}
 
 	createRouter(service, configuration)
@@ -90,6 +91,8 @@ func readConfig() configuration {
 	cartPort := viper.GetString("CART_PORT")
 	orderAddress := viper.GetString("ORDER_NGINX_ADDRESS")
 	orderPort := viper.GetString("ORDER_PORT")
+	rabbitAddress := viper.GetString("RABBIT_MQ_ADDRESS")
+	rabbitPort := viper.GetString("RABBIT_MQ_PORT")
 
 	logger.WithFields(loggrus.Fields{
 		"API_GATEWAY_PORT":    serverPort,
@@ -100,6 +103,8 @@ func readConfig() configuration {
 		"STOCK_PORT":          stockPort,
 		"ORDER_ADDRESS":       orderAddress,
 		"ORDER_PORT":          orderPort,
+		"RABBIT_MQ_ADDRESS":   rabbitAddress,
+		"RABBIT_MQ_PORT":      rabbitPort,
 	}).Info("config variables read")
 
 	return configuration{
@@ -113,28 +118,35 @@ func readConfig() configuration {
 		cartPort:        cartPort,
 		orderPort:       orderPort,
 		orderAddress:    orderAddress,
+		rabbitAddress:   rabbitAddress,
+		rabbitPort:      rabbitPort,
 	}
 }
 
-func createGrpcCurrencyClient(configuration configuration) *internal.CurrencyClient {
+func createCurrencyClient(configuration configuration) *internal.CurrencyClient {
 	currencyClient := internal.NewCurrencyClient(configuration.currencyAddress, configuration.currencyPort)
 
 	return currencyClient
 }
 
-func createGrpcStockClient(configuration configuration) *internal.StockClient {
+func createStockClient(configuration configuration) *internal.StockClient {
 	stockClient := internal.NewStockClient(configuration.stockAddress, configuration.stockPort)
 
 	return stockClient
 }
 
-func createGrpcCartClient(configuration configuration) *internal.CartClient {
-	cartClient := internal.NewCartClient(configuration.cartAddress, configuration.cartPort)
+func createCartClient(configuration configuration) *internal.CartClient {
+	cartClient := internal.NewCartClient(
+		configuration.cartAddress,
+		configuration.cartPort,
+		configuration.rabbitAddress,
+		configuration.rabbitPort,
+	)
 
 	return cartClient
 }
 
-func createGrpcOrderClient(configuration configuration) *internal.OrderClient {
+func createOrderClient(configuration configuration) *internal.OrderClient {
 	orderClient := internal.NewOrderClient(configuration.orderAddress, configuration.orderPort)
 
 	return orderClient
@@ -151,7 +163,7 @@ func createRouter(service *service, configuration configuration) {
 	router.GET("/articles/*category", service.stockClient.GetArticles())
 	router.POST("/cart", service.cartClient.CreateCart())
 	router.GET("/cart/:id", service.cartClient.GetCart())
-	// router.PUT("/cart/:id", service.cartClient.AddToCart())
+	router.PUT("/cart/:id", service.cartClient.AddToCart())
 	router.GET("/order/:id", service.orderClient.GetOrder())
 	router.POST("/order", service.orderClient.CreateOrder())
 
@@ -162,20 +174,37 @@ func createRouter(service *service, configuration configuration) {
 		return
 	}
 
-	defer func(Conn *grpc.ClientConn) {
-		if Conn != nil {
-			err := Conn.Close()
-			if err != nil {
-				logger.WithError(err).Warnf("Could not close grpc connection")
-			}
-		}
-	}(service.currencyClient.Conn)
-	defer func(Conn *grpc.ClientConn) {
-		if Conn != nil {
-			err := Conn.Close()
-			if err != nil {
-				logger.WithError(err).Warnf("Could not close grpc connection")
-			}
-		}
-	}(service.stockClient.Conn)
+	service.closeConnections()
+}
+
+func (service *service) closeConnections() {
+	err := service.stockClient.Conn.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing connection to stock-service")
+	}
+
+	err = service.orderClient.Conn.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing connection to order-service")
+	}
+
+	err = service.currencyClient.Conn.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing connection to currency-service")
+	}
+
+	err = service.cartClient.GrpcConn.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing grpc-connection to stock-service")
+	}
+
+	err = service.cartClient.AmqpChannel.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing amqp-channel to cart-service")
+	}
+
+	err = service.cartClient.AmqpConn.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing amqp-connection to cart-service")
+	}
 }

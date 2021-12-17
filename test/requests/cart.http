@@ -3,7 +3,7 @@ POST http://localhost/cart
 Content-Type: application/json
 
 {
-  "article_id": "61bc5ac5c1500ae51b83fb1a"
+  "article_id": "61bc9b26b88ca15bcb3bca01"
 }
 
 ### Successful test: check response status is 200
@@ -15,3 +15,11 @@ client.test("Request executed successfully", function() {
   client.assert(response.status === 200, "Response status is not 200");
 });
 %}
+
+### Successful test: check response status is 200
+PUT localhost/cart/1
+Content-Type: application/json
+
+{
+  "article_id": "61bc9b26b88ca15bcb3bca01"
+}

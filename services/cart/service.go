@@ -29,11 +29,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/gomodule/redigo/redis"
 	loggrus "github.com/sirupsen/logrus"
+	"github.com/streadway/amqp"
+	"math"
+	"math/rand"
 	"strconv"
+	"time"
 )
 
 const expireCartSeconds = 172800
@@ -42,13 +47,36 @@ var logger = loggingUtil.InitLogger()
 
 type Service struct {
 	proto.UnimplementedCartServer
-	connPool *redis.Pool
+	connPool    *redis.Pool
+	AmqpChannel *amqp.Channel
+	AmqpConn    *amqp.Connection
+	Queue       amqp.Queue
+	messages    <-chan amqp.Delivery
+	RabbitUrl   string
 }
 
-func NewService(cacheAddress string, cachePort string) *Service {
+func NewService(cacheAddress string, cachePort string, rabbitAddress string, rabbitPort string) *Service {
 	newService := Service{}
+	newService.initRedisConnection(cacheAddress, cachePort)
+	newService.RabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
+	var err error = nil
+	for i := 0; i < 6; i++ {
+		err = newService.initAmqpConnection()
+		if err == nil {
+			break
+		}
+		logger.Infof("Retrying... (%d/%d)", i, 5)
+		time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Second)
+	}
+	if err != nil {
+		return nil
+	}
+	return &newService
+}
+
+func (service *Service) initRedisConnection(cacheAddress string, cachePort string) {
 	connectionUri := cacheAddress + ":" + cachePort
-	newService.connPool = &redis.Pool{
+	service.connPool = &redis.Pool{
 		MaxIdle:   80,
 		MaxActive: 12000,
 		Dial: func() (redis.Conn, error) {
@@ -59,11 +87,126 @@ func NewService(cacheAddress string, cachePort string) *Service {
 			return c, err
 		},
 	}
-	return &newService
 }
 
-func (s Service) CreateCart(_ context.Context, req *proto.RequestNewCart) (*proto.ResponseNewCart, error) {
-	cart, err := s.createCart(req.ArticleId)
+func (service *Service) initAmqpConnection() error {
+	conn, err := amqp.Dial(service.RabbitUrl)
+	if err != nil {
+		logger.WithError(err).WithFields(loggrus.Fields{"url": service.RabbitUrl}).Error("Could not connect to rabbitMq")
+		return err
+	}
+	service.AmqpConn = conn
+	service.AmqpChannel, err = conn.Channel()
+	if err != nil {
+		logger.WithError(err).Error("Could not create channel")
+		return err
+	}
+	err = service.AmqpChannel.ExchangeDeclare(
+		requests.CartTopic, // name
+		"topic",            // type
+		true,               // durable
+		false,              // auto-deleted
+		false,              // internal
+		false,              // no-wait
+		nil,                // arguments
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not create exchange")
+		return err
+	}
+	q, err := service.AmqpChannel.QueueDeclare(
+		requests.CartTopic+"_queue", // name
+		true,                        // durable
+		false,                       // delete when unused
+		false,                       // exclusive
+		false,                       // no-wait
+		nil,                         // arguments
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not create queue")
+		return err
+	}
+	err = service.AmqpChannel.Qos(
+		1,     // prefetch count
+		0,     // prefetch size
+		false, // global
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not change qos settings")
+		return err
+	}
+	err = service.AmqpChannel.QueueBind(
+		q.Name,                       // queue name
+		requests.AddToCartRoutingKey, // routing key
+		requests.CartTopic,           // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not bind queue")
+		return err
+	}
+
+	service.messages, err = service.AmqpChannel.Consume(
+		q.Name, // queue
+		"",     // consumer
+		false,  // auto-ack
+		false,  // exclusive
+		false,  // no-local
+		false,  // no-wait
+		nil,    // args
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not consume queue")
+		return err
+	}
+
+	go service.ListenUpdateCart()
+
+	return nil
+}
+
+func (service *Service) ListenUpdateCart() {
+	for message := range service.messages {
+		request := &requests.PutArticleInCartRequest{}
+		err := json.Unmarshal(message.Body, request)
+		if err == nil {
+			for i := 0; i < 10; i++ {
+				cart, err := service.addToCart(request.CartID, request.ArticleID)
+				if err != nil {
+					logger.WithFields(loggrus.Fields{"request": request, "retry": i}).WithError(err).Warn("Could not add to cart. Trying again...")
+					n := rand.Intn(600)
+					time.Sleep(time.Duration(n) * time.Millisecond)
+				} else {
+					logger.WithFields(loggrus.Fields{"cart": cart}).Infof("Received a message")
+					break
+				}
+			}
+			if err != nil {
+				logger.WithFields(loggrus.Fields{"request": request}).WithError(err).Error("Could not add to cart.")
+			}
+			err = message.Ack(false)
+			if err != nil {
+				logger.WithError(err).Error("Could not ack message. Rolling transaction back.")
+				_, err := service.removeFromCart(request.CartID, request.ArticleID)
+				if err != nil {
+					logger.WithFields(loggrus.Fields{"request": request}).WithError(err).Error("Could not roll transaction back")
+				}
+			}
+		} else {
+			logger.WithError(err).Error("Could not unmarshall message")
+		}
+	}
+	logger.Error("Stopped Listening for Update Cart! Restarting...")
+	err := service.initAmqpConnection()
+	if err != nil {
+		logger.Error("Stopped Listening for Update Cart! Could not restart")
+		return
+	}
+}
+
+func (service Service) CreateCart(_ context.Context, req *proto.RequestNewCart) (*proto.ResponseNewCart, error) {
+	cart, err := service.createCart(req.ArticleId)
 	if err != nil {
 		return nil, err
 	}
@@ -73,8 +216,8 @@ func (s Service) CreateCart(_ context.Context, req *proto.RequestNewCart) (*prot
 	return &proto.ResponseNewCart{CartId: strId}, nil
 }
 
-func (s Service) GetCart(_ context.Context, req *proto.RequestCart) (*proto.ResponseCart, error) {
-	cart, err := s.getCart(req.CartId)
+func (service Service) GetCart(_ context.Context, req *proto.RequestCart) (*proto.ResponseCart, error) {
+	cart, err := service.getCart(req.CartId)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +225,7 @@ func (s Service) GetCart(_ context.Context, req *proto.RequestCart) (*proto.Resp
 	return &proto.ResponseCart{ArticleIds: cart.ArticleIDs}, nil
 }
 
-func (s Service) getCart(strCartId string) (*models.Cart, error) {
+func (service Service) getCart(strCartId string) (*models.Cart, error) {
 	tmpId, err := strconv.Atoi(strCartId)
 	if err != nil {
 		return nil, err
@@ -93,7 +236,7 @@ func (s Service) getCart(strCartId string) (*models.Cart, error) {
 		ArticleIDs: nil,
 	}
 
-	client := s.connPool.Get()
+	client := service.connPool.Get()
 	defer func(client redis.Conn) {
 		err := client.Close()
 		if err != nil {
@@ -116,13 +259,13 @@ func (s Service) getCart(strCartId string) (*models.Cart, error) {
 	return &fetchedCart, nil
 }
 
-func (s Service) createCart(strArticleId string) (*models.Cart, error) {
+func (service Service) createCart(strArticleId string) (*models.Cart, error) {
 	newCart := models.Cart{
 		ID:         -1,
 		ArticleIDs: []string{strArticleId},
 	}
 
-	client := s.connPool.Get()
+	client := service.connPool.Get()
 	defer func(client redis.Conn) {
 		err := client.Close()
 		if err != nil {
@@ -150,4 +293,89 @@ func (s Service) createCart(strArticleId string) (*models.Cart, error) {
 	}
 
 	return &newCart, nil
+}
+
+func (service Service) addToCart(strCartId string, strArticleId string) (*models.Cart, error) {
+
+	cartID, err := strconv.Atoi(strCartId)
+	cart := models.Cart{ID: int64(cartID)}
+	client := service.connPool.Get()
+	defer func(client redis.Conn) {
+		err := client.Close()
+		if err != nil {
+			logger.WithError(err).Warn("connection to redis could not be successfully closed")
+		}
+	}(client)
+	_, err = client.Do("WATCH", cart.ID)
+	if err != nil {
+		return nil, err
+	}
+	jsonArticles, err := client.Do("GET", cart.ID)
+	if err != nil {
+		return nil, err
+	}
+	if jsonArticles == nil {
+		return nil, fmt.Errorf("there is no cart for this id: %s", strCartId)
+	}
+	var articles []string
+	err = json.Unmarshal(jsonArticles.([]byte), &articles)
+	if err != nil {
+		return nil, err
+	}
+	cart.ArticleIDs = append(articles, strArticleId)
+	marshal, err := json.Marshal(cart.ArticleIDs)
+	if err != nil {
+		return nil, err
+	}
+	_, err = client.Do("MULTI")
+	if err != nil {
+		return nil, err
+	}
+	_, err = client.Do("SET", cart.ID, string(marshal))
+	if err != nil {
+		return nil, err
+	}
+	_, err = client.Do("EXPIRE", cart.ID, expireCartSeconds)
+	if err != nil {
+		return nil, err
+	}
+	_, err = client.Do("EXEC")
+	if err != nil {
+		logger.WithError(err).Error("error on exec")
+		return nil, err
+	}
+
+	return &cart, nil
+}
+
+func (service Service) removeFromCart(strCartId string, strArticleId string) (*models.Cart, error) {
+	cart, err := service.getCart(strCartId)
+	if err != nil {
+		return nil, err
+	}
+	for i, articleID := range cart.ArticleIDs {
+		if articleID == strArticleId {
+			cart.ArticleIDs = append(cart.ArticleIDs[:i], cart.ArticleIDs[i+1:]...)
+			break
+		}
+	}
+
+	client := service.connPool.Get()
+	defer func(client redis.Conn) {
+		err := client.Close()
+		if err != nil {
+			logger.WithError(err).Warn("connection to redis could not be successfully closed")
+		}
+	}(client)
+
+	marshal, err := json.Marshal(cart.ArticleIDs)
+	if err != nil {
+		return nil, err
+	}
+	_, err = client.Do("SET", cart.ID, string(marshal))
+	if err != nil {
+		return nil, err
+	}
+
+	return cart, nil
 }

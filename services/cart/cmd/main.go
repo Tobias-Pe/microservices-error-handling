@@ -40,26 +40,36 @@ type configuration struct {
 	serverAddress string
 	cachePort     string
 	cacheAddress  string
+	rabbitAddress string
+	rabbitPort    string
 }
 
 var logger = loggingUtil.InitLogger()
 
 func main() {
 	config := readConfig()
-	createGrpcServer(config)
+	createServer(config)
 }
 
-func createGrpcServer(config configuration) {
+func createServer(config configuration) {
 	lis, err := net.Listen("tcp", config.serverAddress+":"+config.serverPort)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	service := cart.NewService(config.cacheAddress, config.cachePort)
+	service := cart.NewService(config.cacheAddress, config.cachePort, config.rabbitAddress, config.rabbitPort)
 	proto.RegisterCartServer(s, service)
 	logger.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		logger.Fatalf("failed to serve: %v", err)
+	}
+	err = service.AmqpChannel.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing amqp-channel")
+	}
+	err = service.AmqpConn.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing amqp-connection")
 	}
 }
 
@@ -73,12 +83,27 @@ func readConfig() configuration {
 		logger.Info(err)
 	}
 
-	serverPort := viper.GetString("CART_PORT")
 	serverAddress := ""
+	serverPort := viper.GetString("CART_PORT")
 	cachePort := viper.GetString("CART_REDIS_PORT")
 	cacheAddress := viper.GetString("CART_REDIS_ADDRESS")
+	rabbitAddress := viper.GetString("RABBIT_MQ_ADDRESS")
+	rabbitPort := viper.GetString("RABBIT_MQ_PORT")
 
-	logger.WithFields(loggrus.Fields{"CURRENCY_PORT": serverPort, "CURRENCY_ADDRESS": serverAddress, "CART_REDIS_PORT": cachePort, "CART_REDIS_ADDRESS": cacheAddress}).Info("config variables read")
+	logger.WithFields(loggrus.Fields{
+		"CURRENCY_PORT":      serverPort,
+		"CURRENCY_ADDRESS":   serverAddress,
+		"CART_REDIS_PORT":    cachePort,
+		"CART_REDIS_ADDRESS": cacheAddress,
+		"RABBIT_MQ_ADDRESS":  rabbitAddress,
+		"RABBIT_MQ_PORT":     rabbitPort,
+	}).Info("config variables read")
 
-	return configuration{serverAddress: serverAddress, serverPort: serverPort, cachePort: cachePort, cacheAddress: cacheAddress}
+	return configuration{serverAddress: serverAddress,
+		serverPort:    serverPort,
+		cachePort:     cachePort,
+		cacheAddress:  cacheAddress,
+		rabbitAddress: rabbitAddress,
+		rabbitPort:    rabbitPort,
+	}
 }
