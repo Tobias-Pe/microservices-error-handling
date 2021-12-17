@@ -63,13 +63,15 @@ jobs:
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image
         id: build-and-push-api-gateway
+        env:
+          LABEL: ${{ steps.meta.outputs.labels }}/api-gateway
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
           file: services/api-gateway/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}api-gateway
+          labels: ${{ LABEL }}
 
       - name: Build and push Docker image
         id: build-and-push-currency
