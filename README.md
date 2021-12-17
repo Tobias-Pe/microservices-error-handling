@@ -1,6 +1,6 @@
 # Errorhandling in a Microservice Architecture
 
-[![MIT License](https://img.shields.io/github/license/Tobias-Pe/Microservices-Errorhandling)](https://github.com/tterb/atomic-design-ui/blob/master/LICENSEs)
+[![MIT License](https://img.shields.io/github/license/Tobias-Pe/Microservices-Errorhandling)](https://github.com/Tobias-Pe/Microservices-Errorhandling/blob/main/LICENSE)
 [![Gitmoji](https://img.shields.io/badge/gitmoji-%20😜%20😍-FFDD67.svg)](https://gitmoji.dev)
 ![Go-Version](https://img.shields.io/github/go-mod/go-version/Tobias-Pe/Microservices-Errorhandling)
 
@@ -102,13 +102,13 @@ Look at the current status of your order.
 Clone the project
 
 ```bash
-  git clone https://link-to-project
+  git clone https://github.com/Tobias-Pe/Microservices-Errorhandling
 ```
 
 Go to the project directory
 
 ```bash
-  cd my-project
+  cd Microservices-Errorhandling
 ```
 
 Start all containers with compose
