@@ -14,9 +14,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: Tobias-Pe/api-gateway
+          - image: api-gateway
             path: ./services/api-gateway/Dockerfile
-          - image: Tobias-Pe/currency
+          - image: currency
             path: ./services/currency/Dockerfile
 
     steps:
