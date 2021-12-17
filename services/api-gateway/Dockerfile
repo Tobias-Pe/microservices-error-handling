@@ -1,6 +1,6 @@
 ARG SERVICE_DIR=api-gateway
 
-FROM golang:alpine as builder
+FROM golang:1.17-alpine as builder
 
 ARG SERVICE_DIR
 
