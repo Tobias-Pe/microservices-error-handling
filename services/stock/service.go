@@ -29,8 +29,8 @@ import (
 	loggrus "github.com/sirupsen/logrus"
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/models"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readconcern"
@@ -45,14 +45,6 @@ type Service struct {
 	proto.UnimplementedStockServer
 	MongoClient     *mongo.Client
 	stockCollection *mongo.Collection
-}
-
-type Article struct {
-	Id       primitive.ObjectID `json:"id" bson:"_id"`
-	Name     string             `json:"name" bson:"name"`
-	Category string             `json:"category" bson:"category"`
-	Price    float64            `json:"price_euro" bson:"price_euro"`
-	Amount   int32              `json:"amount" bson:"amount"`
 }
 
 func NewService(mongoAddress string, mongoPort string) *Service {
@@ -91,12 +83,12 @@ func (s *Service) GetArticles(ctx context.Context, req *proto.RequestArticles) (
 	if err != nil {
 		return nil, err
 	}
-	articles := result.([]Article)
+	articles := result.([]models.Article)
 
 	var protoArticles []*proto.Article
 	for _, a := range articles {
 		protoArticles = append(protoArticles, &proto.Article{
-			Id:        a.Id.Hex(),
+			Id:        a.ID.Hex(),
 			Name:      a.Name,
 			Category:  a.Category,
 			PriceEuro: float32(a.Price),
@@ -110,7 +102,7 @@ func (s *Service) GetArticles(ctx context.Context, req *proto.RequestArticles) (
 
 func (s *Service) newCallbackGetArticles(ctx context.Context, req *proto.RequestArticles) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
-		var articles []Article
+		var articles []models.Article
 		var cursor *mongo.Cursor
 		var err error
 		if len(strings.TrimSpace(req.CategoryQuery)) == 0 {

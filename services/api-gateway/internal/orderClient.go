@@ -29,6 +29,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/models"
 	"google.golang.org/grpc"
 	"net/http"
 	"time"
@@ -37,13 +38,6 @@ import (
 type OrderClient struct {
 	Conn   *grpc.ClientConn
 	client proto.OrderClient
-}
-
-type orderData struct {
-	CartId             string `json:"cart_id" bson:"cart_id"`
-	CustomerAddress    string `json:"address" bson:"address"`
-	CustomerName       string `json:"name" bson:"name"`
-	CustomerCreditCard string `json:"credit_card" bson:"credit_card"`
 }
 
 func NewOrderClient(orderAddress string, orderPort string) *OrderClient {
@@ -77,14 +71,14 @@ func (orderClient OrderClient) GetOrder() gin.HandlerFunc {
 
 func (orderClient OrderClient) CreateOrder() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		order := orderData{}
+		order := models.Order{}
 		if err := c.ShouldBindWith(&order, binding.JSON); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 		response, err := orderClient.client.CreateOrder(ctx, &proto.RequestNewOrder{
-			CartId:             order.CartId,
+			CartId:             order.CartID,
 			CustomerAddress:    order.CustomerAddress,
 			CustomerName:       order.CustomerName,
 			CustomerCreditCard: order.CustomerCreditCard,

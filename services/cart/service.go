@@ -32,6 +32,7 @@ import (
 	loggrus "github.com/sirupsen/logrus"
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/models"
 	"strconv"
 )
 
@@ -42,11 +43,6 @@ var logger = loggingUtil.InitLogger()
 type Service struct {
 	proto.UnimplementedCartServer
 	connPool *redis.Pool
-}
-
-type Cart struct {
-	Id         int64    `json:"id"`
-	ArticleIds []string `json:"articles"`
 }
 
 func NewService(cacheAddress string, cachePort string) *Service {
@@ -72,8 +68,8 @@ func (s Service) CreateCart(_ context.Context, req *proto.RequestNewCart) (*prot
 		return nil, err
 	}
 
-	strId := strconv.Itoa(int(cart.Id))
-	logger.WithFields(loggrus.Fields{"ID": cart.Id, "Data": cart.ArticleIds, "Request": req.ArticleId}).Info("Created new Cart")
+	strId := strconv.Itoa(int(cart.ID))
+	logger.WithFields(loggrus.Fields{"ID": cart.ID, "Data": cart.ArticleIDs, "Request": req.ArticleId}).Info("Created new Cart")
 	return &proto.ResponseNewCart{CartId: strId}, nil
 }
 
@@ -82,19 +78,19 @@ func (s Service) GetCart(_ context.Context, req *proto.RequestCart) (*proto.Resp
 	if err != nil {
 		return nil, err
 	}
-	logger.WithFields(loggrus.Fields{"ID": cart.Id, "Data": cart.ArticleIds, "Request": req.CartId}).Info("Looked up Cart")
-	return &proto.ResponseCart{ArticleIds: cart.ArticleIds}, nil
+	logger.WithFields(loggrus.Fields{"ID": cart.ID, "Data": cart.ArticleIDs, "Request": req.CartId}).Info("Looked up Cart")
+	return &proto.ResponseCart{ArticleIds: cart.ArticleIDs}, nil
 }
 
-func (s Service) getCart(strCartId string) (*Cart, error) {
+func (s Service) getCart(strCartId string) (*models.Cart, error) {
 	tmpId, err := strconv.Atoi(strCartId)
 	if err != nil {
 		return nil, err
 	}
 	id := int64(tmpId)
-	fetchedCart := Cart{
-		Id:         id,
-		ArticleIds: nil,
+	fetchedCart := models.Cart{
+		ID:         id,
+		ArticleIDs: nil,
 	}
 
 	client := s.connPool.Get()
@@ -116,14 +112,14 @@ func (s Service) getCart(strCartId string) (*Cart, error) {
 	if err != nil {
 		return nil, err
 	}
-	fetchedCart.ArticleIds = articles
+	fetchedCart.ArticleIDs = articles
 	return &fetchedCart, nil
 }
 
-func (s Service) createCart(strArticleId string) (*Cart, error) {
-	newCart := Cart{
-		Id:         -1,
-		ArticleIds: []string{strArticleId},
+func (s Service) createCart(strArticleId string) (*models.Cart, error) {
+	newCart := models.Cart{
+		ID:         -1,
+		ArticleIDs: []string{strArticleId},
 	}
 
 	client := s.connPool.Get()
@@ -139,8 +135,8 @@ func (s Service) createCart(strArticleId string) (*Cart, error) {
 		return nil, err
 	}
 
-	newCart.Id = cartId.(int64)
-	marshal, err := json.Marshal(newCart.ArticleIds)
+	newCart.ID = cartId.(int64)
+	marshal, err := json.Marshal(newCart.ArticleIDs)
 	if err != nil {
 		return nil, err
 	}

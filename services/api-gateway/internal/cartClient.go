@@ -39,7 +39,7 @@ type CartClient struct {
 	client proto.CartClient
 }
 
-type articleId struct {
+type restBody struct {
 	ArticleId string `json:"article_id"`
 }
 
@@ -59,7 +59,7 @@ func NewCartClient(cartAddress string, cartPort string) *CartClient {
 
 func (cartClient CartClient) CreateCart() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		objArticleId := articleId{}
+		objArticleId := restBody{}
 		request := proto.RequestNewCart{}
 		if err := c.ShouldBindWith(&objArticleId, binding.JSON); err == nil {
 			request.ArticleId = objArticleId.ArticleId
@@ -72,7 +72,7 @@ func (cartClient CartClient) CreateCart() gin.HandlerFunc {
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		} else {
-			c.JSON(http.StatusCreated, gin.H{"cart": response.CartId})
+			c.JSON(http.StatusCreated, gin.H{"cart": response})
 		}
 	}
 }

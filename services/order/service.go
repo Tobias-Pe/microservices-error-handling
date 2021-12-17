@@ -29,6 +29,7 @@ import (
 	loggrus "github.com/sirupsen/logrus"
 	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
+	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -38,29 +39,12 @@ import (
 	"time"
 )
 
-var statusFetching = [...]string{"FETCHING", "The articles are being fetched from the cart and the price will be calculated. Please stand by..."}
-var statusReserving = [...]string{"RESERVING", "We are reserving the articles for you. Please stand by..."}
-var statusPaying = [...]string{"PAYING", "We are checking your payment data and will debit your credit card. Please stand by..."}
-var statusShipping = [...]string{"SHIPPING", "Your order is being prepared for shipment. Please stand by..."}
-var statusComplete = [...]string{"COMPLETE", "The order is complete and is on it's way to you. Thank you for your purchase!"}
-
 var logger = loggingUtil.InitLogger()
 
 type Service struct {
 	proto.UnimplementedOrderServer
 	MongoClient     *mongo.Client
 	orderCollection *mongo.Collection
-}
-
-type Order struct {
-	Status             string   `json:"status" bson:"status"`
-	Message            string   `json:"message" bson:"message"`
-	Articles           []string `json:"article_ids" bson:"article_ids"`
-	CartId             string   `json:"cart_id" bson:"cart_id"`
-	Price              float64  `json:"price_euro" bson:"price_euro"`
-	CustomerAddress    string   `json:"address" bson:"address"`
-	CustomerName       string   `json:"name" bson:"name"`
-	CustomerCreditCard string   `json:"credit_card" bson:"credit_card"`
 }
 
 func NewService(mongoAddress string, mongoPort string) *Service {
@@ -83,11 +67,12 @@ func NewService(mongoAddress string, mongoPort string) *Service {
 }
 
 func (s *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOrder) (*proto.OrderObject, error) {
-	order := Order{
-		Status:             statusFetching[0],
-		Message:            statusFetching[1],
+	status := models.StatusFetching()
+	order := models.Order{
+		Status:             status.Name,
+		Message:            status.Message,
 		Articles:           nil,
-		CartId:             req.CartId,
+		CartID:             req.CartId,
 		Price:              -1,
 		CustomerAddress:    req.CustomerAddress,
 		CustomerName:       req.CustomerName,
@@ -110,9 +95,10 @@ func (s *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOrder) (
 		return nil, err
 	}
 	orderId := result.(primitive.ObjectID)
-	logger.WithFields(loggrus.Fields{"OrderId": orderId.Hex(), "OrderData": order}).Info("Request handled")
+	order.ID = orderId
+	logger.WithFields(loggrus.Fields{"Request": req, "Order": order}).Info("Order created")
 	return &proto.OrderObject{
-		OrderId:            orderId.Hex(),
+		OrderId:            order.ID.Hex(),
 		Status:             order.Status,
 		Message:            order.Message,
 		Price:              float32(order.Price),
@@ -141,10 +127,10 @@ func (s *Service) GetOrder(ctx context.Context, req *proto.RequestOrder) (*proto
 	if err != nil {
 		return nil, err
 	}
-	order := result.(Order)
-	logger.WithFields(loggrus.Fields{"Order": order}).Info("Fetched order")
+	order := result.(models.Order)
+	logger.WithFields(loggrus.Fields{"Request": req, "Order": order}).Info("Get order")
 	return &proto.OrderObject{
-		OrderId:            orderId.Hex(),
+		OrderId:            order.ID.Hex(),
 		Status:             order.Status,
 		Message:            order.Message,
 		Price:              float32(order.Price),
@@ -154,7 +140,7 @@ func (s *Service) GetOrder(ctx context.Context, req *proto.RequestOrder) (*proto
 	}, nil
 }
 
-func (s *Service) newCallbackCreateOrder(ctx context.Context, order Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (s *Service) newCallbackCreateOrder(ctx context.Context, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		orderResult, err := s.orderCollection.InsertOne(ctx, order)
 		if err != nil {
@@ -168,7 +154,7 @@ func (s *Service) newCallbackCreateOrder(ctx context.Context, order Order) func(
 func (s *Service) newCallbackGetOrder(ctx context.Context, orderId primitive.ObjectID) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		result := s.orderCollection.FindOne(ctx, bson.M{"_id": orderId})
-		order := Order{}
+		order := models.Order{}
 		err := result.Decode(&order)
 		if err != nil {
 			return nil, err
