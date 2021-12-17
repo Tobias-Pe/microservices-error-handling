@@ -61,8 +61,8 @@ jobs:
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
-      - name: Build and push Docker image api-gateway service
-        id: build-and-push
+      - name: Build and push Docker image
+        id: build-and-push-api-gateway
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
@@ -71,8 +71,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}+ api-gateway
 
-      - name: Build and push Docker image currency service
-        id: build-and-push
+      - name: Build and push Docker image
+        id: build-and-push-currency
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .
