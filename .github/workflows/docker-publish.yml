@@ -70,7 +70,7 @@ jobs:
           context: .
           file: services/api-gateway/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: test
           labels: LABEL
 
       - name: Build and push Docker image
