@@ -5,17 +5,18 @@
 ![Go-Version](https://img.shields.io/github/go-mod/go-version/Tobias-Pe/Microservices-Errorhandling)
 ![Developmentstate](https://img.shields.io/badge/state-under%20development-orange)
 
-The application is a Demo-Webshop, where 9 Services communicate using synchronous and asynchronous communication. 
+The application is a Demo-Webshop, where 9 Services communicate using synchronous and asynchronous communication.
 
-The aim of the application is to implement various error handling methods, try them out and measure their effectiveness under pressure of load tests.
+The aim of the application is to implement various error handling methods, try them out and measure their effectiveness
+under pressure of load tests.
 
 _This project is part of a Bachelorthesis in Computer Science🎓_
 
-## Overview Architecture
+## Overview Architecture 🏗️
 
 ![Architecture](assets/ServicesMessages.png)
 
-## API Reference
+## API Reference 👀
 
 #### Get all articles 🛍️
 
@@ -48,6 +49,22 @@ Mocks an exchange from ${currency} to €
 | JSON-Body | Type     | Description                       |
 | :-------- | :------- | :-------------------------------- |
 | `article_id`      | `string` | **Optional**. Will create a cart with this article_id already in it |
+
+Returns the new carts ID.
+
+#### Add articles to a shopping cart 🛒
+
+```http
+  PUT /cart/${id}
+```
+
+| Parameter | Type     | Description                       |
+| :-------- | :------- | :-------------------------------- |
+| `id`      | `string` | **Required**. The ID of your cart. |
+
+| JSON-Body | Type     | Description                                                      |
+| :-------- | :------- |:-----------------------------------------------------------------|
+| `article_id`      | `string` | **Required**. The ID of the article you want to add to the cart. |
 
 Returns the new carts ID.
 
@@ -88,7 +105,7 @@ Creates an order, that will be validated and shipped in the background.
 
 Look at the current status of your order.
 
-## Tech Stack
+## Tech Stack 📚
 
 **Order & Stock:** MongoDB with ACID-Transactions
 
@@ -102,7 +119,7 @@ Look at the current status of your order.
 
 **Load Balancing:** NGINX with Docker DNS
 
-## Run Locally
+## Run Locally 🏃
 
 Clone the project
 
@@ -123,12 +140,12 @@ Start all containers with compose
 ```
 
 _PS: there are some run configurations in the .run folder_
-## Deployment
+
+## Deployment 🚀
 
 With docker-swarm TBD
 
-
-## Author
+## Author ✍️
 
 [@Tobias Peslalz](https://github.com/Tobias-Pe)
 
