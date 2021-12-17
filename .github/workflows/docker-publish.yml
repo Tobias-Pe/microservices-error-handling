@@ -69,7 +69,7 @@ jobs:
           file: services/api-gateway/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}+ api-gateway
+          labels: ${{ steps.meta.outputs.labels }}api-gateway
 
       - name: Build and push Docker image
         id: build-and-push-currency
@@ -79,4 +79,4 @@ jobs:
           file: services/currency/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}+ currency
+          labels: ${{ steps.meta.outputs.labels }}currency
