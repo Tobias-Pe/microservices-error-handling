@@ -1,0 +1,5 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="TestOrder" type="HttpClient.HttpRequestRunConfigurationType" factoryName="HTTP Request" path="$PROJECT_DIR$/test/requests/order.http" requestIdentifier="Successful test: check response status is 200#1">
+    <method v="2" />
+  </configuration>
+</component>
