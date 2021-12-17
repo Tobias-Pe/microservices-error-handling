@@ -5,6 +5,7 @@
         <option name="envFilePath" value="" />
         <option name="removeVolumesOnComposeDown" value="true" />
         <option name="sourceFilePath" value="docker-compose.yml" />
+        <option name="upAlwaysRecreate" value="true" />
         <option name="upForceRecreate" value="true" />
         <option name="upNoBuild" value="true" />
         <option name="upRemoveOrphans" value="true" />
