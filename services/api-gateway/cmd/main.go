@@ -25,12 +25,12 @@
 package main
 
 import (
+	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/services/api-gateway/internal"
 	"github.com/gin-gonic/gin"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/thinkerou/favicon"
-	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/services/api-gateway/internal"
 	"google.golang.org/grpc"
 )
 

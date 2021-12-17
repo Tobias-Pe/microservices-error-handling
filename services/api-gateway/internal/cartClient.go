@@ -26,9 +26,9 @@ package internal
 
 import (
 	"context"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
 	"google.golang.org/grpc"
 	"net/http"
 	"time"

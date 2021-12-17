@@ -1,4 +1,4 @@
-module gitlab.lrz.de/peslalz/errorhandling-microservices-thesis
+module github.com/Tobias-Pe/Microservices-Errorhandling
 
 go 1.17
 

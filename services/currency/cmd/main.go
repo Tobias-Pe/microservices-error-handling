@@ -25,11 +25,11 @@
 package main
 
 import (
+	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
+	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/services/currency"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
-	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/services/currency"
 	"google.golang.org/grpc"
 	"log"
 	"net"

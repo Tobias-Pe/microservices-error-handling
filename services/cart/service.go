@@ -28,11 +28,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
+	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/gomodule/redigo/redis"
 	loggrus "github.com/sirupsen/logrus"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
-	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/models"
 	"strconv"
 )
 

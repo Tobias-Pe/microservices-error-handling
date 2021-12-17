@@ -26,11 +26,11 @@ package main
 
 import (
 	"context"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
+	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/services/order"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
-	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/services/order"
 	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc"
 	"log"

@@ -26,10 +26,10 @@ package stock
 
 import (
 	"context"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
+	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	loggrus "github.com/sirupsen/logrus"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/api/proto"
-	loggingUtil "gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/log"
-	"gitlab.lrz.de/peslalz/errorhandling-microservices-thesis/pkg/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
