@@ -74,7 +74,7 @@ func StatusPaying() Status {
 func StatusShipping() Status {
 	return Status{
 		Name:    statusNameShipping,
-		Message: "The order is complete and is on it's way to you. Thank you for your purchase!",
+		Message: "The order is payed and will be prepared for shipment. Please stand by...",
 	}
 }
 

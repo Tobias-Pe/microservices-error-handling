@@ -36,6 +36,8 @@ jobs:
             path: ./services/order/Dockerfile
           - image: order-nginx
             path: ./build/nginx/order/Dockerfile
+          - image: payment
+            path: ./services/payment/Dockerfile
 
     steps:
       - name: Check out code
