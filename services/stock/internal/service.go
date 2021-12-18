@@ -42,12 +42,12 @@ var logger = loggingUtil.InitLogger()
 
 type Service struct {
 	proto.UnimplementedStockServer
-	Database      *DbConnection
-	AmqpChannel   *amqp.Channel
-	AmqpConn      *amqp.Connection
-	Queue         amqp.Queue
-	orderMessages <-chan amqp.Delivery
-	rabbitUrl     string
+	Database             *DbConnection
+	AmqpChannel          *amqp.Channel
+	AmqpConn             *amqp.Connection
+	orderMessages        <-chan amqp.Delivery
+	rabbitUrl            string
+	abortedOrderMessages <-chan amqp.Delivery
 }
 
 func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rabbitPort string) *Service {
@@ -66,6 +66,10 @@ func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rab
 		return nil
 	}
 	err = s.createOrderListener()
+	if err != nil {
+		return nil
+	}
+	err = s.createAbortedOrderListener()
 	if err != nil {
 		return nil
 	}
@@ -150,6 +154,61 @@ func (service *Service) createOrderListener() error {
 	go service.ListenOrders()
 	return nil
 }
+func (service *Service) createAbortedOrderListener() error {
+	err := service.AmqpChannel.ExchangeDeclare(
+		requests.OrderTopic, // name
+		"topic",             // type
+		true,                // durable
+		false,               // auto-deleted
+		false,               // internal
+		false,               // no-wait
+		nil,                 // arguments
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not create exchange")
+		return err
+	}
+	q, err := service.AmqpChannel.QueueDeclare(
+		"stock_"+requests.OrderTopic+"_aborted_queue", // name
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not create queue")
+		return err
+	}
+	err = service.AmqpChannel.QueueBind(
+		q.Name,                    // queue name
+		requests.OrderStatusAbort, // routing key
+		requests.OrderTopic,       // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not bind queue")
+		return err
+	}
+
+	service.abortedOrderMessages, err = service.AmqpChannel.Consume(
+		q.Name, // queue
+		"",     // consumer
+		false,  // auto-ack
+		false,  // exclusive
+		false,  // no-local
+		false,  // no-wait
+		nil,    // args
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not consume queue")
+		return err
+	}
+
+	go service.ListenAbortedOrders()
+	return nil
+}
 
 func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArticles) (*proto.ResponseArticles, error) {
 	articles, err := service.Database.getArticles(ctx, req.CategoryQuery)
@@ -185,7 +244,7 @@ func (service *Service) ListenOrders() {
 				logger.WithError(err).Error("Could not ack message.")
 				if reservationErr != nil {
 					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
-					_, err = service.Database.rollbackReserveOrder(ctx, *order)
+					err = service.Database.rollbackReserveOrder(ctx, *order)
 					if err != nil {
 						logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Rolling back unsuccessfully")
 					} else {
@@ -218,5 +277,48 @@ func (service *Service) ListenOrders() {
 	err := service.createOrderListener()
 	if err != nil {
 		logger.Error("Stopped Listening for Orders! Could not restart")
+	}
+}
+
+func (service *Service) ListenAbortedOrders() {
+	for message := range service.abortedOrderMessages {
+		order := &models.Order{}
+		err := json.Unmarshal(message.Body, order)
+		if err == nil {
+			var rollbackErr error
+			for i := 4; i < 7; i++ {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+				rollbackErr = service.Database.rollbackReserveOrder(ctx, *order)
+				cancel()
+				if rollbackErr == nil {
+					logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation deleted.")
+					break
+				}
+				logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(rollbackErr).Error("Could not delete reservation. Retrying...")
+				time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
+			}
+			err = message.Ack(false)
+			if err != nil {
+				logger.WithError(err).Error("Could not ack message.")
+				if rollbackErr != nil {
+					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+					_, err = service.Database.reserveOrder(ctx, *order)
+					cancel()
+					if err != nil {
+						logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Rolling back unsuccessfully")
+					} else {
+						logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+					}
+				}
+			}
+		} else {
+			logger.WithError(err).Error("Could not unmarshall message")
+		}
+	}
+	logger.Error("Stopped Listening for aborted Orders! Restarting...")
+	err := service.createAbortedOrderListener()
+	if err != nil {
+		logger.Error("Stopped Listening for aborted Orders! Could not restart")
 	}
 }

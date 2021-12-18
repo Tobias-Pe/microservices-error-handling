@@ -165,7 +165,7 @@ func (database *DbConnection) newCallbackReserveOrder(ctx context.Context, artic
 	return callback
 }
 
-func (database *DbConnection) rollbackReserveOrder(ctx context.Context, order models.Order) (*float64, error) {
+func (database *DbConnection) rollbackReserveOrder(ctx context.Context, order models.Order) error {
 	articleQuantityMap := map[string]int{}
 	for _, id := range order.Articles {
 		_, exists := articleQuantityMap[id]
@@ -181,22 +181,31 @@ func (database *DbConnection) rollbackReserveOrder(ctx context.Context, order mo
 	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
 	session, err := database.MongoClient.StartSession()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer session.EndSession(context.Background())
 
 	callback := database.newCallbackRollbackReserveOrder(ctx, articleQuantityMap, order)
 
-	result, err := session.WithTransaction(context.Background(), callback, txnOpts)
+	_, err = session.WithTransaction(context.Background(), callback, txnOpts)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	price := result.(float64)
-	return &price, nil
+
+	return nil
 }
 
 func (database *DbConnection) newCallbackRollbackReserveOrder(ctx context.Context, articleQuantityMap map[string]int, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
+		// undo reservation
+		deleted, err := database.reservationCollection.DeleteOne(ctx, bson.M{"_id": order.ID})
+		if err != nil {
+			return nil, err
+		}
+		if deleted.DeletedCount != 1 {
+			return nil, fmt.Errorf("there is no reservation for this order")
+		}
+
 		for articleID, amount := range articleQuantityMap {
 			// get article
 			var stockArticle = &models.Article{}
@@ -226,11 +235,6 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(ctx context.Contex
 				logger.WithFields(loggrus.Fields{"article": stockArticle, "order": order}).WithError(err).Errorf("Could not update article")
 				return nil, err
 			}
-		}
-		// undo reservation
-		_, err := database.reservationCollection.DeleteOne(ctx, order)
-		if err != nil {
-			return nil, err
 		}
 
 		return nil, nil

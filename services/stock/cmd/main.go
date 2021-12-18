@@ -51,10 +51,10 @@ var logger = loggingUtil.InitLogger()
 
 func main() {
 	config := readConfig()
-	createGrpcServer(config)
+	createServer(config)
 }
 
-func createGrpcServer(configuration configuration) {
+func createServer(configuration configuration) {
 	lis, err := net.Listen("tcp", configuration.serverAddress+":"+configuration.serverPort)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
