@@ -43,8 +43,8 @@ import (
 type CartClient struct {
 	GrpcConn    *grpc.ClientConn
 	AmqpConn    *amqp.Connection
-	grpcClient  proto.CartClient
 	AmqpChannel *amqp.Channel
+	grpcClient  proto.CartClient
 }
 
 type restBody struct {
