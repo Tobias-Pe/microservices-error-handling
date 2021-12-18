@@ -287,6 +287,9 @@ func (service Service) createCart(strArticleId string) (*models.Cart, error) {
 func (service Service) addToCart(strCartId string, strArticleId string) (*int64, error) {
 
 	iCartID, err := strconv.Atoi(strCartId)
+	if err != nil {
+		return nil, err
+	}
 	cartID := int64(iCartID)
 	client := service.connPool.Get()
 	defer func(client redis.Conn) {
@@ -310,8 +313,10 @@ func (service Service) addToCart(strCartId string, strArticleId string) (*int64,
 }
 
 func (service Service) removeFromCart(strCartId string, index int64) error {
-
 	iCartID, err := strconv.Atoi(strCartId)
+	if err != nil {
+		return err
+	}
 	cartID := int64(iCartID)
 	client := service.connPool.Get()
 	defer func(client redis.Conn) {
@@ -338,5 +343,8 @@ func (service Service) removeFromCart(strCartId string, index int64) error {
 		return err
 	}
 	_, err = redis.Values(client.Do("EXEC"))
+	if err != nil {
+		return err
+	}
 	return nil
 }
