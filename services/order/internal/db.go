@@ -114,13 +114,8 @@ func (database *DbConnection) updateOrder(ctx context.Context, order models.Orde
 	defer session.EndSession(context.Background())
 
 	callback := database.newCallbackUpdateOrder(ctx, order)
-	modifiedCount, err := session.WithTransaction(context.Background(), callback, txnOpts)
+	_, err = session.WithTransaction(context.Background(), callback, txnOpts)
 	if err != nil {
-		return err
-	}
-	if modifiedCount.(int64) != 1 {
-		err = fmt.Errorf("modified count is not one: %v for order with id: %v", modifiedCount.(int64), order.ID)
-		logger.WithFields(loggrus.Fields{"order": order}).WithError(err).Errorf("Could not update order")
 		return err
 	}
 	return nil
@@ -136,7 +131,13 @@ func (database *DbConnection) newCallbackUpdateOrder(ctx context.Context, order 
 		if err != nil {
 			return nil, err
 		}
-		return result.ModifiedCount, nil
+
+		if result.ModifiedCount != 1 {
+			err = fmt.Errorf("modified count %v != 1 for order with id: %v", result.ModifiedCount, order.ID)
+			logger.WithFields(loggrus.Fields{"order": order}).WithError(err).Errorf("Could not update order")
+			return nil, err
+		}
+		return result, nil
 	}
 	return callback
 }

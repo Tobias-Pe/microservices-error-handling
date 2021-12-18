@@ -28,7 +28,7 @@ import (
 	"context"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/services/stock"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/services/stock/internal"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -43,6 +43,8 @@ type configuration struct {
 	serverAddress string
 	mongoPort     string
 	mongoAddress  string
+	rabbitAddress string
+	rabbitPort    string
 }
 
 var logger = loggingUtil.InitLogger()
@@ -52,13 +54,18 @@ func main() {
 	createGrpcServer(config)
 }
 
-func createGrpcServer(config configuration) {
-	lis, err := net.Listen("tcp", config.serverAddress+":"+config.serverPort)
+func createGrpcServer(configuration configuration) {
+	lis, err := net.Listen("tcp", configuration.serverAddress+":"+configuration.serverPort)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	service := stock.NewService(config.mongoAddress, config.mongoPort)
+	service := internal.NewService(
+		configuration.mongoAddress,
+		configuration.mongoPort,
+		configuration.rabbitAddress,
+		configuration.rabbitPort,
+	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -67,12 +74,20 @@ func createGrpcServer(config configuration) {
 		if err != nil {
 			logger.WithError(err).Warn("could not disconnect from mongodb")
 		}
-	}(service.MongoClient, ctx)
+	}(service.Database.MongoClient, ctx)
 
 	proto.RegisterStockServer(s, service)
 	logger.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		logger.Fatalf("failed to serve: %v", err)
+	}
+	err = service.AmqpChannel.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing amqp-channel")
+	}
+	err = service.AmqpConn.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing amqp-connection")
 	}
 }
 
@@ -89,8 +104,24 @@ func readConfig() configuration {
 	serverAddress := ""
 	mongoAddress := viper.GetString("STOCK_MONGO_ADDRESS")
 	mongoPort := viper.GetString("STOCK_MONGO_PORT")
+	rabbitAddress := viper.GetString("RABBIT_MQ_ADDRESS")
+	rabbitPort := viper.GetString("RABBIT_MQ_PORT")
 
-	logger.WithFields(loggrus.Fields{"STOCK_PORT": serverPort, "STOCK_ADDRESS": serverAddress, "STOCK_MONGO_ADDRESS": mongoAddress, "STOCK_MONGO_PORT": mongoPort}).Info("config variables read")
+	logger.WithFields(loggrus.Fields{
+		"STOCK_PORT":          serverPort,
+		"STOCK_ADDRESS":       serverAddress,
+		"STOCK_MONGO_ADDRESS": mongoAddress,
+		"STOCK_MONGO_PORT":    mongoPort,
+		"RABBIT_MQ_ADDRESS":   rabbitAddress,
+		"RABBIT_MQ_PORT":      rabbitPort,
+	}).Info("config variables read")
 
-	return configuration{serverAddress: serverAddress, serverPort: serverPort, mongoAddress: mongoAddress, mongoPort: mongoPort}
+	return configuration{
+		serverAddress: serverAddress,
+		serverPort:    serverPort,
+		mongoAddress:  mongoAddress,
+		mongoPort:     mongoPort,
+		rabbitAddress: rabbitAddress,
+		rabbitPort:    rabbitPort,
+	}
 }

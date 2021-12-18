@@ -48,7 +48,6 @@ type Service struct {
 	proto.UnimplementedCartServer
 	AmqpChannel     *amqp.Channel
 	AmqpConn        *amqp.Connection
-	Queue           amqp.Queue
 	orderMessages   <-chan amqp.Delivery
 	rabbitUrl       string
 	database        *DbConnection
