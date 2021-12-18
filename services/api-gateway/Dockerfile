@@ -19,5 +19,5 @@ ARG SERVICE_DIR
 
 COPY --from=builder /app/services/$SERVICE_DIR .
 COPY config/local.env ./config/
-COPY assets/favicon.ico assets/favicon.ico
+COPY assets/ assets/
 CMD "./main"

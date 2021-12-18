@@ -30,7 +30,7 @@ import (
 	"github.com/gin-gonic/gin"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/thinkerou/favicon"
+	"net/http"
 )
 
 type configuration struct {
@@ -157,7 +157,11 @@ func createRouter(service *service, configuration configuration) {
 	// Creates a gin router with default middleware:
 	// logger and recovery (crash-free) middleware
 	router := gin.Default()
-	router.Use(favicon.New("./assets/favicon.ico")) // set favicon middleware
+	router.StaticFile("/favicon.ico", "./assets/favicon.ico")
+	router.LoadHTMLGlob("./assets/index.html")
+	router.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.html", nil)
+	})
 
 	router.GET("/exchange/:currency", service.currencyClient.GetExchangeRate())
 	router.GET("/articles/*category", service.stockClient.GetArticles())

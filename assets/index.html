@@ -1,0 +1,258 @@
+<style>
+    p {
+        font-size: 18px;
+    }
+
+    h2 {
+        font-size: 25px;
+        padding-top: 30px;
+    }
+    body {
+        padding: 20px;
+        margin: 0px;
+        width: 100%;
+        height: 100%;
+        font-family: "Karla", sans-serif;
+    }
+    html {
+        padding: 0px;
+        margin: 0px;
+        width: 100%;
+        height: 100%;
+        scroll-behavior: smooth;
+    }
+
+    main {
+        padding: 0px 0px 0px 0px;
+    }
+
+    a {
+        text-decoration: none;
+    }
+    table {
+        width: 30%;
+        border-collapse: collapse;
+    }
+    table,
+    th,
+    td {
+        border: 1px solid black;
+    }
+    thead {
+        background-color: gray;
+        color: #ffffff;
+    }
+    th {
+        text-align: center;
+        height: 50px;
+    }
+    tbody tr:nth-child(odd) {
+        background: #ffffff;
+    }
+    tbody tr:nth-child(even) {
+        background: #f4f4f4;
+    }
+</style>
+
+<h1 id="errorhandling-in-a-microservice-architecture">Errorhandling in a Microservice Architecture</h1>
+<p><a href="https://github.com/Tobias-Pe/Microservices-Errorhandling/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Tobias-Pe/Microservices-Errorhandling" alt="MIT License"></a>
+    <a href="https://gitmoji.dev"><img src="https://img.shields.io/badge/gitmoji-%20&#128540;%20 &#128525;-FFDD67.svg" alt="Gitmoji"></a>
+    <img src="https://img.shields.io/github/go-mod/go-version/Tobias-Pe/Microservices-Errorhandling" alt="Go-Version">
+    <img src="https://img.shields.io/badge/state-under%20development-orange" alt="Development-state"></p>
+<p>The application is a Demo-Webshop, where 9 Services communicate using synchronous and asynchronous communication.</p>
+<p>The aim of the application is to implement various error handling methods, try them out and measure their effectiveness
+    under pressure of load tests.</p>
+<p><em>This project is part of a Bachelorthesis in Computer Science &#127891;</em></p>
+<h2 id="api-reference-">API Reference &#128064;</h2>
+<h4 id="get-all-articles-">Get all articles &#128717;</h4>
+<pre><code class="lang-http">  GET <span class="hljs-regexp">/articles/</span><span class="hljs-variable">${category}</span>
+</code></pre>
+<table>
+    <thead>
+    <tr>
+        <th style="text-align:left">Parameter</th>
+        <th style="text-align:left">Type</th>
+        <th style="text-align:left">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td style="text-align:left"><code>category</code></td>
+        <td style="text-align:left"><code>string</code></td>
+        <td style="text-align:left"><strong>Optional</strong>. Filter the articles for a certain category.</td>
+    </tr>
+    </tbody>
+</table>
+<h4 id="get-an-exchange-rate-">Get an exchange rate &#128176;</h4>
+<pre><code class="lang-http">  GET <span class="hljs-regexp">/exchange/</span><span class="hljs-variable">${currency}</span>
+</code></pre>
+<table>
+    <thead>
+    <tr>
+        <th style="text-align:left">Parameter</th>
+        <th style="text-align:left">Type</th>
+        <th style="text-align:left">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td style="text-align:left"><code>currency</code></td>
+        <td style="text-align:left"><code>string</code></td>
+        <td style="text-align:left"><strong>Required</strong>. Currently supported: USD,GBP,INR,CAS,JPY,SEK,PLN</td>
+    </tr>
+    </tbody>
+</table>
+<p>Mocks an exchange from ${currency} to Euro</p>
+<h4 id="create-a-shopping-cart-">Create a shopping cart &#128722;</h4>
+<pre><code class="lang-http">  <span class="hljs-attribute">POST</span> /cart
+</code></pre>
+<table>
+    <thead>
+    <tr>
+        <th style="text-align:left">JSON-Body</th>
+        <th style="text-align:left">Type</th>
+        <th style="text-align:left">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td style="text-align:left"><code>article_id</code></td>
+        <td style="text-align:left"><code>string</code></td>
+        <td style="text-align:left"><strong>Required</strong>. Will create a cart with this article_id already in it</td>
+    </tr>
+    </tbody>
+</table>
+<p>Returns the new carts ID.</p>
+<h4 id="add-articles-to-a-shopping-cart-">Add articles to a shopping cart &#128722;</h4>
+<pre><code class="lang-http">  PUT <span class="hljs-regexp">/cart/</span><span class="hljs-variable">${id}</span>
+</code></pre>
+<table>
+    <thead>
+    <tr>
+        <th style="text-align:left">Parameter</th>
+        <th style="text-align:left">Type</th>
+        <th style="text-align:left">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td style="text-align:left"><code>id</code></td>
+        <td style="text-align:left"><code>string</code></td>
+        <td style="text-align:left"><strong>Required</strong>. The ID of your cart.</td>
+    </tr>
+    </tbody>
+</table>
+<table>
+    <thead>
+    <tr>
+        <th style="text-align:left">JSON-Body</th>
+        <th style="text-align:left">Type</th>
+        <th style="text-align:left">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td style="text-align:left"><code>article_id</code></td>
+        <td style="text-align:left"><code>string</code></td>
+        <td style="text-align:left"><strong>Required</strong>. The ID of the article you want to add to the cart.</td>
+    </tr>
+    </tbody>
+</table>
+<p>Returns the new carts ID.</p>
+<h4 id="get-a-cart-s-content-">Get a cart&#39;s content &#128722;</h4>
+<pre><code class="lang-http">  GET <span class="hljs-regexp">/cart/</span><span class="hljs-variable">${id}</span>
+</code></pre>
+<table>
+    <thead>
+    <tr>
+        <th style="text-align:left">Parameter</th>
+        <th style="text-align:left">Type</th>
+        <th style="text-align:left">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td style="text-align:left"><code>id</code></td>
+        <td style="text-align:left"><code>string</code></td>
+        <td style="text-align:left"><strong>Required</strong>. The ID of your created cart.</td>
+    </tr>
+    </tbody>
+</table>
+<h4 id="create-an-order-">Create an order &#128203;</h4>
+<pre><code class="lang-http">  <span class="hljs-keyword">POST</span> /<span class="hljs-keyword">order</span>
+</code></pre>
+<table>
+    <thead>
+    <tr>
+        <th style="text-align:left">JSON-Body</th>
+        <th style="text-align:left">Type</th>
+        <th style="text-align:left">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td style="text-align:left"><code>cartId</code></td>
+        <td style="text-align:left"><code>string</code></td>
+        <td style="text-align:left"><strong>Required</strong></td>
+    </tr>
+    <tr>
+        <td style="text-align:left"><code>name</code></td>
+        <td style="text-align:left"><code>string</code></td>
+        <td style="text-align:left"><strong>Required</strong></td>
+    </tr>
+    <tr>
+        <td style="text-align:left"><code>address</code></td>
+        <td style="text-align:left"><code>string</code></td>
+        <td style="text-align:left"><strong>Required</strong></td>
+    </tr>
+    <tr>
+        <td style="text-align:left"><code>creditCard</code></td>
+        <td style="text-align:left"><code>string</code></td>
+        <td style="text-align:left"><strong>Required</strong></td>
+    </tr>
+    </tbody>
+</table>
+<p>Creates an order, that will be validated and shipped in the background.</p>
+<h4 id="get-an-order-s-content-">Get an order&#39;s content &#128176;</h4>
+<pre><code class="lang-http">  GET <span class="hljs-regexp">/order/</span><span class="hljs-variable">${id}</span>
+</code></pre>
+<table>
+    <thead>
+    <tr>
+        <th style="text-align:left">Parameter</th>
+        <th style="text-align:left">Type</th>
+        <th style="text-align:left">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td style="text-align:left"><code>id</code></td>
+        <td style="text-align:left"><code>string</code></td>
+        <td style="text-align:left"><strong>Required</strong>. The ID of your created order.</td>
+    </tr>
+    </tbody>
+</table>
+<p>Look at the current status of your order.</p>
+<h2 id="tech-stack-">Tech Stack &#128218;</h2>
+<p><strong>Order &amp; Stock:</strong> MongoDB with ACID-Transactions</p>
+<p><strong>Cart:</strong> Redis</p>
+<p><strong>API-Gateway:</strong> gin-gonic/gin</p>
+<p><strong>Synchronous Communication:</strong> GRPC</p>
+<p><strong>Asynchronous Communication:</strong> RabbitMQ</p>
+<p><strong>Load Balancing:</strong> NGINX with Docker DNS</p>
+<h2 id="run-locally-">Run Locally &#127939;</h2>
+<p>Clone the project</p>
+<pre><code class="lang-bash">  git <span class="hljs-keyword">clone</span> <span class="hljs-title">https</span>://github.com/Tobias-Pe/Microservices-Errorhandling
+</code></pre>
+<p>Go to the project directory</p>
+<pre><code class="lang-bash">  <span class="hljs-built_in">cd</span> Microservices-Errorhandling
+</code></pre>
+<p>Start all containers with compose</p>
+<pre><code class="lang-bash">  <span class="hljs-comment">docker</span><span class="hljs-literal">-</span><span class="hljs-comment">compose</span> <span class="hljs-comment">up</span> <span class="hljs-literal">-</span><span class="hljs-literal">-</span><span class="hljs-comment">force</span><span class="hljs-literal">-</span><span class="hljs-comment">recreate</span> <span class="hljs-literal">-</span><span class="hljs-literal">-</span><span class="hljs-comment">build</span> <span class="hljs-literal">-</span><span class="hljs-comment">V</span> <span class="hljs-literal">-</span><span class="hljs-literal">-</span><span class="hljs-comment">remove</span><span class="hljs-literal">-</span><span class="hljs-comment">orphans</span>
+</code></pre>
+<p><em>PS: there are some run configurations in the .run folder</em></p>
+<h2 id="deployment-">Deployment &#128640;</h2>
+<p>With docker-swarm TBD</p>
+<h2 id="author-">Author &#9997;</h2>
+<p><a href="https://github.com/Tobias-Pe">@Tobias Peslalz</a></p>
+<p><a href="https://www.linkedin.com/in/tobias-peslalz"><img src="https://img.shields.io/badge/LinkedIn-0077B5?style=flat&amp;logo=linkedin&amp;logoColor=white" alt="linkedin"></a></p>
