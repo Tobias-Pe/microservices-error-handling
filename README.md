@@ -3,7 +3,7 @@
 [![MIT License](https://img.shields.io/github/license/Tobias-Pe/Microservices-Errorhandling)](https://github.com/Tobias-Pe/Microservices-Errorhandling/blob/main/LICENSE)
 [![Gitmoji](https://img.shields.io/badge/gitmoji-%20😜%20😍-FFDD67.svg)](https://gitmoji.dev)
 ![Go-Version](https://img.shields.io/github/go-mod/go-version/Tobias-Pe/Microservices-Errorhandling)
-![Developmentstate](https://img.shields.io/badge/state-under%20development-orange)
+![Development-state](https://img.shields.io/badge/state-under%20development-orange)
 
 The application is a Demo-Webshop, where 9 Services communicate using synchronous and asynchronous communication.
 
@@ -24,9 +24,9 @@ _This project is part of a Bachelorthesis in Computer Science🎓_
   GET /articles/${category}
 ```
 
-| Parameter | Type     | Description                       |
-| :-------- | :------- | :-------------------------------- |
-| `category`      | `string` | **Optional**. Filter the articles for a certain category. |
+| Parameter  | Type     | Description                                               |
+|:-----------|:---------|:----------------------------------------------------------|
+| `category` | `string` | **Optional**. Filter the articles for a certain category. |
 
 #### Get an exchange rate 💰
 
@@ -34,9 +34,9 @@ _This project is part of a Bachelorthesis in Computer Science🎓_
   GET /exchange/${currency}
 ```
 
-| Parameter | Type     | Description                       |
-| :-------- | :------- | :-------------------------------- |
-| `currency`      | `string` | **Required**. Currently supported: USD,GBP,INR,CAS,JPY,SEK,PLN |
+| Parameter  | Type     | Description                                                    |
+|:-----------|:---------|:---------------------------------------------------------------|
+| `currency` | `string` | **Required**. Currently supported: USD,GBP,INR,CAS,JPY,SEK,PLN |
 
 Mocks an exchange from ${currency} to €
 
@@ -46,9 +46,9 @@ Mocks an exchange from ${currency} to €
   POST /cart
 ```
 
-| JSON-Body | Type     | Description                                                         |
-| :-------- | :------- |:--------------------------------------------------------------------|
-| `article_id`      | `string` | **Required**. Will create a cart with this article_id already in it |
+| JSON-Body    | Type     | Description                                                         |
+|:-------------|:---------|:--------------------------------------------------------------------|
+| `article_id` | `string` | **Required**. Will create a cart with this article_id already in it |
 
 Returns the new carts ID.
 
@@ -58,13 +58,13 @@ Returns the new carts ID.
   PUT /cart/${id}
 ```
 
-| Parameter | Type     | Description                       |
-| :-------- | :------- | :-------------------------------- |
+| Parameter | Type     | Description                        |
+|:----------|:---------|:-----------------------------------|
 | `id`      | `string` | **Required**. The ID of your cart. |
 
-| JSON-Body | Type     | Description                                                      |
-| :-------- | :------- |:-----------------------------------------------------------------|
-| `article_id`      | `string` | **Required**. The ID of the article you want to add to the cart. |
+| JSON-Body    | Type     | Description                                                      |
+|:-------------|:---------|:-----------------------------------------------------------------|
+| `article_id` | `string` | **Required**. The ID of the article you want to add to the cart. |
 
 Returns the new carts ID.
 
@@ -74,8 +74,8 @@ Returns the new carts ID.
   GET /cart/${id}
 ```
 
-| Parameter | Type     | Description                       |
-| :-------- | :------- | :-------------------------------- |
+| Parameter | Type     | Description                                |
+|:----------|:---------|:-------------------------------------------|
 | `id`      | `string` | **Required**. The ID of your created cart. |
 
 #### Create an order 🧾
@@ -84,12 +84,12 @@ Returns the new carts ID.
   POST /order
 ```
 
-| JSON-Body | Type     | Description                       |
-| :-------- | :------- | :-------------------------------- |
-| `cartId`      | `string` | **Required**  |
-| `name`      | `string` | **Required**  |
-| `address`      | `string` | **Required**  |
-| `creditCard`      | `string` | **Required**  |
+| JSON-Body    | Type     | Description  |
+|:-------------|:---------|:-------------|
+| `cartId`     | `string` | **Required** |
+| `name`       | `string` | **Required** |
+| `address`    | `string` | **Required** |
+| `creditCard` | `string` | **Required** |
 
 Creates an order, that will be validated and shipped in the background.
 
@@ -99,8 +99,8 @@ Creates an order, that will be validated and shipped in the background.
   GET /order/${id}
 ```
 
-| Parameter | Type     | Description                       |
-| :-------- | :------- | :-------------------------------- |
+| Parameter | Type     | Description                                 |
+|:----------|:---------|:--------------------------------------------|
 | `id`      | `string` | **Required**. The ID of your created order. |
 
 Look at the current status of your order.
