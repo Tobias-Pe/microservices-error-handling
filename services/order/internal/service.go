@@ -89,6 +89,9 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 		CustomerCreditCard: req.CustomerCreditCard,
 	}
 	err := service.Database.createOrder(ctx, &order)
+	if err != nil {
+		return nil, err
+	}
 	logger.WithFields(loggrus.Fields{"Request": req, "Order": order}).Info("Order created")
 	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
 	if err != nil {

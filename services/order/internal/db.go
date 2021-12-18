@@ -20,7 +20,7 @@ type DbConnection struct {
 }
 
 func NewDbConnection(mongoAddress string, mongoPort string) *DbConnection {
-	var err error = nil
+	var err error
 	db := &DbConnection{}
 	mongoUri := "mongodb://" + mongoAddress + ":" + mongoPort
 	db.MongoClient, err = mongo.NewClient(options.Client().ApplyURI(mongoUri))
