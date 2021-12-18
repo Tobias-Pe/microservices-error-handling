@@ -36,7 +36,6 @@ import (
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"math"
-	"math/rand"
 	"strconv"
 	"time"
 )
@@ -171,24 +170,16 @@ func (service *Service) ListenUpdateCart() {
 		request := &requests.PutArticleInCartRequest{}
 		err := json.Unmarshal(message.Body, request)
 		if err == nil {
-			for i := 0; i < 10; i++ {
-				cart, err := service.addToCart(request.CartID, request.ArticleID)
-				if err != nil {
-					logger.WithFields(loggrus.Fields{"request": request, "retry": i}).WithError(err).Warn("Could not add to cart. Trying again...")
-					n := rand.Intn(600)
-					time.Sleep(time.Duration(n) * time.Millisecond)
-				} else {
-					logger.WithFields(loggrus.Fields{"cart": cart}).Infof("Received a message")
-					break
-				}
-			}
+			index, err := service.addToCart(request.CartID, request.ArticleID)
 			if err != nil {
-				logger.WithFields(loggrus.Fields{"request": request}).WithError(err).Error("Could not add to cart.")
+				logger.WithFields(loggrus.Fields{"request": request}).WithError(err).Warn("Could not add to cart. Trying again...")
+			} else {
+				logger.WithFields(loggrus.Fields{"index": *index, "request": request}).Infof("Inserted item")
 			}
 			err = message.Ack(false)
-			if err != nil {
+			if err != nil && index != nil {
 				logger.WithError(err).Error("Could not ack message. Rolling transaction back.")
-				_, err := service.removeFromCart(request.CartID, request.ArticleID)
+				err = service.removeFromCart(request.CartID, *index)
 				if err != nil {
 					logger.WithFields(loggrus.Fields{"request": request}).WithError(err).Error("Could not roll transaction back")
 				}
@@ -243,15 +234,17 @@ func (service Service) getCart(strCartId string) (*models.Cart, error) {
 			logger.WithError(err).Warn("connection to redis could not be successfully closed")
 		}
 	}(client)
-	jsonArticles, err := client.Do("GET", id)
+	jsonArticles, err := redis.ByteSlices(client.Do("LRANGE", id, 0, -1))
 	if err != nil {
 		return nil, err
 	}
-	if jsonArticles == nil {
+	if len(jsonArticles) == 0 {
 		return nil, fmt.Errorf("there is no cart for this id: %s", strCartId)
 	}
 	var articles []string
-	err = json.Unmarshal(jsonArticles.([]byte), &articles)
+	for _, jsonArticle := range jsonArticles {
+		articles = append(articles, string(jsonArticle))
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -279,11 +272,7 @@ func (service Service) createCart(strArticleId string) (*models.Cart, error) {
 	}
 
 	newCart.ID = cartId.(int64)
-	marshal, err := json.Marshal(newCart.ArticleIDs)
-	if err != nil {
-		return nil, err
-	}
-	_, err = client.Do("SET", cartId, string(marshal))
+	_, err = client.Do("RPUSH", cartId, newCart.ArticleIDs[0])
 	if err != nil {
 		return nil, err
 	}
@@ -295,10 +284,10 @@ func (service Service) createCart(strArticleId string) (*models.Cart, error) {
 	return &newCart, nil
 }
 
-func (service Service) addToCart(strCartId string, strArticleId string) (*models.Cart, error) {
+func (service Service) addToCart(strCartId string, strArticleId string) (*int64, error) {
 
-	cartID, err := strconv.Atoi(strCartId)
-	cart := models.Cart{ID: int64(cartID)}
+	iCartID, err := strconv.Atoi(strCartId)
+	cartID := int64(iCartID)
 	client := service.connPool.Get()
 	defer func(client redis.Conn) {
 		err := client.Close()
@@ -306,60 +295,24 @@ func (service Service) addToCart(strCartId string, strArticleId string) (*models
 			logger.WithError(err).Warn("connection to redis could not be successfully closed")
 		}
 	}(client)
-	_, err = client.Do("WATCH", cart.ID)
-	if err != nil {
-		return nil, err
-	}
-	jsonArticles, err := client.Do("GET", cart.ID)
-	if err != nil {
-		return nil, err
-	}
-	if jsonArticles == nil {
-		return nil, fmt.Errorf("there is no cart for this id: %s", strCartId)
-	}
-	var articles []string
-	err = json.Unmarshal(jsonArticles.([]byte), &articles)
-	if err != nil {
-		return nil, err
-	}
-	cart.ArticleIDs = append(articles, strArticleId)
-	marshal, err := json.Marshal(cart.ArticleIDs)
-	if err != nil {
-		return nil, err
-	}
-	_, err = client.Do("MULTI")
-	if err != nil {
-		return nil, err
-	}
-	_, err = client.Do("SET", cart.ID, string(marshal))
-	if err != nil {
-		return nil, err
-	}
-	_, err = client.Do("EXPIRE", cart.ID, expireCartSeconds)
-	if err != nil {
-		return nil, err
-	}
-	_, err = client.Do("EXEC")
-	if err != nil {
-		logger.WithError(err).Error("error on exec")
-		return nil, err
-	}
 
-	return &cart, nil
+	length, err := client.Do("RPUSH", cartID, strArticleId)
+	if err != nil {
+		return nil, err
+	}
+	_, err = client.Do("EXPIRE", cartID, expireCartSeconds)
+	if err != nil {
+		return nil, err
+	}
+	index := length.(int64) - 1
+
+	return &index, nil
 }
 
-func (service Service) removeFromCart(strCartId string, strArticleId string) (*models.Cart, error) {
-	cart, err := service.getCart(strCartId)
-	if err != nil {
-		return nil, err
-	}
-	for i, articleID := range cart.ArticleIDs {
-		if articleID == strArticleId {
-			cart.ArticleIDs = append(cart.ArticleIDs[:i], cart.ArticleIDs[i+1:]...)
-			break
-		}
-	}
+func (service Service) removeFromCart(strCartId string, index int64) error {
 
+	iCartID, err := strconv.Atoi(strCartId)
+	cartID := int64(iCartID)
 	client := service.connPool.Get()
 	defer func(client redis.Conn) {
 		err := client.Close()
@@ -368,14 +321,22 @@ func (service Service) removeFromCart(strCartId string, strArticleId string) (*m
 		}
 	}(client)
 
-	marshal, err := json.Marshal(cart.ArticleIDs)
+	err = client.Send("MULTI")
 	if err != nil {
-		return nil, err
+		return err
 	}
-	_, err = client.Do("SET", cart.ID, string(marshal))
+	err = client.Send("LSET", cartID, index, "TOBEREMOVED")
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return cart, nil
+	err = client.Send("LREM", cartID, 1, "TOBEREMOVED")
+	if err != nil {
+		return err
+	}
+	err = client.Send("EXPIRE", cartID, expireCartSeconds)
+	if err != nil {
+		return err
+	}
+	_, err = redis.Values(client.Do("EXEC"))
+	return nil
 }
