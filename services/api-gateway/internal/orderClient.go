@@ -26,6 +26,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/gin-gonic/gin"
@@ -75,6 +76,10 @@ func (orderClient OrderClient) CreateOrder() gin.HandlerFunc {
 		order := models.Order{}
 		if err := c.ShouldBindWith(&order, binding.JSON); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if len(order.CartID) == 0 || len(order.CustomerAddress) == 0 || len(order.CustomerName) == 0 || len(order.CustomerCreditCard) == 0 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("invalid order request, values missing").Error()})
 			return
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)

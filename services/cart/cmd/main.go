@@ -27,7 +27,7 @@ package main
 import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/services/cart"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/services/cart/internal"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -57,7 +57,7 @@ func createServer(config configuration) {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	service := cart.NewService(config.cacheAddress, config.cachePort, config.rabbitAddress, config.rabbitPort)
+	service := internal.NewService(config.cacheAddress, config.cachePort, config.rabbitAddress, config.rabbitPort)
 	proto.RegisterCartServer(s, service)
 	logger.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {

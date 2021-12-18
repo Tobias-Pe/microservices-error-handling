@@ -2,7 +2,7 @@ package requests
 
 const (
 	AddToCartRoutingKey = "api.add.article.cart"
-	CartTopic           = "cart"
+	CartTopic           = "articles"
 )
 
 type PutArticleInCartRequest struct {

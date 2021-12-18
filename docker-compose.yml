@@ -93,6 +93,7 @@ services:
     depends_on:
       - stock-mongodb
       - mongo_seed
+      - rabbit-mq
 
   stock-mongodb:
     image: mongo:5
@@ -158,6 +159,7 @@ services:
       - ./config/docker.env
     depends_on:
       - order-mongodb
+      - rabbit-mq
 
   order-mongodb:
     image: mongo:5

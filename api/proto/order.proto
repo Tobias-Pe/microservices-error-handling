@@ -18,10 +18,12 @@ message OrderObject {
   string orderId = 1;
   string status = 2;
   string message = 3;
-  float price = 4;
-  string customerAddress = 5;
-  string customerName = 6;
-  string customerCreditCard = 7;
+  string cartId = 4;
+  repeated string articles = 5;
+  float price = 6;
+  string customerAddress = 7;
+  string customerName = 8;
+  string customerCreditCard = 9;
 }
 
 message RequestOrder {

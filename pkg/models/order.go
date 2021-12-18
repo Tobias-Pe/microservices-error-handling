@@ -24,7 +24,26 @@
 
 package models
 
-import "go.mongodb.org/mongo-driver/bson/primitive"
+import (
+	"encoding/json"
+	"fmt"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
+	loggingUtils "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	loggrus "github.com/sirupsen/logrus"
+	"github.com/streadway/amqp"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
+
+const (
+	statusNameReserving = "RESERVING"
+	statusNameFetching  = "FETCHING"
+	statusNamePaying    = "PAYING"
+	statusNameShipping  = "SHIPPING"
+	statusNameCompleted = "COMPLETE"
+	statusNameAborted   = "ABORTED"
+)
+
+var logger = loggingUtils.InitLogger()
 
 type Status struct {
 	Name    string
@@ -33,36 +52,43 @@ type Status struct {
 
 func StatusFetching() Status {
 	return Status{
-		Name:    "FETCHING",
-		Message: "The articles are being fetched from the cart and the price will be calculated. Please stand by...",
+		Name:    statusNameFetching,
+		Message: "The articles are being fetched from the cart. Please stand by...",
 	}
 }
 
 func StatusReserving() Status {
 	return Status{
-		Name:    "RESERVING",
+		Name:    statusNameReserving,
 		Message: "We are reserving the articles for you. Please stand by...",
 	}
 }
 
 func StatusPaying() Status {
 	return Status{
-		Name:    "PAYING",
+		Name:    statusNamePaying,
 		Message: "We are checking your payment data and will debit your credit card. Please stand by...",
 	}
 }
 
 func StatusShipping() Status {
 	return Status{
-		Name:    "SHIPPING",
+		Name:    statusNameShipping,
 		Message: "The order is complete and is on it's way to you. Thank you for your purchase!",
 	}
 }
 
 func StatusComplete() Status {
 	return Status{
-		Name:    "COMPLETE",
+		Name:    statusNameCompleted,
 		Message: "The order is complete and is on it's way to you. Thank you for your purchase!",
+	}
+}
+
+func StatusAborted(message string) Status {
+	return Status{
+		Name:    statusNameAborted,
+		Message: message,
 	}
 }
 
@@ -76,4 +102,49 @@ type Order struct {
 	CustomerAddress    string             `json:"address" bson:"address"`
 	CustomerName       string             `json:"name" bson:"name"`
 	CustomerCreditCard string             `json:"creditCard" bson:"creditCard"`
+}
+
+func (order Order) PublishOrderStatusUpdate(channel *amqp.Channel) error {
+	routingKey, err := order.getRoutingKey()
+	if err != nil {
+		return err
+	}
+	bytes, err := json.Marshal(order)
+	if err != nil {
+		return err
+	}
+	err = channel.Publish(
+		requests.OrderTopic, // exchange
+		routingKey,          // routing key
+		true,                // mandatory
+		false,               // immediate
+		amqp.Publishing{
+			DeliveryMode: amqp.Persistent,
+			ContentType:  "application/json",
+			Body:         bytes,
+		})
+	if err != nil {
+		return err
+	}
+	logger.WithFields(loggrus.Fields{"order": order}).Infof("Published Order update")
+	return nil
+}
+
+func (order Order) getRoutingKey() (string, error) {
+	switch order.Status {
+	case statusNameCompleted:
+		return requests.OrderStatusComplete, nil
+	case statusNameAborted:
+		return requests.OrderStatusAbort, nil
+	case statusNameFetching:
+		return requests.OrderStatusFetch, nil
+	case statusNamePaying:
+		return requests.OrderStatusPay, nil
+	case statusNameShipping:
+		return requests.OrderStatusShip, nil
+	case statusNameReserving:
+		return requests.OrderStatusReserve, nil
+	default:
+		return "", fmt.Errorf("unknown status: %s ", order.Status)
+	}
 }
