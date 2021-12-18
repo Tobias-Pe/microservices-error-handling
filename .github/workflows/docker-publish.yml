@@ -2,7 +2,7 @@ name: Docker
 
 on:
   schedule:
-    - cron: '0 8 * * *' # everyday at 8am UTC
+    - cron: '0 8 * * *' # every day at 8am UTC
   push:
   pull_request:
 
