@@ -3,10 +3,10 @@ POST http://localhost/order
 Content-Type: application/json
 
 {
-  "cart_id": "1",
+  "cartId": "1",
   "address": "Max-Mustermann-Allee 42",
   "name": "Max Mustermann",
-  "credit_card": "123456789-123"
+  "creditCard": "123456789-123"
 }
 
 ### Successful test: check response status is 200
