@@ -118,11 +118,11 @@ func (cartClient CartClient) CreateCart() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		request := proto.RequestNewCart{}
 		objArticleId := restBody{}
-		if err := c.ShouldBindWith(&objArticleId, binding.JSON); err == nil {
-			request.ArticleId = objArticleId.ArticleId
-		} else {
-			logger.WithError(err).Warnf("Binding unsuccessfull")
+		if err := c.ShouldBindWith(&objArticleId, binding.JSON); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		}
+		request.ArticleId = objArticleId.ArticleId
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 		response, err := cartClient.grpcClient.CreateCart(ctx, &request)
@@ -152,10 +152,12 @@ func (cartClient CartClient) AddToCart() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if len(c.Param("id")) == 0 {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("the id parameter is required after /cart/")})
+			return
 		}
 		objArticleId := restBody{}
 		if err := c.ShouldBindWith(&objArticleId, binding.JSON); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		}
 		request := requests.PutArticleInCartRequest{
 			ArticleID: objArticleId.ArticleId,
@@ -164,6 +166,7 @@ func (cartClient CartClient) AddToCart() gin.HandlerFunc {
 		bytes, err := json.Marshal(request)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		}
 		err = cartClient.AmqpChannel.Publish(
 			requests.CartTopic,           // exchange
@@ -177,6 +180,7 @@ func (cartClient CartClient) AddToCart() gin.HandlerFunc {
 			})
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		}
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	}

@@ -68,6 +68,7 @@ func (currencyClient CurrencyClient) GetExchangeRate() gin.HandlerFunc {
 			response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)
 			if err != nil {
 				c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
 			} else {
 				c.JSON(http.StatusOK, gin.H{"exchangeRate": response.ExchangeRate})
 			}

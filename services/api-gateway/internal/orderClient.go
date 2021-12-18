@@ -63,6 +63,7 @@ func (orderClient OrderClient) GetOrder() gin.HandlerFunc {
 		response, err := orderClient.client.GetOrder(ctx, &proto.RequestOrder{OrderId: orderId})
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		} else {
 			c.JSON(http.StatusOK, gin.H{"order": response})
 		}
@@ -74,6 +75,7 @@ func (orderClient OrderClient) CreateOrder() gin.HandlerFunc {
 		order := models.Order{}
 		if err := c.ShouldBindWith(&order, binding.JSON); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
