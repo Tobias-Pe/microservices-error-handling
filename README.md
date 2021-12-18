@@ -46,9 +46,9 @@ Mocks an exchange from ${currency} to €
   POST /cart
 ```
 
-| JSON-Body | Type     | Description                       |
-| :-------- | :------- | :-------------------------------- |
-| `article_id`      | `string` | **Optional**. Will create a cart with this article_id already in it |
+| JSON-Body | Type     | Description                                                         |
+| :-------- | :------- |:--------------------------------------------------------------------|
+| `article_id`      | `string` | **Required**. Will create a cart with this article_id already in it |
 
 Returns the new carts ID.
 
