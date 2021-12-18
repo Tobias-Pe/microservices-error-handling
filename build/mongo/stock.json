@@ -2,25 +2,25 @@
   {
     "name": "Pen",
     "category": "office",
-    "price_euro": 1.50,
+    "priceEuro": 1.50,
     "amount": 100
   },
   {
     "name": "Paper",
     "category": "office",
-    "price_euro": 0.50,
+    "priceEuro": 0.50,
     "amount": 100
   },
   {
     "name": "Surfboard",
     "category": "sport",
-    "price_euro": 799.99,
+    "priceEuro": 799.99,
     "amount": 3
   },
   {
     "name": "Graphics card",
     "category": "hardware",
-    "price_euro": 9999.99,
+    "priceEuro": 9999.99,
     "amount": 1
   }
 ]
