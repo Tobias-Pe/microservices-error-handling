@@ -41,6 +41,8 @@ import (
 
 var logger = loggingUtil.InitLogger()
 
+const AbortMessage = "We could not reserve the articles in your cart. Create a cart with existing and available articles."
+
 type Service struct {
 	proto.UnimplementedStockServer
 	Database               *DbConnection
@@ -433,7 +435,7 @@ func (service *Service) ListenOrders() {
 			} else {
 				if reservationErr != nil {
 					logger.WithFields(loggrus.Fields{"request": *order}).WithError(reservationErr).Error("Could not reserve this order. Aborting order...")
-					status := models.StatusAborted("We could not reserve the articles in your cart. Create a cart with existing and available articles.")
+					status := models.StatusAborted(AbortMessage)
 					order.Status = status.Name
 					order.Message = status.Message
 				} else {
@@ -468,28 +470,35 @@ func (service *Service) ListenAbortedOrders() {
 		order := &models.Order{}
 		err := json.Unmarshal(message.Body, order)
 		if err == nil {
-			var abortionErr error
-			for i := 4; i < 7; i++ {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-				abortionErr = service.Database.rollbackReserveOrder(ctx, *order)
-				cancel()
-				if abortionErr == nil {
-					logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation undone.")
-					break
+			if order.Message == AbortMessage {
+				err = message.Ack(false)
+				if err != nil {
+					logger.WithError(err).Error("Could not ack message.")
 				}
-				logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(abortionErr).Error("Could not delete reservation. Retrying...")
-				time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
-			}
-			err = message.Ack(false)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
-				if abortionErr == nil {
-					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
-					_, err = service.reserveArticlesAndCalcPrice(order)
-					if err != nil {
-						logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Rolling back unsuccessfully")
-					} else {
-						logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+			} else {
+				var abortionErr error
+				for i := 4; i < 6; i++ {
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+					abortionErr = service.Database.rollbackReserveOrder(ctx, *order)
+					cancel()
+					if abortionErr == nil {
+						logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation undone.")
+						break
+					}
+					logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(abortionErr).Error("Could not delete reservation. Retrying...")
+					time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
+				}
+				err = message.Ack(false)
+				if err != nil {
+					logger.WithError(err).Error("Could not ack message.")
+					if abortionErr == nil {
+						logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
+						_, err = service.reserveArticlesAndCalcPrice(order)
+						if err != nil {
+							logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Rolling back unsuccessfully")
+						} else {
+							logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+						}
 					}
 				}
 			}
