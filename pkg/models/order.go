@@ -102,6 +102,7 @@ type Order struct {
 	CustomerAddress    string             `json:"address" bson:"address"`
 	CustomerName       string             `json:"name" bson:"name"`
 	CustomerCreditCard string             `json:"creditCard" bson:"creditCard"`
+	CustomerEmail      string             `json:"email" bson:"email"`
 }
 
 func (order Order) PublishOrderStatusUpdate(channel *amqp.Channel) error {

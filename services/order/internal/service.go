@@ -87,6 +87,7 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 		CustomerAddress:    req.CustomerAddress,
 		CustomerName:       req.CustomerName,
 		CustomerCreditCard: req.CustomerCreditCard,
+		CustomerEmail:      req.CustomerEmail,
 	}
 	err := service.Database.createOrder(ctx, &order)
 	if err != nil {

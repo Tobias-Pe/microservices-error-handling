@@ -12,6 +12,7 @@ message RequestNewOrder {
   string customerAddress = 2;
   string customerName = 3;
   string customerCreditCard = 4;
+  string customerEmail = 5;
 }
 
 message OrderObject {

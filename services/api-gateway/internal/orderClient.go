@@ -33,6 +33,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"google.golang.org/grpc"
 	"net/http"
+	"net/mail"
 	"time"
 )
 
@@ -78,8 +79,13 @@ func (orderClient OrderClient) CreateOrder() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		if len(order.CartID) == 0 || len(order.CustomerAddress) == 0 || len(order.CustomerName) == 0 || len(order.CustomerCreditCard) == 0 {
+		if len(order.CartID) == 0 || len(order.CustomerAddress) == 0 || len(order.CustomerName) == 0 || len(order.CustomerCreditCard) == 0 || len(order.CustomerEmail) == 0 {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("invalid order request, values missing").Error()})
+			return
+		}
+		_, err := mail.ParseAddress(order.CustomerEmail)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -89,6 +95,7 @@ func (orderClient OrderClient) CreateOrder() gin.HandlerFunc {
 			CustomerAddress:    order.CustomerAddress,
 			CustomerName:       order.CustomerName,
 			CustomerCreditCard: order.CustomerCreditCard,
+			CustomerEmail:      order.CustomerEmail,
 		})
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
