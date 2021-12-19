@@ -11,7 +11,7 @@ Content-Type: application/json
 }
 
 ### Successful test: check response status is 200
-GET localhost/order/61bc5c42fbb47881d45ced95
+GET localhost/order/your_order_id
 Accept: application/json
 
 > {%

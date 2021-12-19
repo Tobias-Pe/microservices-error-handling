@@ -3,11 +3,11 @@ POST http://localhost/cart
 Content-Type: application/json
 
 {
-  "article_id": "61bc9b26b88ca15bcb3bca01"
+  "article_id": "put_here_your_article_id"
 }
 
 ### Successful test: check response status is 200
-GET localhost/cart/1
+GET localhost/cart/your_cart_id
 Accept: application/json
 
 > {%
@@ -17,9 +17,9 @@ client.test("Request executed successfully", function() {
 %}
 
 ### Successful test: check response status is 200
-PUT localhost/cart/1
+PUT localhost/cart/your_cart_id
 Content-Type: application/json
 
 {
-  "article_id": "61bc9b26b88ca15bcb3bca01"
+  "article_id": "put_here_your_article_id"
 }
