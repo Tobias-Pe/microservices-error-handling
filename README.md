@@ -90,6 +90,7 @@ Returns the new carts ID.
 | `name`       | `string` | **Required** |
 | `address`    | `string` | **Required** |
 | `creditCard` | `string` | **Required** |
+| `email`      | `string` | **Required** |
 
 Creates an order, that will be validated and shipped in the background.
 
