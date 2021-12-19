@@ -17,25 +17,25 @@ jobs:
           - image: api-gateway
             path: ./services/api-gateway/Dockerfile
           - image: api-gateway-nginx
-            path: ./build/nginx/api-gateway/Dockerfile
+            path: ./docker/nginx/api-gateway/Dockerfile
           - image: currency
             path: ./services/currency/Dockerfile
           - image: currency-nginx
-            path: ./build/nginx/currency/Dockerfile
+            path: ./docker/nginx/currency/Dockerfile
           - image: stock
             path: ./services/stock/Dockerfile
           - image: stock-nginx
-            path: ./build/nginx/stock/Dockerfile
+            path: ./docker/nginx/stock/Dockerfile
           - image: mongo-seed
-            path: ./build/mongo/Dockerfile
+            path: ./docker/mongo/Dockerfile
           - image: cart
             path: ./services/cart/Dockerfile
           - image: cart-nginx
-            path: ./build/nginx/cart/Dockerfile
+            path: ./docker/nginx/cart/Dockerfile
           - image: order
             path: ./services/order/Dockerfile
           - image: order-nginx
-            path: ./build/nginx/order/Dockerfile
+            path: ./docker/nginx/order/Dockerfile
           - image: payment
             path: ./services/payment/Dockerfile
           - image: shipment

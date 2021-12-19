@@ -32,7 +32,7 @@ services:
   api-gateway-nginx:
     image: ghcr.io/tobias-pe/api-gateway-nginx:latest
     build:
-      dockerfile: build/nginx/api-gateway/Dockerfile
+      dockerfile: docker/nginx/api-gateway/Dockerfile
     ports:
       - "80:50000"
     env_file:
@@ -58,7 +58,7 @@ services:
   currency-nginx:
     image: ghcr.io/tobias-pe/currency-nginx:latest
     build:
-      dockerfile: build/nginx/currency/Dockerfile
+      dockerfile: docker/nginx/currency/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -77,7 +77,7 @@ services:
     image: ghcr.io/tobias-pe/stock-nginx:latest
     pull_policy: always
     build:
-      dockerfile: build/nginx/stock/Dockerfile
+      dockerfile: docker/nginx/stock/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -104,7 +104,7 @@ services:
     image: ghcr.io/tobias-pe/mongo-seed:latest
     pull_policy: always
     build:
-      dockerfile: ./build/mongo/Dockerfile
+      dockerfile: docker/mongo/Dockerfile
     depends_on:
       - stock-mongodb
 
@@ -114,7 +114,7 @@ services:
     image: ghcr.io/tobias-pe/cart-nginx:latest
     pull_policy: always
     build:
-      dockerfile: build/nginx/cart/Dockerfile
+      dockerfile: docker/nginx/cart/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -144,7 +144,7 @@ services:
     image: ghcr.io/tobias-pe/order-nginx:latest
     pull_policy: always
     build:
-      dockerfile: build/nginx/order/Dockerfile
+      dockerfile: docker/nginx/order/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
