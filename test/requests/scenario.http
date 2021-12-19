@@ -1,0 +1,47 @@
+
+### Successful test: check response status is 200
+GET localhost/articles
+Accept: application/json
+
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+});
+%}
+
+### Send POST request with json body
+POST http://localhost/cart
+Content-Type: application/json
+
+{
+  "article_id": "61bf1d669d6fe9f5775c0120"
+}
+
+### Successful test: check response status is 200
+PUT localhost/cart/2
+Content-Type: application/json
+
+{
+  "article_id": "61bf1d669d6fe9f5775c0120"
+}
+### Send POST request with json body
+POST http://localhost/order
+Content-Type: application/json
+
+{
+  "cartId": "1",
+  "address": "Muster-Allee 42",
+  "name": "Max Mustermann",
+  "creditCard": "123456789-123",
+  "email": "max.mustermann@web.de"
+}
+
+### Successful test: check response status is 200
+GET localhost/order/61bf23de02e738aa593adebe
+Accept: application/json
+
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+});
+%}
