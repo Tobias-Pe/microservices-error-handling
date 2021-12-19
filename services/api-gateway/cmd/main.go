@@ -70,6 +70,7 @@ func main() {
 	createRouter(service, configuration)
 }
 
+// readConfig fetches the needed addresses and ports for connections from the environment variables or the local.env file
 func readConfig() configuration {
 	viper.SetConfigType("env")
 	viper.SetConfigName("local")
@@ -171,8 +172,6 @@ func createRouter(service *service, configuration configuration) {
 	router.GET("/order/:id", service.orderClient.GetOrder())
 	router.POST("/order", service.orderClient.CreateOrder())
 
-	// By default, it serves on :8080 unless a
-	// PORT environment variable was defined.
 	err := router.Run(":" + configuration.port)
 	if err != nil {
 		return

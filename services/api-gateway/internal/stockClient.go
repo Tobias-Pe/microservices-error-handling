@@ -53,8 +53,10 @@ func NewStockClient(stockAddress string, stockPort string) *StockClient {
 	return &StockClient{Conn: conn, client: client}
 }
 
+// GetArticles creates a grpc request to fetch all articles from the stock service
 func (stockClient StockClient) GetArticles() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// get the optional category parameter --> articles/${category}
 		queryCategory := strings.Trim(c.Param("category"), "/")
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()

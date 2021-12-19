@@ -105,6 +105,7 @@ type Order struct {
 	CustomerEmail      string             `json:"email" bson:"email"`
 }
 
+// PublishOrderStatusUpdate will broadcast the current order via amqp channel with the order.status as routing key.
 func (order Order) PublishOrderStatusUpdate(channel *amqp.Channel) error {
 	routingKey, err := order.getRoutingKey()
 	if err != nil {
@@ -131,6 +132,7 @@ func (order Order) PublishOrderStatusUpdate(channel *amqp.Channel) error {
 	return nil
 }
 
+// getRoutingKey will return the orders routing key dependent on the current order status
 func (order Order) getRoutingKey() (string, error) {
 	switch order.Status {
 	case statusNameCompleted:

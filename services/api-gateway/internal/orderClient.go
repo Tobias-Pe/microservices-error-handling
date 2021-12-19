@@ -57,6 +57,7 @@ func NewOrderClient(orderAddress string, orderPort string) *OrderClient {
 	return &OrderClient{Conn: conn, client: client}
 }
 
+// GetOrder sends grpc request to fetch an order from order service
 func (orderClient OrderClient) GetOrder() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orderId := c.Param("id")
@@ -72,22 +73,27 @@ func (orderClient OrderClient) GetOrder() gin.HandlerFunc {
 	}
 }
 
+// CreateOrder sends grpc request to create an order with the required data
 func (orderClient OrderClient) CreateOrder() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// bind json body to an order object
 		order := models.Order{}
 		if err := c.ShouldBindWith(&order, binding.JSON); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		// validate that all required fields are populated
 		if len(order.CartID) == 0 || len(order.CustomerAddress) == 0 || len(order.CustomerName) == 0 || len(order.CustomerCreditCard) == 0 || len(order.CustomerEmail) == 0 {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("invalid order request, values missing").Error()})
 			return
 		}
+		// validate email address
 		_, err := mail.ParseAddress(order.CustomerEmail)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		// send request to order service
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 		response, err := orderClient.client.CreateOrder(ctx, &proto.RequestNewOrder{
