@@ -241,3 +241,41 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(ctx context.Contex
 	}
 	return callback
 }
+
+func (database *DbConnection) deleteReservation(ctx context.Context, orderID primitive.ObjectID) error {
+
+	wc := writeconcern.New(writeconcern.WMajority())
+	rc := readconcern.Snapshot()
+	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
+	session, err := database.MongoClient.StartSession()
+	if err != nil {
+		return err
+	}
+	defer session.EndSession(context.Background())
+
+	callback := database.newCallbackDeleteReservation(ctx, orderID)
+
+	_, err = session.WithTransaction(context.Background(), callback, txnOpts)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (database *DbConnection) newCallbackDeleteReservation(ctx context.Context, orderID primitive.ObjectID) func(sessionContext mongo.SessionContext) (interface{}, error) {
+	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
+		// undo reservation
+		deleted, err := database.reservationCollection.DeleteOne(ctx, bson.M{"_id": orderID})
+		if err != nil {
+			return nil, err
+		}
+		if deleted.DeletedCount != 1 {
+			return nil, fmt.Errorf("there is no reservation for this order")
+		}
+		return nil, nil
+	}
+	return callback
+
+}
