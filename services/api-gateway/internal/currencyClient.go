@@ -64,7 +64,7 @@ func (currencyClient CurrencyClient) GetExchangeRate() gin.HandlerFunc {
 		currency := c.Param("currency")
 		// validate the currency parameter for only letters
 		isOnlyLetters := regexp.MustCompile("^[a-zA-Z]+$").MatchString(currency)
-		if len(currency) < 0 || isOnlyLetters {
+		if len(currency) == 0 || !isOnlyLetters {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("only letters in param allowed, your param: %s", currency)})
 			return
 		}

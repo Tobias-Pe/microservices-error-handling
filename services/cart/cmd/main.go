@@ -101,11 +101,11 @@ func createServer(config configuration) {
 	if err = s.Serve(lis); err != nil {
 		logger.Fatalf("failed to serve: %v", err)
 	}
-	closeConnections(err, service)
+	closeConnections(service)
 }
 
-func closeConnections(err error, service *internal.Service) {
-	err = service.AmqpChannel.Close()
+func closeConnections(service *internal.Service) {
+	err := service.AmqpChannel.Close()
 	if err != nil {
 		logger.WithError(err).Error("Error on closing amqp-channel")
 	}
