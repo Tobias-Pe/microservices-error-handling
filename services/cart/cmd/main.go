@@ -51,28 +51,7 @@ func main() {
 	createServer(config)
 }
 
-func createServer(config configuration) {
-	lis, err := net.Listen("tcp", config.serverAddress+":"+config.serverPort)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	s := grpc.NewServer()
-	service := internal.NewService(config.cacheAddress, config.cachePort, config.rabbitAddress, config.rabbitPort)
-	proto.RegisterCartServer(s, service)
-	logger.Printf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		logger.Fatalf("failed to serve: %v", err)
-	}
-	err = service.AmqpChannel.Close()
-	if err != nil {
-		logger.WithError(err).Error("Error on closing amqp-channel")
-	}
-	err = service.AmqpConn.Close()
-	if err != nil {
-		logger.WithError(err).Error("Error on closing amqp-connection")
-	}
-}
-
+// readConfig fetches the needed addresses and ports for connections from the environment variables or the local.env file
 func readConfig() configuration {
 	viper.SetConfigType("env")
 	viper.SetConfigName("local")
@@ -105,5 +84,33 @@ func readConfig() configuration {
 		cacheAddress:  cacheAddress,
 		rabbitAddress: rabbitAddress,
 		rabbitPort:    rabbitPort,
+	}
+}
+
+func createServer(config configuration) {
+	lis, err := net.Listen("tcp", config.serverAddress+":"+config.serverPort)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+	// create service with grpc, amqp and cache connection
+	service := internal.NewService(config.cacheAddress, config.cachePort, config.rabbitAddress, config.rabbitPort)
+	proto.RegisterCartServer(s, service)
+	logger.Printf("server listening at %v", lis.Addr())
+	// blocking until error appears
+	if err = s.Serve(lis); err != nil {
+		logger.Fatalf("failed to serve: %v", err)
+	}
+	closeConnections(err, service)
+}
+
+func closeConnections(err error, service *internal.Service) {
+	err = service.AmqpChannel.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing amqp-channel")
+	}
+	err = service.AmqpConn.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing amqp-connection")
 	}
 }
