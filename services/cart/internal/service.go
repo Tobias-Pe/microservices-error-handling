@@ -123,25 +123,25 @@ func (service *Service) initAmqpConnection() error {
 
 func (service *Service) createArticleListener() error {
 	err := service.AmqpChannel.ExchangeDeclare(
-		requests.CartTopic, // name
-		"topic",            // type
-		true,               // durable
-		false,              // auto-deleted
-		false,              // internal
-		false,              // no-wait
-		nil,                // arguments
+		requests.ArticlesTopic, // name
+		"topic",                // type
+		true,                   // durable
+		false,                  // auto-deleted
+		false,                  // internal
+		false,                  // no-wait
+		nil,                    // arguments
 	)
 	if err != nil {
 		logger.WithError(err).Error("Could not create exchange")
 		return err
 	}
 	q, err := service.AmqpChannel.QueueDeclare(
-		"cart_"+requests.CartTopic+"_queue", // name
-		true,                                // durable
-		false,                               // delete when unused
-		false,                               // exclusive
-		false,                               // no-wait
-		nil,                                 // arguments
+		"cart_"+requests.ArticlesTopic+"_queue", // name
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
 	)
 	if err != nil {
 		logger.WithError(err).Error("Could not create queue")
@@ -150,7 +150,7 @@ func (service *Service) createArticleListener() error {
 	err = service.AmqpChannel.QueueBind(
 		q.Name,                       // queue name
 		requests.AddToCartRoutingKey, // routing key
-		requests.CartTopic,           // exchange
+		requests.ArticlesTopic,       // exchange
 		false,
 		nil,
 	)

@@ -178,9 +178,11 @@ func (service *Service) ListenOrders() {
 			err = message.Ack(false)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
-				logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
-				service.mockPaymentRollback(order.CustomerCreditCard)
-				logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+				if isAllowed {
+					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
+					service.mockPaymentRollback(order.CustomerCreditCard)
+					logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+				}
 			} else {
 				if !isAllowed {
 					logger.WithFields(loggrus.Fields{"payment_status": isAllowed, "request": *order}).Error("Payment unsuccessfully. Aborting order...")
