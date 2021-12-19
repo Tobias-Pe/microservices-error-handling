@@ -177,3 +177,15 @@ services:
       - ./config/docker.env
     depends_on:
       - rabbit-mq
+
+  # ------------------------------------------- SHIPMENT ---------------------------------------------------------------
+
+  shipment:
+    image: ghcr.io/tobias-pe/shipment:latest
+    pull_policy: always
+    build:
+      dockerfile: ./services/shipment/Dockerfile
+    env_file:
+      - ./config/docker.env
+    depends_on:
+      - rabbit-mq

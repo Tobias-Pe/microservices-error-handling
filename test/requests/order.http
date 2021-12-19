@@ -3,8 +3,8 @@ POST http://localhost/order
 Content-Type: application/json
 
 {
-  "cartId": "1",
-  "address": "Max-Mustermann-Allee 42",
+  "cartId": "2",
+  "address": "42",
   "name": "Max Mustermann",
   "creditCard": "123456789-123"
 }

@@ -38,6 +38,8 @@ jobs:
             path: ./build/nginx/order/Dockerfile
           - image: payment
             path: ./services/payment/Dockerfile
+          - image: shipment
+            path: ./services/shipment/Dockerfile
 
     steps:
       - name: Check out code
