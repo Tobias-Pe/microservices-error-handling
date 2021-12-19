@@ -1,5 +1,7 @@
 import requests
 
+# simple repeated request
+
 url = 'http://localhost/cart/1'
 for i in range(0, 7999):
     data = {"article_id": str(i)}

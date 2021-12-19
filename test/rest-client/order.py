@@ -1,6 +1,7 @@
 import time
-
 import requests
+
+# simple repeated request
 
 url = 'http://localhost/order'
 for i in range(0, 1999):
