@@ -150,11 +150,11 @@ func (service *Service) mockShipment(customerAddress string, articles []string) 
 		return false
 	}
 	for range customerAddress {
-		timeout := rand.Intn(50)
+		timeout := rand.Intn(3)
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 	}
 	for range articles {
-		timeout := rand.Intn(100)
+		timeout := rand.Intn(3)
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 	}
 	return true
@@ -162,11 +162,11 @@ func (service *Service) mockShipment(customerAddress string, articles []string) 
 
 func (service *Service) mockShipmentRollback(customerAddress string, articles []string) {
 	for range customerAddress {
-		timeout := rand.Intn(50)
+		timeout := rand.Intn(3)
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 	}
 	for range articles {
-		timeout := rand.Intn(100)
+		timeout := rand.Intn(3)
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 	}
 }

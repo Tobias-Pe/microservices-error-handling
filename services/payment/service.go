@@ -149,7 +149,7 @@ func (service *Service) createOrderListener() error {
 func (service *Service) mockPayment(creditCard string) bool {
 	creditCard = strings.ToLower(strings.TrimSpace(creditCard))
 	for _, charVariable := range creditCard {
-		timeout := rand.Intn(50)
+		timeout := rand.Intn(5)
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 		if charVariable >= 'a' && charVariable <= 'z' {
 			return false
@@ -161,7 +161,7 @@ func (service *Service) mockPayment(creditCard string) bool {
 func (service *Service) mockPaymentRollback(creditCard string) {
 	creditCard = strings.ToLower(strings.TrimSpace(creditCard))
 	for _, charVariable := range creditCard {
-		timeout := rand.Intn(50)
+		timeout := rand.Intn(5)
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 		if charVariable >= 'a' && charVariable <= 'z' {
 			return
