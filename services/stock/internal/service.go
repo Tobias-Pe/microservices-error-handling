@@ -450,6 +450,10 @@ func (service *Service) ListenOrders() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			err = message.Ack(false)
+			if err != nil {
+				logger.WithError(err).Error("Could not ack message.")
+			}
 		}
 	}
 	logger.Error("Stopped Listening for Orders! Restarting...")
@@ -491,6 +495,10 @@ func (service *Service) ListenAbortedOrders() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			err = message.Ack(false)
+			if err != nil {
+				logger.WithError(err).Error("Could not ack message.")
+			}
 		}
 	}
 	logger.Error("Stopped Listening for aborted Orders! Restarting...")
@@ -534,6 +542,10 @@ func (service *Service) ListenCompletedOrders() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			err = message.Ack(false)
+			if err != nil {
+				logger.WithError(err).Error("Could not ack message.")
+			}
 		}
 	}
 	logger.Error("Stopped Listening for aborted Orders! Restarting...")
@@ -577,6 +589,10 @@ func (service *Service) ListenSupply() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			err = message.Ack(false)
+			if err != nil {
+				logger.WithError(err).Error("Could not ack message.")
+			}
 		}
 	}
 	logger.Error("Stopped Listening for Supply! Restarting...")

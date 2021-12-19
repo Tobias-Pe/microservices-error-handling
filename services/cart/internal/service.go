@@ -254,6 +254,10 @@ func (service *Service) ListenUpdateCart() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			err = message.Ack(false)
+			if err != nil {
+				logger.WithError(err).Error("Could not ack message.")
+			}
 		}
 	}
 	logger.Error("Stopped Listening for Articles! Restarting...")
@@ -292,6 +296,10 @@ func (service *Service) ListenOrders() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			err = message.Ack(false)
+			if err != nil {
+				logger.WithError(err).Error("Could not ack message.")
+			}
 		}
 	}
 	logger.Error("Stopped Listening for Orders! Restarting...")
