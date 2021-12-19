@@ -154,13 +154,13 @@ func (service *Service) mockEmail(customerEMail string) bool {
 	if err != nil {
 		return false
 	}
-	timeout := rand.Intn(500)
+	timeout := rand.Intn(80)
 	time.Sleep(time.Duration(timeout) * time.Millisecond)
 	return true
 }
 
 func (service *Service) mockEmailRollback() {
-	timeout := rand.Intn(500)
+	timeout := rand.Intn(80)
 	time.Sleep(time.Duration(timeout) * time.Millisecond)
 }
 
