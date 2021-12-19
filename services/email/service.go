@@ -154,13 +154,13 @@ func (service *Service) mockEmail(customerEMail string) bool {
 	if err != nil {
 		return false
 	}
-	timeout := rand.Intn(80)
+	timeout := rand.Intn(20)
 	time.Sleep(time.Duration(timeout) * time.Millisecond)
 	return true
 }
 
 func (service *Service) mockEmailRollback() {
-	timeout := rand.Intn(80)
+	timeout := rand.Intn(20)
 	time.Sleep(time.Duration(timeout) * time.Millisecond)
 }
 
@@ -185,6 +185,10 @@ func (service *Service) ListenOrders() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			err = message.Ack(false)
+			if err != nil {
+				logger.WithError(err).Error("Could not ack message.")
+			}
 		}
 	}
 	logger.Error("Stopped Listening for Orders! Restarting...")
