@@ -40,6 +40,8 @@ jobs:
             path: ./services/payment/Dockerfile
           - image: shipment
             path: ./services/shipment/Dockerfile
+          - image: email
+            path: ./services/email/Dockerfile
 
     steps:
       - name: Check out code
