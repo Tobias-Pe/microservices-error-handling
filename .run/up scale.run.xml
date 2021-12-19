@@ -4,7 +4,6 @@
       <settings>
         <option name="envFilePath" value="" />
         <option name="removeVolumesOnComposeDown" value="true" />
-        <option name="commandLineOptions" value="--build" />
         <option name="sourceFilePath" value="docker-compose.yml" />
         <option name="upForceRecreate" value="true" />
         <option name="upRemoveOrphans" value="true" />
@@ -15,6 +14,10 @@
           <entry key="stock" value="2" />
           <entry key="cart" value="2" />
           <entry key="order" value="2" />
+          <entry key="payment" value="2" />
+          <entry key="shipment" value="2" />
+          <entry key="e-mail" value="2" />
+          <entry key="supplier" value="2" />
         </upScaledServices>
       </settings>
     </deployment>
