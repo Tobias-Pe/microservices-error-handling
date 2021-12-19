@@ -176,6 +176,7 @@ func (service *Service) createArticleListener() error {
 	go service.ListenUpdateCart()
 	return nil
 }
+
 func (service *Service) createOrderListener() error {
 	err := service.AmqpChannel.ExchangeDeclare(
 		requests.OrderTopic, // name
@@ -261,6 +262,7 @@ func (service *Service) ListenUpdateCart() {
 		logger.Error("Stopped Listening for Articles! Could not restart")
 	}
 }
+
 func (service *Service) ListenOrders() {
 	for message := range service.orderMessages {
 		order := &models.Order{}

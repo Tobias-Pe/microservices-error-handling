@@ -89,17 +89,7 @@ func (database *DbConnection) newCallbackGetArticles(ctx context.Context, catego
 	return callback
 }
 
-func (database *DbConnection) reserveOrder(ctx context.Context, order models.Order) (*float64, error) {
-	articleQuantityMap := map[string]int{}
-	for _, id := range order.Articles {
-		_, exists := articleQuantityMap[id]
-		if exists {
-			articleQuantityMap[id]++
-		} else {
-			articleQuantityMap[id] = 1
-		}
-	}
-
+func (database *DbConnection) reserveOrder(ctx context.Context, articleQuantityMap map[string]int, order models.Order) (*[]models.Article, error) {
 	wc := writeconcern.New(writeconcern.WMajority())
 	rc := readconcern.Snapshot()
 	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
@@ -115,13 +105,13 @@ func (database *DbConnection) reserveOrder(ctx context.Context, order models.Ord
 	if err != nil {
 		return nil, err
 	}
-	price := result.(float64)
-	return &price, nil
+	articles := result.([]models.Article)
+	return &articles, nil
 }
 
 func (database *DbConnection) newCallbackReserveOrder(ctx context.Context, articleQuantityMap map[string]int, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
-		var price = 0.0
+		var articles []models.Article
 
 		for articleID, amount := range articleQuantityMap {
 			// get article
@@ -138,7 +128,7 @@ func (database *DbConnection) newCallbackReserveOrder(ctx context.Context, artic
 				return nil, fmt.Errorf("could not reserve article: %v, %v times. there is not enough on stock", stockArticle, amount)
 			}
 			stockArticle.Amount = updatedAmount
-			price += float64(amount) * stockArticle.Price
+			articles = append(articles, *stockArticle)
 			// update article
 			result, err := database.stockCollection.ReplaceOne(
 				ctx,
@@ -160,7 +150,7 @@ func (database *DbConnection) newCallbackReserveOrder(ctx context.Context, artic
 			return nil, err
 		}
 
-		return price, nil
+		return articles, nil
 	}
 	return callback
 }
@@ -277,5 +267,142 @@ func (database *DbConnection) newCallbackDeleteReservation(ctx context.Context, 
 		return nil, nil
 	}
 	return callback
+}
 
+func (database *DbConnection) rollbackDeleteReservation(ctx context.Context, orderID primitive.ObjectID) error {
+
+	wc := writeconcern.New(writeconcern.WMajority())
+	rc := readconcern.Snapshot()
+	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
+	session, err := database.MongoClient.StartSession()
+	if err != nil {
+		return err
+	}
+	defer session.EndSession(context.Background())
+
+	callback := database.newCallbackRollbackDeleteReservation(ctx, orderID)
+
+	_, err = session.WithTransaction(context.Background(), callback, txnOpts)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (database *DbConnection) newCallbackRollbackDeleteReservation(ctx context.Context, orderID primitive.ObjectID) func(sessionContext mongo.SessionContext) (interface{}, error) {
+	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
+		// undo reservation
+		_, err := database.reservationCollection.InsertOne(ctx, bson.M{"_id": orderID})
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+	return callback
+}
+
+func (database *DbConnection) restockArticle(ctx context.Context, paramArticleID string, amount int) error {
+	articleID, err := primitive.ObjectIDFromHex(paramArticleID)
+	if err != nil {
+		return err
+	}
+	wc := writeconcern.New(writeconcern.WMajority())
+	rc := readconcern.Snapshot()
+	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
+	session, err := database.MongoClient.StartSession()
+	if err != nil {
+		return err
+	}
+	defer session.EndSession(context.Background())
+
+	callback := database.newCallbackRestockArticle(ctx, articleID, amount)
+
+	_, err = session.WithTransaction(context.Background(), callback, txnOpts)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (database *DbConnection) newCallbackRestockArticle(ctx context.Context, articleID primitive.ObjectID, amount int) func(sessionContext mongo.SessionContext) (interface{}, error) {
+	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
+		// get article
+		var stockArticle = &models.Article{}
+		if err := database.stockCollection.FindOne(ctx, bson.M{"_id": articleID}).Decode(stockArticle); err != nil {
+			return nil, err
+		}
+		stockArticle.Amount = stockArticle.Amount + int32(amount)
+		// update article
+		result, err := database.stockCollection.ReplaceOne(
+			ctx,
+			bson.M{"_id": stockArticle.ID},
+			stockArticle,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if result.ModifiedCount != 1 {
+			err = fmt.Errorf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
+			logger.WithFields(loggrus.Fields{"article": stockArticle}).WithError(err).Errorf("Could not update article")
+			return nil, err
+		}
+		return nil, nil
+	}
+	return callback
+}
+
+func (database *DbConnection) rollbackRestockArticle(ctx context.Context, paramArticleID string, amount int) error {
+	articleID, err := primitive.ObjectIDFromHex(paramArticleID)
+	if err != nil {
+		return err
+	}
+	wc := writeconcern.New(writeconcern.WMajority())
+	rc := readconcern.Snapshot()
+	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
+	session, err := database.MongoClient.StartSession()
+	if err != nil {
+		return err
+	}
+	defer session.EndSession(context.Background())
+
+	callback := database.newCallbackRollbackRestockArticle(ctx, articleID, amount)
+
+	_, err = session.WithTransaction(context.Background(), callback, txnOpts)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (database *DbConnection) newCallbackRollbackRestockArticle(ctx context.Context, articleID primitive.ObjectID, amount int) func(sessionContext mongo.SessionContext) (interface{}, error) {
+	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
+		// get article
+		var stockArticle = &models.Article{}
+		if err := database.stockCollection.FindOne(ctx, bson.M{"_id": articleID}).Decode(stockArticle); err != nil {
+			return nil, err
+		}
+		stockArticle.Amount = stockArticle.Amount - int32(amount)
+		// update article
+		result, err := database.stockCollection.ReplaceOne(
+			ctx,
+			bson.M{"_id": stockArticle.ID},
+			stockArticle,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if result.ModifiedCount != 1 {
+			err = fmt.Errorf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
+			logger.WithFields(loggrus.Fields{"article": stockArticle}).WithError(err).Errorf("Could not update article")
+			return nil, err
+		}
+		return nil, nil
+	}
+	return callback
 }

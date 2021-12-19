@@ -208,5 +208,7 @@ func (service *Service) ListenOrders() {
 	err := service.createOrderListener()
 	if err != nil {
 		logger.Error("Stopped Listening for Orders! Could not restart")
+	} else {
+		service.ListenOrders()
 	}
 }

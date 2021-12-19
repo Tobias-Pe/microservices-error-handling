@@ -34,6 +34,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"math"
 	"time"
 )
@@ -49,6 +50,7 @@ type Service struct {
 	rabbitUrl              string
 	abortedOrderMessages   <-chan amqp.Delivery
 	completedOrderMessages <-chan amqp.Delivery
+	supplyMessages         <-chan amqp.Delivery
 }
 
 func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rabbitPort string) *Service {
@@ -78,6 +80,10 @@ func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rab
 	if err != nil {
 		return nil
 	}
+	err = s.createSupplierListener()
+	if err != nil {
+		return nil
+	}
 	return s
 }
 
@@ -104,6 +110,7 @@ func (service *Service) initAmqpConnection() error {
 	}
 	return nil
 }
+
 func (service *Service) createOrderListener() error {
 	err := service.AmqpChannel.ExchangeDeclare(
 		requests.OrderTopic, // name
@@ -159,6 +166,7 @@ func (service *Service) createOrderListener() error {
 	go service.ListenOrders()
 	return nil
 }
+
 func (service *Service) createAbortedOrderListener() error {
 	err := service.AmqpChannel.ExchangeDeclare(
 		requests.OrderTopic, // name
@@ -214,6 +222,7 @@ func (service *Service) createAbortedOrderListener() error {
 	go service.ListenAbortedOrders()
 	return nil
 }
+
 func (service *Service) createCompletedOrderListener() error {
 	err := service.AmqpChannel.ExchangeDeclare(
 		requests.OrderTopic, // name
@@ -270,6 +279,62 @@ func (service *Service) createCompletedOrderListener() error {
 	return nil
 }
 
+func (service *Service) createSupplierListener() error {
+	err := service.AmqpChannel.ExchangeDeclare(
+		requests.ArticlesTopic, // name
+		"topic",                // type
+		true,                   // durable
+		false,                  // auto-deleted
+		false,                  // internal
+		false,                  // no-wait
+		nil,                    // arguments
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not create exchange")
+		return err
+	}
+	q, err := service.AmqpChannel.QueueDeclare(
+		"stock_"+requests.ArticlesTopic+"_queue", // name
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not create queue")
+		return err
+	}
+	err = service.AmqpChannel.QueueBind(
+		q.Name,                    // queue name
+		requests.SupplyRoutingKey, // routing key
+		requests.ArticlesTopic,    // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not bind queue")
+		return err
+	}
+
+	service.supplyMessages, err = service.AmqpChannel.Consume(
+		q.Name, // queue
+		"",     // consumer
+		false,  // auto-ack
+		false,  // exclusive
+		false,  // no-local
+		false,  // no-wait
+		nil,    // args
+	)
+	if err != nil {
+		logger.WithError(err).Error("Could not consume queue")
+		return err
+	}
+
+	go service.ListenSupply()
+	return nil
+}
+
 func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArticles) (*proto.ResponseArticles, error) {
 	articles, err := service.Database.getArticles(ctx, req.CategoryQuery)
 	if err != nil {
@@ -291,20 +356,74 @@ func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArtic
 	return &proto.ResponseArticles{Articles: protoArticles}, nil
 }
 
+func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float64, error) {
+	articleQuantityMap := map[string]int{}
+	for _, id := range order.Articles {
+		_, exists := articleQuantityMap[id]
+		if exists {
+			articleQuantityMap[id]++
+		} else {
+			articleQuantityMap[id] = 1
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	reservedArticles, err := service.Database.reserveOrder(ctx, articleQuantityMap, *order)
+	cancel()
+	if err != nil {
+		return nil, err
+	}
+	price := 0.0
+	for _, article := range *reservedArticles {
+		price += article.Price * float64(articleQuantityMap[article.ID.Hex()])
+		if article.Amount <= 10 {
+			err := service.orderArticles(article.ID, 50)
+			if err != nil {
+				logger.WithError(err).Error("Could not publish supply request")
+			}
+		}
+	}
+	return &price, nil
+}
+
+func (service *Service) orderArticles(id primitive.ObjectID, amount int) error {
+	bytes, err := json.Marshal(requests.StockSupplyMessage{
+		ArticleID: id.Hex(),
+		Amount:    amount,
+	})
+	if err != nil {
+		return err
+	}
+	err = service.AmqpChannel.Publish(
+		requests.ArticlesTopic,          // exchange
+		requests.StockRequestRoutingKey, // routing key
+		true,                            // mandatory
+		false,                           // immediate
+		amqp.Publishing{
+			DeliveryMode: amqp.Persistent,
+			ContentType:  "application/json",
+			Body:         bytes,
+		})
+	if err != nil {
+		return err
+	}
+	logger.WithFields(loggrus.Fields{"article": id.Hex(), "amount": amount}).Infof("Published Supply Request")
+	return nil
+}
+
 func (service *Service) ListenOrders() {
 	for message := range service.orderMessages {
 		order := &models.Order{}
 		err := json.Unmarshal(message.Body, order)
 		if err == nil {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-			price, reservationErr := service.Database.reserveOrder(ctx, *order)
-			cancel()
+			price, reservationErr := service.reserveArticlesAndCalcPrice(order)
 			err = message.Ack(false)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
-				if reservationErr != nil {
+				if reservationErr == nil {
 					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 					err = service.Database.rollbackReserveOrder(ctx, *order)
+					cancel()
 					if err != nil {
 						logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Rolling back unsuccessfully")
 					} else {
@@ -345,26 +464,24 @@ func (service *Service) ListenAbortedOrders() {
 		order := &models.Order{}
 		err := json.Unmarshal(message.Body, order)
 		if err == nil {
-			var rollbackErr error
+			var abortionErr error
 			for i := 4; i < 7; i++ {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-				rollbackErr = service.Database.rollbackReserveOrder(ctx, *order)
+				abortionErr = service.Database.rollbackReserveOrder(ctx, *order)
 				cancel()
-				if rollbackErr == nil {
+				if abortionErr == nil {
 					logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation undone.")
 					break
 				}
-				logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(rollbackErr).Error("Could not delete reservation. Retrying...")
+				logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(abortionErr).Error("Could not delete reservation. Retrying...")
 				time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
 			}
 			err = message.Ack(false)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
-				if rollbackErr != nil {
+				if abortionErr == nil {
 					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-					_, err = service.Database.reserveOrder(ctx, *order)
-					cancel()
+					_, err = service.reserveArticlesAndCalcPrice(order)
 					if err != nil {
 						logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Rolling back unsuccessfully")
 					} else {
@@ -403,10 +520,10 @@ func (service *Service) ListenCompletedOrders() {
 			err = message.Ack(false)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
-				if deletionErr != nil {
+				if deletionErr == nil {
 					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
 					ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-					_, err = service.Database.reserveOrder(ctx, *order)
+					err = service.Database.rollbackDeleteReservation(ctx, order.ID)
 					cancel()
 					if err != nil {
 						logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Rolling back unsuccessfully")
@@ -423,5 +540,48 @@ func (service *Service) ListenCompletedOrders() {
 	err := service.createCompletedOrderListener()
 	if err != nil {
 		logger.Error("Stopped Listening for aborted Orders! Could not restart")
+	}
+}
+
+func (service *Service) ListenSupply() {
+	for message := range service.supplyMessages {
+		supply := &requests.StockSupplyMessage{}
+		err := json.Unmarshal(message.Body, supply)
+		if err == nil {
+			var updateErr error
+			for i := 4; i < 7; i++ {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+				updateErr = service.Database.restockArticle(ctx, supply.ArticleID, supply.Amount)
+				cancel()
+				if updateErr == nil {
+					logger.WithFields(loggrus.Fields{"request": *supply}).Infof("Restocked.")
+					break
+				}
+				logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *supply}).WithError(updateErr).Error("Could not restock requested article. Retrying...")
+				time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
+			}
+			err = message.Ack(false)
+			if err != nil {
+				logger.WithError(err).Error("Could not ack message.")
+				if updateErr == nil {
+					logger.WithFields(loggrus.Fields{"request": *supply}).WithError(err).Info("Rolling back transaction...")
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+					err = service.Database.rollbackRestockArticle(ctx, supply.ArticleID, supply.Amount)
+					cancel()
+					if err != nil {
+						logger.WithFields(loggrus.Fields{"request": *supply}).WithError(err).Warn("Rolling back unsuccessfully")
+					} else {
+						logger.WithFields(loggrus.Fields{"request": *supply}).Info("Rolling back successfully")
+					}
+				}
+			}
+		} else {
+			logger.WithError(err).Error("Could not unmarshall message")
+		}
+	}
+	logger.Error("Stopped Listening for Supply! Restarting...")
+	err := service.createSupplierListener()
+	if err != nil {
+		logger.Error("Stopped Listening for Supply! Could not restart")
 	}
 }

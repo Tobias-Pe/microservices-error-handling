@@ -42,6 +42,8 @@ jobs:
             path: ./services/shipment/Dockerfile
           - image: email
             path: ./services/email/Dockerfile
+          - image: supplier
+            path: ./services/supplier/Dockerfile
 
     steps:
       - name: Check out code

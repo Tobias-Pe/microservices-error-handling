@@ -99,13 +99,13 @@ func (cartClient *CartClient) initAmqpConnection(rabbitAddress string, rabbitPor
 		return err
 	}
 	err = cartClient.AmqpChannel.ExchangeDeclare(
-		requests.CartTopic, // name
-		"topic",            // type
-		true,               // durable
-		false,              // auto-deleted
-		false,              // internal
-		false,              // no-wait
-		nil,                // arguments
+		requests.ArticlesTopic, // name
+		"topic",                // type
+		true,                   // durable
+		false,                  // auto-deleted
+		false,                  // internal
+		false,                  // no-wait
+		nil,                    // arguments
 	)
 	if err != nil {
 		logger.WithError(err).Error("Could not declare exchange")
@@ -169,7 +169,7 @@ func (cartClient CartClient) AddToCart() gin.HandlerFunc {
 			return
 		}
 		err = cartClient.AmqpChannel.Publish(
-			requests.CartTopic,           // exchange
+			requests.ArticlesTopic,       // exchange
 			requests.AddToCartRoutingKey, // routing key
 			true,                         // mandatory
 			false,                        // immediate

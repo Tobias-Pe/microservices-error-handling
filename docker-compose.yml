@@ -201,3 +201,15 @@ services:
       - ./config/docker.env
     depends_on:
       - rabbit-mq
+
+  # ------------------------------------------- E-Mail ---------------------------------------------------------------
+
+  supplier:
+    image: ghcr.io/tobias-pe/supplier:latest
+    pull_policy: always
+    build:
+      dockerfile: ./services/supplier/Dockerfile
+    env_file:
+      - ./config/docker.env
+    depends_on:
+      - rabbit-mq
