@@ -53,13 +53,17 @@ func createGrpcServer(config configuration) {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	proto.RegisterCurrencyServer(s, &currency.Service{})
+	// create the currency service
+	service := currency.Service{}
+	proto.RegisterCurrencyServer(s, &service)
 	logger.Printf("server listening at %v", lis.Addr())
+	// block until error appears
 	if err := s.Serve(lis); err != nil {
 		logger.Fatalf("failed to serve: %v", err)
 	}
 }
 
+// readConfig fetches the needed addresses and ports for connections from the environment variables or the local.env file
 func readConfig() configuration {
 	viper.SetConfigType("env")
 	viper.SetConfigName("local")

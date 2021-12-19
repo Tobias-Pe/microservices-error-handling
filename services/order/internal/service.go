@@ -51,12 +51,12 @@ type Service struct {
 }
 
 func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rabbitPort string) *Service {
-	// init mongo connection
+	// init mongodb connection
 	s := &Service{
 		Database:  NewDbConnection(mongoAddress, mongoPort),
 		rabbitUrl: fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort),
 	}
-	// init amqp connection
+	// retry connection to rabbitmq
 	var err error = nil
 	for i := 0; i < 6; i++ {
 		err = s.initAmqpConnection()
@@ -69,6 +69,7 @@ func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rab
 	if err != nil {
 		return nil
 	}
+
 	err = s.createOrderListener()
 	if err != nil {
 		return nil
@@ -76,8 +77,9 @@ func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rab
 	return s
 }
 
+// CreateOrder implementation of in the proto file defined interface of cart service
 func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOrder) (*proto.OrderObject, error) {
-	status := models.StatusFetching()
+	status := models.StatusFetching() // initial status of order
 	order := models.Order{
 		Status:             status.Name,
 		Message:            status.Message,
@@ -93,11 +95,15 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 	if err != nil {
 		return nil, err
 	}
+
 	logger.WithFields(loggrus.Fields{"Request": req, "Order": order}).Info("Order created")
+
+	// broadcast order
 	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
 	if err != nil {
 		return nil, err
 	}
+
 	return &proto.OrderObject{
 		OrderId:            order.ID.Hex(),
 		Status:             order.Status,
@@ -111,15 +117,19 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 	}, nil
 }
 
+// GetOrder implementation of in the proto file defined interface of cart service
 func (service *Service) GetOrder(ctx context.Context, req *proto.RequestOrder) (*proto.OrderObject, error) {
+	// primitive.ObjectID type needed for mongodb
 	orderId, err := primitive.ObjectIDFromHex(req.OrderId)
 	if err != nil {
 		return nil, err
 	}
+
 	order, err := service.Database.getOrder(ctx, orderId)
 	if err != nil {
 		return nil, err
 	}
+
 	logger.WithFields(loggrus.Fields{"Request": req, "Order": order}).Info("Order request handled")
 	return &proto.OrderObject{
 		OrderId:            order.ID.Hex(),
@@ -140,12 +150,16 @@ func (service *Service) initAmqpConnection() error {
 		logger.WithError(err).WithFields(loggrus.Fields{"url": service.rabbitUrl}).Error("Could not connect to rabbitMq")
 		return err
 	}
+
+	// connection and channel will be closed in main
 	service.AmqpConn = conn
 	service.AmqpChannel, err = conn.Channel()
 	if err != nil {
 		logger.WithError(err).Error("Could not create channel")
 		return err
 	}
+
+	// prefetchCount 1 in QoS will load-balance messages between many instances of this service
 	err = service.AmqpChannel.Qos(
 		1,     // prefetch count
 		0,     // prefetch size
@@ -158,6 +172,7 @@ func (service *Service) initAmqpConnection() error {
 	return nil
 }
 
+// createOrderListener initialises exchange and queue and binds the queue to a topic and routing key to listen from
 func (service *Service) createOrderListener() error {
 	err := service.AmqpChannel.ExchangeDeclare(
 		requests.OrderTopic, // name
@@ -184,8 +199,11 @@ func (service *Service) createOrderListener() error {
 		logger.WithError(err).Error("Could not create queue")
 		return err
 	}
+
+	// listen to all statuses except the initial which is broadcast by this service
 	bindings := []string{requests.OrderStatusReserve, requests.OrderStatusComplete, requests.OrderStatusShip, requests.OrderStatusPay, requests.OrderStatusAbort}
 	for _, bindingKey := range bindings {
+		// bind queue to all routing keys in bindings
 		err = service.AmqpChannel.QueueBind(
 			q.Name,              // queue name
 			bindingKey,          // routing key
@@ -199,6 +217,7 @@ func (service *Service) createOrderListener() error {
 		}
 	}
 
+	// orderMessages will be where we will get our order updates from
 	service.orderMessages, err = service.AmqpChannel.Consume(
 		q.Name, // queue
 		"",     // consumer
@@ -212,34 +231,40 @@ func (service *Service) createOrderListener() error {
 		logger.WithError(err).Error("Could not consume queue")
 		return err
 	}
-
+	// create coroutine to listen for order messages
 	go service.ListenAndPersistOrders()
 	return nil
 }
 
+// ListenAndPersistOrders reads out order messages from bound amqp queue
 func (service *Service) ListenAndPersistOrders() {
 	for message := range service.orderMessages {
 		order := &models.Order{}
 		err := json.Unmarshal(message.Body, order)
 		if err == nil {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+			// fetch current order for case of rollback
 			oldOrder, err := service.Database.getOrder(ctx, order.ID)
 			oldOrderIsUpdated := false
 			if err != nil {
+				// order doesn't exist
 				logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("This order does not exist.")
 			} else {
+				// update order
 				err := service.Database.updateOrder(ctx, *order)
 				if err != nil {
 					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("Could not update the order.")
 				} else {
 					logger.WithFields(loggrus.Fields{"request": *order}).Infof("Updated order.")
+					// order was updated
 					oldOrderIsUpdated = true
 				}
 			}
 			cancel()
 			err = message.Ack(false)
-			if err != nil && oldOrderIsUpdated {
+			if err != nil && oldOrderIsUpdated { // ack could not be sent but database transaction was successfully
 				logger.WithError(err).Error("Could not ack message. Trying to roll back...")
+				// rollback transaction. because of the missing ack the current request will be resent
 				err := service.Database.updateOrder(ctx, *oldOrder)
 				if err != nil {
 					logger.WithError(err).Error("Could not rollback.")
@@ -249,6 +274,7 @@ func (service *Service) ListenAndPersistOrders() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			// ack message despite the error, or else we will get this message repeatedly
 			err = message.Ack(false)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
@@ -256,6 +282,7 @@ func (service *Service) ListenAndPersistOrders() {
 		}
 	}
 	logger.Error("Stopped Listening for Orders! Restarting...")
+	// try to reconnect
 	err := service.createOrderListener()
 	if err != nil {
 		logger.Error("Stopped Listening for Orders! Could not restart")

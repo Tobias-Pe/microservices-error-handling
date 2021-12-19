@@ -48,6 +48,7 @@ func NewService(rabbitAddress string, rabbitPort string) *Service {
 	s := &Service{}
 	s.rabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
+	// retry connecting to rabbitmq
 	for i := 0; i < 6; i++ {
 		err = s.initAmqpConnection()
 		if err == nil {
@@ -72,12 +73,14 @@ func (service *Service) initAmqpConnection() error {
 		logger.WithError(err).WithFields(loggrus.Fields{"url": service.rabbitUrl}).Error("Could not connect to rabbitMq")
 		return err
 	}
+	// connection and channel will be closed in main
 	service.AmqpConn = conn
 	service.AmqpChannel, err = conn.Channel()
 	if err != nil {
 		logger.WithError(err).Error("Could not create channel")
 		return err
 	}
+	// prefetchCount 1 in QoS will load-balance messages between many instances of this service
 	err = service.AmqpChannel.Qos(
 		1,     // prefetch count
 		0,     // prefetch size
@@ -89,6 +92,8 @@ func (service *Service) initAmqpConnection() error {
 	}
 	return nil
 }
+
+// createOrderListener initialises exchange and queue and binds the queue to a topic and routing key to listen from
 func (service *Service) createSupplyListener() error {
 	err := service.AmqpChannel.ExchangeDeclare(
 		requests.ArticlesTopic, // name
@@ -127,6 +132,7 @@ func (service *Service) createSupplyListener() error {
 		return err
 	}
 
+	// supplyMessages will be where we get our supply messages from
 	service.supplyMessages, err = service.AmqpChannel.Consume(
 		q.Name, // queue
 		"",     // consumer
@@ -143,6 +149,7 @@ func (service *Service) createSupplyListener() error {
 	return nil
 }
 
+// supplyArticles handles a restocking request and broadcasts the needed amount of an articleID
 func (service *Service) supplyArticles(articleID string, amount int) error {
 	bytes, err := json.Marshal(requests.StockSupplyMessage{
 		ArticleID: articleID,
@@ -168,6 +175,7 @@ func (service *Service) supplyArticles(articleID string, amount int) error {
 	return nil
 }
 
+// ListenSupplyRequests reads out supply messages from bound amqp queue
 func (service *Service) ListenSupplyRequests() {
 	for message := range service.supplyMessages {
 		request := &requests.StockSupplyMessage{}
@@ -183,6 +191,7 @@ func (service *Service) ListenSupplyRequests() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			// ack message despite the error, or else we will get this message repeatedly
 			err = message.Ack(false)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
@@ -190,6 +199,7 @@ func (service *Service) ListenSupplyRequests() {
 		}
 	}
 	logger.Error("Stopped Listening for Supply Requests! Restarting...")
+	// try reconnecting
 	err := service.createSupplyListener()
 	if err != nil {
 		logger.Error("Stopped Listening for Supply Requests! Could not restart")

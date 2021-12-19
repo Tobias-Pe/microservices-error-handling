@@ -50,6 +50,7 @@ func NewService(rabbitAddress string, rabbitPort string) *Service {
 	s := &Service{}
 	s.rabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
+	// retry connecting to rabbitmq
 	for i := 0; i < 6; i++ {
 		err = s.initAmqpConnection()
 		if err == nil {
@@ -61,6 +62,7 @@ func NewService(rabbitAddress string, rabbitPort string) *Service {
 	if err != nil {
 		return nil
 	}
+
 	err = s.createOrderListener()
 	if err != nil {
 		return nil
@@ -74,12 +76,14 @@ func (service *Service) initAmqpConnection() error {
 		logger.WithError(err).WithFields(loggrus.Fields{"url": service.rabbitUrl}).Error("Could not connect to rabbitMq")
 		return err
 	}
+	// connection and channel will be closed in main
 	service.AmqpConn = conn
 	service.AmqpChannel, err = conn.Channel()
 	if err != nil {
 		logger.WithError(err).Error("Could not create channel")
 		return err
 	}
+	// prefetchCount 1 in QoS will load-balance messages between many instances of this service
 	err = service.AmqpChannel.Qos(
 		1,     // prefetch count
 		0,     // prefetch size
@@ -91,6 +95,8 @@ func (service *Service) initAmqpConnection() error {
 	}
 	return nil
 }
+
+// createOrderListener initialises exchange and queue and binds the queue to a topic and routing key to listen from
 func (service *Service) createOrderListener() error {
 	err := service.AmqpChannel.ExchangeDeclare(
 		requests.OrderTopic, // name
@@ -129,6 +135,7 @@ func (service *Service) createOrderListener() error {
 		return err
 	}
 
+	// orderMessages will be where we get our order messages from
 	service.orderMessages, err = service.AmqpChannel.Consume(
 		q.Name, // queue
 		"",     // consumer
@@ -145,14 +152,18 @@ func (service *Service) createOrderListener() error {
 	return nil
 }
 
+// mockShipment simulates the logistic process before shipping
 func (service *Service) mockShipment(customerAddress string, articles []string) bool {
+	// validation
 	if len(customerAddress) <= 3 {
 		return false
 	}
+	// simulate work: random sleep for every letter in address
 	for range customerAddress {
 		timeout := rand.Intn(3)
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 	}
+	// simulate work: random sleep for every article
 	for range articles {
 		timeout := rand.Intn(3)
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
@@ -161,16 +172,19 @@ func (service *Service) mockShipment(customerAddress string, articles []string) 
 }
 
 func (service *Service) mockShipmentRollback(customerAddress string, articles []string) {
+	// simulate work: random sleep for every letter in address
 	for range customerAddress {
 		timeout := rand.Intn(3)
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 	}
+	// simulate work: random sleep for every article
 	for range articles {
 		timeout := rand.Intn(3)
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 	}
 }
 
+// ListenOrders reads out order messages from bound amqp queue
 func (service *Service) ListenOrders() {
 	for message := range service.orderMessages {
 		order := &models.Order{}
@@ -180,13 +194,14 @@ func (service *Service) ListenOrders() {
 			err = message.Ack(false)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
-				if isAllowed {
+				if isAllowed { // ack could not be sent but transaction was successfully
 					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
+					// rollback transaction. because of the missing ack the current request will be resent
 					service.mockShipmentRollback(order.CustomerAddress, order.Articles)
 					logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
 				}
 			} else {
-				if !isAllowed {
+				if !isAllowed { // abort order because of invalid shipment data
 					logger.WithFields(loggrus.Fields{"shipment_status": isAllowed, "request": *order}).Error("Shipment unsuccessfully. Aborting order...")
 					status := models.StatusAborted("We could not ship the articles to your address. Please check your address.")
 					order.Status = status.Name
@@ -197,6 +212,7 @@ func (service *Service) ListenOrders() {
 					order.Status = status.Name
 					order.Message = status.Message
 				}
+				// broadcast updated order
 				err = order.PublishOrderStatusUpdate(service.AmqpChannel)
 				if err != nil {
 					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("Could not publish order update")
@@ -204,6 +220,7 @@ func (service *Service) ListenOrders() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			// ack message despite the error, or else we will get this message repeatedly
 			err = message.Ack(false)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
@@ -211,6 +228,7 @@ func (service *Service) ListenOrders() {
 		}
 	}
 	logger.Error("Stopped Listening for Orders! Restarting...")
+	// try reconnecting
 	err := service.createOrderListener()
 	if err != nil {
 		logger.Error("Stopped Listening for Orders! Could not restart")

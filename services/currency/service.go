@@ -39,7 +39,8 @@ type Service struct {
 	proto.UnimplementedCurrencyServer
 }
 
-func getExchangeRate(targetCurrency string) (float32, error) {
+// getMockExchangeRate mocks the exchange rates from Euro into the targetCurrency
+func getMockExchangeRate(targetCurrency string) (float32, error) {
 	targetCurrency = strings.ToUpper(strings.TrimSpace(targetCurrency))
 	switch targetCurrency {
 	case "USD": //USA
@@ -62,12 +63,13 @@ func getExchangeRate(targetCurrency string) (float32, error) {
 	}
 }
 
+// GetExchangeRate implementation of in the proto file defined interface of currency service
 func (s *Service) GetExchangeRate(_ context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
-	exchangeRate, err := getExchangeRate(req.CustomerCurrency)
+	exchangeRate, err := getMockExchangeRate(req.CustomerCurrency)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency}).WithError(err).Warn("Responding with an error in GetExchangeRate")
+		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency}).WithError(err).Warn("requested currency not supported")
 	} else {
-		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency, "Response": exchangeRate}).Info("Request handled")
+		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency, "Response": exchangeRate}).Info("exchange rate served")
 	}
 	return &proto.ReplyExchangeRate{ExchangeRate: exchangeRate}, err
 }

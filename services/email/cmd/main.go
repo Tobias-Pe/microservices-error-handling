@@ -43,26 +43,7 @@ func main() {
 	createServer(config)
 }
 
-func createServer(configuration configuration) {
-	service := email.NewService(
-		configuration.rabbitAddress,
-		configuration.rabbitPort,
-	)
-
-	logger.Infof("Server listening...")
-	service.ListenOrders()
-
-	err := service.AmqpChannel.Close()
-	if err != nil {
-		logger.WithError(err).Error("Error on closing amqp-channel")
-	}
-
-	err = service.AmqpConn.Close()
-	if err != nil {
-		logger.WithError(err).Error("Error on closing amqp-connection")
-	}
-}
-
+// readConfig fetches the needed addresses and ports for connections from the environment variables or the local.env file
 func readConfig() configuration {
 	viper.SetConfigType("env")
 	viper.SetConfigName("local")
@@ -85,5 +66,31 @@ func readConfig() configuration {
 	return configuration{
 		rabbitAddress: rabbitAddress,
 		rabbitPort:    rabbitPort,
+	}
+}
+
+func createServer(configuration configuration) {
+	// create email service
+	service := email.NewService(
+		configuration.rabbitAddress,
+		configuration.rabbitPort,
+	)
+
+	logger.Infof("Server listening...")
+	// listen for orders (blocking)
+	service.ListenOrders()
+
+	closeConnections(service)
+}
+
+func closeConnections(service *email.Service) {
+	err := service.AmqpChannel.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing amqp-channel")
+	}
+
+	err = service.AmqpConn.Close()
+	if err != nil {
+		logger.WithError(err).Error("Error on closing amqp-connection")
 	}
 }

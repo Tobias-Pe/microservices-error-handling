@@ -50,8 +50,13 @@ func createServer(configuration configuration) {
 	)
 
 	logger.Infof("Server listening...")
+	// blocking call. listen for order messages
 	service.ListenOrders()
 
+	closeConnections(service)
+}
+
+func closeConnections(service *payment.Service) {
 	err := service.AmqpChannel.Close()
 	if err != nil {
 		logger.WithError(err).Error("Error on closing amqp-channel")
@@ -63,6 +68,7 @@ func createServer(configuration configuration) {
 	}
 }
 
+// readConfig fetches the needed addresses and ports for connections from the environment variables or the local.env file
 func readConfig() configuration {
 	viper.SetConfigType("env")
 	viper.SetConfigName("local")

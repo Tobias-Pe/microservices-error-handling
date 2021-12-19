@@ -67,8 +67,20 @@ func createServer(configuration configuration) {
 		configuration.rabbitPort,
 	)
 
+	proto.RegisterOrderServer(s, service)
+	logger.Printf("server listening at %v", lis.Addr())
+	// blocking call. serve until error appears
+	if err := s.Serve(lis); err != nil {
+		logger.Fatalf("failed to serve: %v", err)
+	}
+
+	closeConnections(err, service)
+}
+
+func closeConnections(err error, service *internal.Service) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
+	// defer disconnection from mongodb
 	defer func(MongoClient *mongo.Client, ctx context.Context) {
 		err := MongoClient.Disconnect(ctx)
 		if err != nil {
@@ -76,11 +88,6 @@ func createServer(configuration configuration) {
 		}
 	}(service.Database.MongoClient, ctx)
 
-	proto.RegisterOrderServer(s, service)
-	logger.Printf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		logger.Fatalf("failed to serve: %v", err)
-	}
 	err = service.AmqpChannel.Close()
 	if err != nil {
 		logger.WithError(err).Error("Error on closing amqp-channel")
@@ -91,6 +98,7 @@ func createServer(configuration configuration) {
 	}
 }
 
+// readConfig fetches the needed addresses and ports for connections from the environment variables or the local.env file
 func readConfig() configuration {
 	viper.SetConfigType("env")
 	viper.SetConfigName("local")
