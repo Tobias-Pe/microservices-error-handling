@@ -51,10 +51,12 @@ func createServer(configuration configuration) {
 
 	logger.Infof("Server listening...")
 	service.ListenOrders()
+
 	err := service.AmqpChannel.Close()
 	if err != nil {
 		logger.WithError(err).Error("Error on closing amqp-channel")
 	}
+
 	err = service.AmqpConn.Close()
 	if err != nil {
 		logger.WithError(err).Error("Error on closing amqp-connection")
@@ -66,10 +68,12 @@ func readConfig() configuration {
 	viper.SetConfigName("local")
 	viper.AddConfigPath("./config")
 	viper.AutomaticEnv()
+
 	err := viper.ReadInConfig()
 	if err != nil {
 		logger.Info(err)
 	}
+
 	rabbitAddress := viper.GetString("RABBIT_MQ_ADDRESS")
 	rabbitPort := viper.GetString("RABBIT_MQ_PORT")
 
