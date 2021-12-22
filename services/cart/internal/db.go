@@ -32,7 +32,7 @@ func (database DbConnection) getCart(strCartId string) (*models.Cart, error) {
 		}
 	}(client)
 
-	// article id's are stored as list behind the cartID keay
+	// article id's are stored as list behind the cartID key
 	jsonArticles, err := redis.ByteSlices(client.Do("LRANGE", id, 0, -1))
 	if err != nil {
 		return nil, err
