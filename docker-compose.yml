@@ -82,7 +82,7 @@ services:
       - rabbit-mq
 
   stock-mongodb:
-    image: mongo:5
+    image: mongo:4.4
     ports:
       - "27017:27017"
 
@@ -133,7 +133,7 @@ services:
       - rabbit-mq
 
   order-mongodb:
-    image: mongo:5
+    image: mongo:4.4
     ports:
       - "27018:27017"
 
