@@ -31,6 +31,8 @@ services:
 
   api-gateway-nginx:
     image: ghcr.io/tobias-pe/api-gateway-nginx:latest
+    build:
+      dockerfile: docker/nginx/api-gateway/Dockerfile
     ports:
       - "80:50000"
     env_file:
@@ -40,6 +42,8 @@ services:
 
   api-gateway:
     image: ghcr.io/tobias-pe/api-gateway:latest
+    build:
+      dockerfile: ./services/api-gateway/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -53,6 +57,8 @@ services:
 
   currency-nginx:
     image: ghcr.io/tobias-pe/currency-nginx:latest
+    build:
+      dockerfile: docker/nginx/currency/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -60,6 +66,8 @@ services:
 
   currency:
     image: ghcr.io/tobias-pe/currency:latest
+    build:
+      dockerfile: ./services/currency/Dockerfile
     env_file:
       - ./config/docker.env
 
@@ -67,6 +75,8 @@ services:
 
   stock-nginx:
     image: ghcr.io/tobias-pe/stock-nginx:latest
+    build:
+      dockerfile: docker/nginx/stock/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -74,6 +84,8 @@ services:
 
   stock:
     image: ghcr.io/tobias-pe/stock:latest
+    build:
+      dockerfile: ./services/stock/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -88,6 +100,8 @@ services:
 
   mongo_seed:
     image: ghcr.io/tobias-pe/mongo-seed:latest
+    build:
+      dockerfile: docker/mongo/Dockerfile
     depends_on:
       - stock-mongodb
 
@@ -95,6 +109,8 @@ services:
 
   cart-nginx:
     image: ghcr.io/tobias-pe/cart-nginx:latest
+    build:
+      dockerfile: docker/nginx/cart/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -102,6 +118,8 @@ services:
 
   cart:
     image: ghcr.io/tobias-pe/cart:latest
+    build:
+      dockerfile: ./services/cart/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -119,6 +137,8 @@ services:
 
   order-nginx:
     image: ghcr.io/tobias-pe/order-nginx:latest
+    build:
+      dockerfile: docker/nginx/order/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -126,6 +146,8 @@ services:
 
   order:
     image: ghcr.io/tobias-pe/order:latest
+    build:
+      dockerfile: ./services/order/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -141,6 +163,8 @@ services:
 
   payment:
     image: ghcr.io/tobias-pe/payment:latest
+    build:
+      dockerfile: ./services/payment/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -150,6 +174,8 @@ services:
 
   shipment:
     image: ghcr.io/tobias-pe/shipment:latest
+    build:
+      dockerfile: ./services/shipment/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -159,6 +185,8 @@ services:
 
   e-mail:
     image: ghcr.io/tobias-pe/email:latest
+    build:
+      dockerfile: ./services/email/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -168,6 +196,8 @@ services:
 
   supplier:
     image: ghcr.io/tobias-pe/supplier:latest
+    build:
+      dockerfile: ./services/supplier/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
