@@ -45,25 +45,33 @@ jobs:
           - image: supplier
             path: ./services/supplier/Dockerfile
 
+
     steps:
-      - name: Check out code
+      -
+        name: Checkout
         uses: actions/checkout@v2
-
-      - name: Build and push Docker image
-        id: docker
-        uses: mr-smithers-excellent/docker-build-push@v5
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Login to GitHub Container Registry
+        uses: docker/login-action@v1 
         with:
-          dockerfile: ${{ matrix.path }}
-          image: ${{ matrix.image }}
-          tags: latest, ${{ github.run_id }}
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verify Docker image
-        run: |
-          docker pull ${{ steps.docker.outputs.imageFullName }}:${{ github.run_id }}
-          docker image inspect ${{ steps.docker.outputs.imageFullName }}:${{ github.run_id }}
+      -
+        name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          file: ${{ matrix.path }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: Tobias-Pe/${{ image }}:latest, ${{ github.run_id }}
+          
       - name: Raise issue on failure
         if: failure()
         uses: actions/github-script@v3
