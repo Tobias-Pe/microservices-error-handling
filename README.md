@@ -144,7 +144,30 @@ _PS: there are some run configurations in the .run folder_
 
 ## Deployment 🚀
 
-With docker-swarm TBD
+Init manager node for cluster
+```bash
+  docker swarm init
+```
+
+On worker nodes paste command from output of ``init`` command 
+```bash
+  docker swarm join ...
+```
+
+Deploy stack on to swarm cluster on manager node
+```bash
+  docker stack deploy --compose-file docker-compose.yml demoapp
+```
+
+Optional: [Visualizer for Docker-Swarm](https://github.com/dockersamples/docker-swarm-visualizer) :
+```bash
+  docker service create \
+  --name=viz \
+  --publish=8080:8080/tcp \
+  --constraint=node.role==manager \
+  --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+  alexellis2/visualizer-arm:latest
+```
 
 ## Author ✍️
 
