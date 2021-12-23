@@ -1,4 +1,4 @@
-version: "3.9"
+version: "3.8"
 
 #  interesting for docker swarm:
 #  deploy:
@@ -75,7 +75,6 @@ services:
 
   stock-nginx:
     image: ghcr.io/tobias-pe/stock-nginx:latest
-    pull_policy: always
     build:
       dockerfile: docker/nginx/stock/Dockerfile
     env_file:
@@ -85,7 +84,6 @@ services:
 
   stock:
     image: ghcr.io/tobias-pe/stock:latest
-    pull_policy: always
     build:
       dockerfile: ./services/stock/Dockerfile
     env_file:
@@ -102,7 +100,6 @@ services:
 
   mongo_seed:
     image: ghcr.io/tobias-pe/mongo-seed:latest
-    pull_policy: always
     build:
       dockerfile: docker/mongo/Dockerfile
     depends_on:
@@ -112,7 +109,6 @@ services:
 
   cart-nginx:
     image: ghcr.io/tobias-pe/cart-nginx:latest
-    pull_policy: always
     build:
       dockerfile: docker/nginx/cart/Dockerfile
     env_file:
@@ -122,7 +118,6 @@ services:
 
   cart:
     image: ghcr.io/tobias-pe/cart:latest
-    pull_policy: always
     build:
       dockerfile: ./services/cart/Dockerfile
     env_file:
@@ -142,7 +137,6 @@ services:
 
   order-nginx:
     image: ghcr.io/tobias-pe/order-nginx:latest
-    pull_policy: always
     build:
       dockerfile: docker/nginx/order/Dockerfile
     env_file:
@@ -152,7 +146,6 @@ services:
 
   order:
     image: ghcr.io/tobias-pe/order:latest
-    pull_policy: always
     build:
       dockerfile: ./services/order/Dockerfile
     env_file:
@@ -170,7 +163,6 @@ services:
 
   payment:
     image: ghcr.io/tobias-pe/payment:latest
-    pull_policy: always
     build:
       dockerfile: ./services/payment/Dockerfile
     env_file:
@@ -182,7 +174,6 @@ services:
 
   shipment:
     image: ghcr.io/tobias-pe/shipment:latest
-    pull_policy: always
     build:
       dockerfile: ./services/shipment/Dockerfile
     env_file:
@@ -194,7 +185,6 @@ services:
 
   e-mail:
     image: ghcr.io/tobias-pe/email:latest
-    pull_policy: always
     build:
       dockerfile: ./services/email/Dockerfile
     env_file:
@@ -206,7 +196,6 @@ services:
 
   supplier:
     image: ghcr.io/tobias-pe/supplier:latest
-    pull_policy: always
     build:
       dockerfile: ./services/supplier/Dockerfile
     env_file:
