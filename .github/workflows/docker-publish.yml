@@ -70,7 +70,7 @@ jobs:
           file: ${{ matrix.path }}
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: Tobias-Pe/${{ matrix.image }}:latest, ${{ github.run_id }}
+          tags: tobias-pe/${{ matrix.image }}:latest, ${{ github.run_id }}
           
       - name: Raise issue on failure
         if: failure()
