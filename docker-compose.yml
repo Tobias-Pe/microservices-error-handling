@@ -5,24 +5,15 @@ services:
   # ----------------------------------------- RABBIT-MQ ----------------------------------------------------------------
   rabbit-mq:
     image: rabbitmq:3-management
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
     ports:
       - "15672:15672"
   # --------------------------------------- API-GATEWAY ----------------------------------------------------------------
 
   api-gateway-nginx:
     image: ghcr.io/tobias-pe/api-gateway-nginx:latest
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: docker/nginx/api-gateway/Dockerfile
     ports:
       - "80:50000"
     env_file:
@@ -32,23 +23,9 @@ services:
 
   api-gateway:
     image: ghcr.io/tobias-pe/api-gateway:latest
-    deploy:
-      mode: replicated
-      replicas: 2
-      placement:
-        max_replicas_per_node: 4
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 50M
-        reservations:
-          cpus: '0.25'
-          memory: 20M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: ./services/api-gateway/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -62,12 +39,9 @@ services:
 
   currency-nginx:
     image: ghcr.io/tobias-pe/currency-nginx:latest
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: docker/nginx/currency/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -75,23 +49,9 @@ services:
 
   currency:
     image: ghcr.io/tobias-pe/currency:latest
-    deploy:
-      mode: replicated
-      replicas: 2
-      placement:
-        max_replicas_per_node: 4
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 50M
-        reservations:
-          cpus: '0.25'
-          memory: 20M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: ./services/currency/Dockerfile
     env_file:
       - ./config/docker.env
 
@@ -99,12 +59,9 @@ services:
 
   stock-nginx:
     image: ghcr.io/tobias-pe/stock-nginx:latest
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: docker/nginx/stock/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -112,25 +69,11 @@ services:
 
   stock:
     image: ghcr.io/tobias-pe/stock:latest
+    build:
+      context: .
+      dockerfile: ./services/stock/Dockerfile
     env_file:
       - ./config/docker.env
-    deploy:
-      mode: replicated
-      replicas: 2
-      placement:
-        max_replicas_per_node: 4
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 50M
-        reservations:
-          cpus: '0.25'
-          memory: 20M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
     depends_on:
       - stock-mongodb
       - mongo_seed
@@ -138,23 +81,14 @@ services:
 
   stock-mongodb:
     image: mongo:4.4
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
     ports:
       - "27017:27017"
 
   mongo_seed:
     image: ghcr.io/tobias-pe/mongo-seed:latest
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: docker/mongo/Dockerfile
     depends_on:
       - stock-mongodb
 
@@ -162,12 +96,9 @@ services:
 
   cart-nginx:
     image: ghcr.io/tobias-pe/cart-nginx:latest
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: docker/nginx/cart/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -175,23 +106,9 @@ services:
 
   cart:
     image: ghcr.io/tobias-pe/cart:latest
-    deploy:
-      mode: replicated
-      replicas: 2
-      placement:
-        max_replicas_per_node: 4
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 50M
-        reservations:
-          cpus: '0.25'
-          memory: 20M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: ./services/cart/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -200,12 +117,6 @@ services:
 
   cart-redis:
     image: "redis:6"
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
     ports:
@@ -215,12 +126,9 @@ services:
 
   order-nginx:
     image: ghcr.io/tobias-pe/order-nginx:latest
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: docker/nginx/order/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -228,23 +136,9 @@ services:
 
   order:
     image: ghcr.io/tobias-pe/order:latest
-    deploy:
-      mode: replicated
-      replicas: 2
-      placement:
-        max_replicas_per_node: 4
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 50M
-        reservations:
-          cpus: '0.25'
-          memory: 20M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: ./services/order/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -253,12 +147,6 @@ services:
 
   order-mongodb:
     image: mongo:4.4
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
     ports:
       - "27018:27017"
 
@@ -266,23 +154,9 @@ services:
 
   payment:
     image: ghcr.io/tobias-pe/payment:latest
-    deploy:
-      mode: replicated
-      replicas: 2
-      placement:
-        max_replicas_per_node: 4
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 50M
-        reservations:
-          cpus: '0.25'
-          memory: 20M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: ./services/payment/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -292,23 +166,9 @@ services:
 
   shipment:
     image: ghcr.io/tobias-pe/shipment:latest
-    deploy:
-      mode: replicated
-      replicas: 2
-      placement:
-        max_replicas_per_node: 4
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 50M
-        reservations:
-          cpus: '0.25'
-          memory: 20M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: ./services/shipment/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -318,23 +178,9 @@ services:
 
   e-mail:
     image: ghcr.io/tobias-pe/email:latest
-    deploy:
-      mode: replicated
-      replicas: 2
-      placement:
-        max_replicas_per_node: 4
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 50M
-        reservations:
-          cpus: '0.25'
-          memory: 20M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: ./services/email/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
@@ -344,27 +190,14 @@ services:
 
   supplier:
     image: ghcr.io/tobias-pe/supplier:latest
-    deploy:
-      mode: replicated
-      replicas: 2
-      placement:
-        max_replicas_per_node: 4
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 50M
-        reservations:
-          cpus: '0.25'
-          memory: 20M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 30s
+    build:
+      context: .
+      dockerfile: ./services/supplier/Dockerfile
     env_file:
       - ./config/docker.env
     depends_on:
       - rabbit-mq
+
 
     # ------------------------------------------- MONITORING -----------------------------------------------------------
   prometheus:
@@ -375,79 +208,6 @@ services:
       - ./config:/etc/prometheus
       - prometheus_data:/prometheus
     command: --web.enable-lifecycle  --config.file=/etc/prometheus/prometheus.yml
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          memory: 2048M
-        reservations:
-          memory: 128M
-
-  node-exporter:
-    image: stefanprodan/swarmprom-node-exporter:v0.16.0
-    command:
-      - '--path.sysfs=/host/sys'
-      - '--path.procfs=/host/proc'
-      - '--collector.textfile.directory=/etc/node-exporter/'
-      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
-      - '--no-collector.ipvs'
-    network_mode: host
-    pid: host
-    restart: unless-stopped
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-      - /etc/hostname:/etc/nodename
-    ports:
-      - "9100:9100"
-    environment:
-      - NODE_ID={{.Node.ID}}
-    deploy:
-      mode: global
-      resources:
-        limits:
-          memory: 128M
-        reservations:
-          memory: 64M
-
-  dockerd-exporter:
-    image: stefanprodan/caddy
-    environment:
-      - DOCKER_GWBRIDGE_IP=172.18.0.1
-    configs:
-      - source: dockerd_config
-        target: /etc/caddy/Caddyfile
-    deploy:
-      mode: global
-      resources:
-        limits:
-          memory: 128M
-        reservations:
-          memory: 64M
-
-  cadvisor:
-    image: google/cadvisor
-    command: -logtostderr -docker_only
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /:/rootfs:ro
-      - /var/run:/var/run
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-    deploy:
-      mode: global
-      resources:
-        limits:
-          memory: 128M
-        reservations:
-          memory: 64M
-    ports:
-      - "9200:8080"
 
   grafana:
     image: grafana/grafana:8.2.6
@@ -459,22 +219,7 @@ services:
       - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
       - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards/
       - ./config/grafana/dashboards:/etc/grafana/dashboards/
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-      resources:
-        limits:
-          memory: 128M
-        reservations:
-          memory: 64M
 
 volumes:
   prometheus_data: { }
   grafana_data: { }
-
-configs:
-  dockerd_config:
-    file: ./config/dockerd/Caddyfile
