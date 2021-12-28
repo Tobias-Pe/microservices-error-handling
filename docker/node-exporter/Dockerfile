@@ -4,7 +4,7 @@ ENV NODE_ID=none
 
 USER root
 
-COPY docker-entrypoint.sh /etc/node-exporter/
+COPY docker/node-exporter/docker-entrypoint.sh /etc/node-exporter/
 
 ENTRYPOINT  [ "/etc/node-exporter/docker-entrypoint.sh" ]
 CMD [ "/bin/node_exporter" ]
