@@ -389,7 +389,6 @@ services:
 
   node-exporter:
     image: stefanprodan/swarmprom-node-exporter:v0.16.0
-    container_name: node_exporter
     command:
       - '--path.sysfs=/host/sys'
       - '--path.procfs=/host/proc'
