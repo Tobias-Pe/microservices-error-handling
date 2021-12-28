@@ -355,13 +355,16 @@ services:
 
     # ------------------------------------------- MONITORING -----------------------------------------------------------
   prometheus:
-    image: prom/prometheus:v2.31.2
+    image: ghcr.io/tobias-pe/prometheus:latest
     ports:
       - "9000:9090"
     volumes:
       - ./config:/etc/prometheus
       - prometheus_data:/prometheus
-    command: --web.enable-lifecycle  --config.file=/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention=${PROMETHEUS_RETENTION:-24h}'
     deploy:
       mode: replicated
       replicas: 1
@@ -380,7 +383,7 @@ services:
           memory: 128M
 
   node-exporter:
-    image: stefanprodan/swarmprom-node-exporter:v0.16.0
+    image: ghcr.io/tobias-pe/node-exporter:latest
     command:
       - '--path.sysfs=/host/sys'
       - '--path.procfs=/host/proc'
@@ -410,7 +413,7 @@ services:
           memory: 64M
 
   dockerd-exporter:
-    image: stefanprodan/caddy
+    image: caddy
     environment:
       - DOCKER_GWBRIDGE_IP=172.17.0.1
     configs:
@@ -430,13 +433,14 @@ services:
           memory: 64M
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor
+    image: raymondmm/cadvisor
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /:/rootfs:ro
       - /var/run:/var/run
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
+    command: -logtostderr -docker_only
     deploy:
       mode: global
       restart_policy:

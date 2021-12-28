@@ -44,6 +44,10 @@ jobs:
             path: ./services/email/Dockerfile
           - image: supplier
             path: ./services/supplier/Dockerfile
+          - image: prometheus
+            path: ./docker/prometheus/Dockerfile
+          - image: node-exporter
+            path: ./docker/node-exporter/Dockerfile
 
 
     steps:
