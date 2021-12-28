@@ -135,14 +135,14 @@ services:
 
   stock-mongodb:
     image: mongo:4.4
+    ports:
+      - "27017:27017"
     deploy:
       restart_policy:
         condition: on-failure
         max_attempts: 10
         delay: 5s
         window: 30s
-    ports:
-      - "27017:27017"
 
   mongo_seed:
     image: ghcr.io/tobias-pe/mongo-seed:latest
@@ -196,16 +196,16 @@ services:
 
   cart-redis:
     image: "redis:6"
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - "6379:6379"
     deploy:
       restart_policy:
         condition: on-failure
         max_attempts: 10
         delay: 5s
         window: 30s
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-    ports:
-      - "6379:6379"
 
   # ------------------------------------------- ORDER ------------------------------------------------------------------
 
@@ -248,14 +248,14 @@ services:
 
   order-mongodb:
     image: mongo:4.4
+    ports:
+      - "27018:27017"
     deploy:
       restart_policy:
         condition: on-failure
         max_attempts: 10
         delay: 5s
         window: 30s
-    ports:
-      - "27018:27017"
 
   # ------------------------------------------- PAYMENT ----------------------------------------------------------------
 
@@ -353,6 +353,7 @@ services:
     depends_on:
       - rabbit-mq
 
+
     # ------------------------------------------- MONITORING -----------------------------------------------------------
   prometheus:
     image: ghcr.io/tobias-pe/prometheus:latest
@@ -395,8 +396,6 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
       - /etc/hostname:/etc/nodename
-    ports:
-      - "9100:9100"
     environment:
       - NODE_ID={{.Node.ID}}
     deploy:
@@ -413,12 +412,7 @@ services:
           memory: 64M
 
   dockerd-exporter:
-    image: caddy
-    environment:
-      - DOCKER_GWBRIDGE_IP=172.17.0.1
-    configs:
-      - source: dockerd_config
-        target: /etc/caddy/Caddyfile
+    image: ghcr.io/tobias-pe/dockerd-nginx:latest
     deploy:
       mode: global
       restart_policy:
@@ -453,8 +447,6 @@ services:
           memory: 128M
         reservations:
           memory: 64M
-    ports:
-      - "9200:8080"
 
   grafana:
     image: grafana/grafana:8.2.6
@@ -486,7 +478,3 @@ services:
 volumes:
   prometheus_data: { }
   grafana_data: { }
-
-configs:
-  dockerd_config:
-    file: ./config/dockerd/Caddyfile

@@ -69,11 +69,11 @@ services:
 
   stock:
     image: ghcr.io/tobias-pe/stock:latest
+    env_file:
+      - ./config/docker.env
     build:
       context: .
       dockerfile: ./services/stock/Dockerfile
-    env_file:
-      - ./config/docker.env
     depends_on:
       - stock-mongodb
       - mongo_seed
@@ -202,15 +202,44 @@ services:
     # ------------------------------------------- MONITORING -----------------------------------------------------------
   prometheus:
     image: ghcr.io/tobias-pe/prometheus:latest
-    build:
-      context: .
-      dockerfile: ./docker/prometheus/Dockerfile
     ports:
       - "9000:9090"
     volumes:
       - ./config:/etc/prometheus
       - prometheus_data:/prometheus
-    command: --web.enable-lifecycle  --config.file=/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention=${PROMETHEUS_RETENTION:-24h}'
+
+  node-exporter:
+    image: ghcr.io/tobias-pe/node-exporter:latest
+    command:
+      - '--path.sysfs=/host/sys'
+      - '--path.procfs=/host/proc'
+      - '--collector.textfile.directory=/etc/node-exporter/'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--no-collector.ipvs'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /etc/hostname:/etc/nodename
+    environment:
+      - NODE_ID={{.Node.ID}}
+
+  dockerd-exporter:
+    image: ghcr.io/tobias-pe/dockerd-nginx:latest
+
+  cadvisor:
+    image: raymondmm/cadvisor
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/rootfs:ro
+      - /var/run:/var/run
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    command: -logtostderr -docker_only
 
   grafana:
     image: grafana/grafana:8.2.6
