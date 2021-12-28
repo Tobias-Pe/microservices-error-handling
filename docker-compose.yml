@@ -208,6 +208,7 @@ services:
     ports:
       - "9000:9090"
     volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
