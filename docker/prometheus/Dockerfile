@@ -1,9 +1,13 @@
 FROM prom/prometheus:v2.31.2
 
-COPY config/prometheus.yml /etc/prometheus/
-COPY docker/prometheus/docker-entrypoint.sh /etc/prometheus/
-RUN ["chmod", "+x", "/etc/prometheus/docker-entrypoint.sh"]
+USER root
 
-ENTRYPOINT [ "/etc/prometheus/docker-entrypoint.sh" ]
+COPY config/prometheus.yml /etc/prometheus/
+
+COPY docker/prometheus/docker-entrypoint.sh /
+
+RUN ["chmod", "+x", "/docker-entrypoint.sh"]
+
+ENTRYPOINT [ "/docker-entrypoint.sh" ]
 CMD        [ "--config.file=/etc/prometheus/prometheus.yml", \
              "--storage.tsdb.path=/prometheus" ]
