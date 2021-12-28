@@ -193,6 +193,12 @@ services:
       - prometheus_data:/prometheus
     command: --web.enable-lifecycle  --config.file=/etc/prometheus/prometheus.yml
 
+  node-exporter:
+    image: prom/node-exporter
+
+  cadvisor:
+    image: google/cadvisor:latest
+
   grafana:
     image: grafana/grafana:8.2.6
     ports:

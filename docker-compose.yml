@@ -382,6 +382,24 @@ services:
       - prometheus_data:/prometheus
     command: --web.enable-lifecycle  --config.file=/etc/prometheus/prometheus.yml
 
+  node-exporter:
+    image: prom/node-exporter
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 30s
+
+  cadvisor:
+    image: google/cadvisor:latest
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 30s
+
   grafana:
     image: grafana/grafana:8.2.6
     deploy:
