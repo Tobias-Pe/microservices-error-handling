@@ -48,6 +48,8 @@ jobs:
             path: ./docker/prometheus/Dockerfile
           - image: node-exporter
             path: ./docker/node-exporter/Dockerfile
+          - image: dockerd-nginx
+            path: ./docker/nginx/dockerd/Dockerfile
 
 
     steps:
