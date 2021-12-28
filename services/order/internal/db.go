@@ -27,14 +27,14 @@ func NewDbConnection(mongoAddress string, mongoPort string) *DbConnection {
 	mongoUri := "mongodb://" + mongoAddress + ":" + mongoPort
 	db.MongoClient, err = mongo.NewClient(options.Client().ApplyURI(mongoUri))
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).WithError(err).Errorf("Could not connect to DB")
+		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).WithError(err).Error("Could not connect to DB")
 	}
 	// connect to mongodb
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	err = db.MongoClient.Connect(ctx)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).WithError(err).Errorf("Could not connect to DB")
+		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).WithError(err).Error("Could not connect to DB")
 	} else {
 		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).Info("Connection to DB successfully!")
 	}
@@ -163,7 +163,6 @@ func (database *DbConnection) newCallbackUpdateOrder(ctx context.Context, order 
 		// throw error if no order was updated
 		if result.ModifiedCount != 1 {
 			err = fmt.Errorf("modified count %v != 1 for order with id: %v", result.ModifiedCount, order.ID)
-			logger.WithFields(loggrus.Fields{"order": order}).WithError(err).Errorf("Could not update order")
 			return nil, err
 		}
 		return result, nil

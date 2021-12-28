@@ -198,7 +198,7 @@ func (service *Service) ListenSupplyRequests() {
 			}
 		}
 	}
-	logger.Error("Stopped Listening for Supply Requests! Restarting...")
+	logger.Warn("Stopped Listening for Supply Requests! Restarting...")
 	// try reconnecting
 	err := service.createSupplyListener()
 	if err != nil {

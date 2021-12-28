@@ -199,7 +199,7 @@ func (service *Service) ListenOrders() {
 				}
 			} else {
 				if !isAllowed { // abort order because of invalid payment data
-					logger.WithFields(loggrus.Fields{"payment_status": isAllowed, "request": *order}).Error("Payment unsuccessfully. Aborting order...")
+					logger.WithFields(loggrus.Fields{"payment_status": isAllowed, "request": *order}).Warn("Payment unsuccessfully. Aborting order...")
 					status := models.StatusAborted("We could not get the needed amount from your credit card. Please check your account.")
 					order.Status = status.Name
 					order.Message = status.Message
@@ -224,7 +224,7 @@ func (service *Service) ListenOrders() {
 			}
 		}
 	}
-	logger.Error("Stopped Listening for Orders! Restarting...")
+	logger.Warn("Stopped Listening for Orders! Restarting...")
 	// try reconnecting
 	err := service.createOrderListener()
 	if err != nil {

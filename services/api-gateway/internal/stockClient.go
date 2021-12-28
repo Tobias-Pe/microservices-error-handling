@@ -45,7 +45,7 @@ func NewStockClient(stockAddress string, stockPort string) *StockClient {
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, stockAddress+":"+stockPort, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		logger.Errorf("did not connect to stock-service: %v", err)
+		logger.WithError(err).Error("did not connect to stock-service")
 	} else {
 		logger.Infoln("Connection to stock-service successfully!")
 	}

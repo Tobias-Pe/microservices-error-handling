@@ -434,7 +434,7 @@ func (service *Service) ListenOrders() {
 				}
 			} else {
 				if reservationErr != nil {
-					logger.WithFields(loggrus.Fields{"request": *order}).WithError(reservationErr).Error("Could not reserve this order. Aborting order...")
+					logger.WithFields(loggrus.Fields{"request": *order}).WithError(reservationErr).Warn("Could not reserve this order. Aborting order...")
 					status := models.StatusAborted(AbortMessage)
 					order.Status = status.Name
 					order.Message = status.Message
@@ -458,7 +458,7 @@ func (service *Service) ListenOrders() {
 			}
 		}
 	}
-	logger.Error("Stopped Listening for Orders! Restarting...")
+	logger.Warn("Stopped Listening for Orders! Restarting...")
 	err := service.createOrderListener()
 	if err != nil {
 		logger.Error("Stopped Listening for Orders! Could not restart")
@@ -485,7 +485,7 @@ func (service *Service) ListenAbortedOrders() {
 						logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation undone.")
 						break
 					}
-					logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(abortionErr).Error("Could not delete reservation. Retrying...")
+					logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(abortionErr).Warn("Could not delete reservation. Retrying...")
 					time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
 				}
 				err = message.Ack(false)
@@ -510,7 +510,7 @@ func (service *Service) ListenAbortedOrders() {
 			}
 		}
 	}
-	logger.Error("Stopped Listening for aborted Orders! Restarting...")
+	logger.Warn("Stopped Listening for aborted Orders! Restarting...")
 	err := service.createAbortedOrderListener()
 	if err != nil {
 		logger.Error("Stopped Listening for aborted Orders! Could not restart")
@@ -557,10 +557,10 @@ func (service *Service) ListenCompletedOrders() {
 			}
 		}
 	}
-	logger.Error("Stopped Listening for aborted Orders! Restarting...")
+	logger.Warn("Stopped Listening for completed Orders! Restarting...")
 	err := service.createCompletedOrderListener()
 	if err != nil {
-		logger.Error("Stopped Listening for aborted Orders! Could not restart")
+		logger.Error("Stopped Listening for completed Orders! Could not restart")
 	}
 }
 
@@ -604,7 +604,7 @@ func (service *Service) ListenSupply() {
 			}
 		}
 	}
-	logger.Error("Stopped Listening for Supply! Restarting...")
+	logger.Warn("Stopped Listening for Supply! Restarting...")
 	err := service.createSupplierListener()
 	if err != nil {
 		logger.Error("Stopped Listening for Supply! Could not restart")

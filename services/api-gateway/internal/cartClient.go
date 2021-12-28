@@ -82,7 +82,7 @@ func (cartClient *CartClient) initGrpcConnection(cartAddress string, cartPort st
 	// connection will be closed in main
 	cartClient.GrpcConn, err = grpc.DialContext(ctx, cartAddress+":"+cartPort, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		logger.Errorf("did not connect to cart-service: %v", err)
+		logger.WithError(err).Error("did not connect to cart-service")
 		return err
 	}
 	cartClient.grpcClient = proto.NewCartClient(cartClient.GrpcConn)

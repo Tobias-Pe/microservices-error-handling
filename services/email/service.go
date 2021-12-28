@@ -197,7 +197,7 @@ func (service *Service) ListenOrders() {
 				}
 			} else {
 				if !isAllowed {
-					logger.WithFields(loggrus.Fields{"email_status": isAllowed, "request": *order}).Error("Email not sent.")
+					logger.WithFields(loggrus.Fields{"email_status": isAllowed, "request": *order}).Warn("Email not sent.")
 				} else {
 					logger.WithFields(loggrus.Fields{"request": *order}).Infof("E-Mail sent.")
 				}
@@ -211,7 +211,7 @@ func (service *Service) ListenOrders() {
 			}
 		}
 	}
-	logger.Error("Stopped Listening for Orders! Restarting...")
+	logger.Warn("Stopped Listening for Orders! Restarting...")
 	// reconnect
 	err := service.createOrderListener()
 	if err != nil {

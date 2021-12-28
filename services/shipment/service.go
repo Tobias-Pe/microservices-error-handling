@@ -202,7 +202,7 @@ func (service *Service) ListenOrders() {
 				}
 			} else {
 				if !isAllowed { // abort order because of invalid shipment data
-					logger.WithFields(loggrus.Fields{"shipment_status": isAllowed, "request": *order}).Error("Shipment unsuccessfully. Aborting order...")
+					logger.WithFields(loggrus.Fields{"shipment_status": isAllowed, "request": *order}).Warn("Shipment unsuccessfully. Aborting order...")
 					status := models.StatusAborted("We could not ship the articles to your address. Please check your address.")
 					order.Status = status.Name
 					order.Message = status.Message
@@ -227,7 +227,7 @@ func (service *Service) ListenOrders() {
 			}
 		}
 	}
-	logger.Error("Stopped Listening for Orders! Restarting...")
+	logger.Warn("Stopped Listening for Orders! Restarting...")
 	// try reconnecting
 	err := service.createOrderListener()
 	if err != nil {

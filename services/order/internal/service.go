@@ -248,12 +248,12 @@ func (service *Service) ListenAndPersistOrders() {
 			oldOrderIsUpdated := false
 			if err != nil {
 				// order doesn't exist
-				logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("This order does not exist.")
+				logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("This order does not exist.")
 			} else {
 				// update order
 				err := service.Database.updateOrder(ctx, *order)
 				if err != nil {
-					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("Could not update the order.")
+					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not update the order.")
 				} else {
 					logger.WithFields(loggrus.Fields{"request": *order}).Infof("Updated order.")
 					// order was updated
@@ -269,7 +269,7 @@ func (service *Service) ListenAndPersistOrders() {
 				if err != nil {
 					logger.WithError(err).Error("Could not rollback.")
 				} else {
-					logger.WithFields(loggrus.Fields{"order": oldOrder}).Error("Rolled transaction back.")
+					logger.WithFields(loggrus.Fields{"order": oldOrder}).Info("Rolled transaction back.")
 				}
 			}
 		} else {
@@ -281,7 +281,7 @@ func (service *Service) ListenAndPersistOrders() {
 			}
 		}
 	}
-	logger.Error("Stopped Listening for Orders! Restarting...")
+	logger.Warn("Stopped Listening for Orders! Restarting...")
 	// try to reconnect
 	err := service.createOrderListener()
 	if err != nil {

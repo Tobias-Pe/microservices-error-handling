@@ -49,7 +49,7 @@ func NewOrderClient(orderAddress string, orderPort string) *OrderClient {
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, orderAddress+":"+orderPort, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		logger.Errorf("did not connect to order-service: %v", err)
+		logger.WithError(err).Error("did not connect to order-service")
 	} else {
 		logger.Infoln("Connection to order-service successfully!")
 	}

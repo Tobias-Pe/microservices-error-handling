@@ -49,7 +49,7 @@ func NewCurrencyClient(currencyAddress string, currencyPort string) *CurrencyCli
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, currencyAddress+":"+currencyPort, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		logger.Errorf("did not connect to currency-service: %v", err)
+		logger.WithError(err).Error("did not connect to currency-service")
 	} else {
 		logger.Infoln("Connection to currency-service successfully!")
 	}

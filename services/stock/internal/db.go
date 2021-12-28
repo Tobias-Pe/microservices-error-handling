@@ -27,13 +27,13 @@ func NewDbConnection(mongoAddress string, mongoPort string) *DbConnection {
 	mongoUri := "mongodb://" + mongoAddress + ":" + mongoPort
 	db.MongoClient, err = mongo.NewClient(options.Client().ApplyURI(mongoUri))
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).WithError(err).Errorf("Could not connect to DB")
+		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).WithError(err).Error("Could not connect to DB")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	err = db.MongoClient.Connect(ctx)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).WithError(err).Errorf("Could not connect to DB")
+		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).WithError(err).Error("Could not connect to DB")
 	} else {
 		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).Info("Connection to DB successfully!")
 	}
@@ -140,7 +140,7 @@ func (database *DbConnection) newCallbackReserveOrder(ctx context.Context, artic
 			}
 			if result.ModifiedCount != 1 {
 				err = fmt.Errorf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
-				logger.WithFields(loggrus.Fields{"article": stockArticle, "order": order}).WithError(err).Errorf("Could not update article")
+				logger.WithFields(loggrus.Fields{"article": stockArticle, "order": order}).WithError(err).Error("Could not update article")
 				return nil, err
 			}
 		}
@@ -222,7 +222,7 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(ctx context.Contex
 			}
 			if result.ModifiedCount != 1 {
 				err = fmt.Errorf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
-				logger.WithFields(loggrus.Fields{"article": stockArticle, "order": order}).WithError(err).Errorf("Could not update article")
+				logger.WithFields(loggrus.Fields{"article": stockArticle, "order": order}).WithError(err).Error("Could not update article")
 				return nil, err
 			}
 		}
@@ -347,7 +347,7 @@ func (database *DbConnection) newCallbackRestockArticle(ctx context.Context, art
 		}
 		if result.ModifiedCount != 1 {
 			err = fmt.Errorf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
-			logger.WithFields(loggrus.Fields{"article": stockArticle}).WithError(err).Errorf("Could not update article")
+			logger.WithFields(loggrus.Fields{"article": stockArticle}).WithError(err).Error("Could not update article")
 			return nil, err
 		}
 		return nil, nil
@@ -399,7 +399,7 @@ func (database *DbConnection) newCallbackRollbackRestockArticle(ctx context.Cont
 		}
 		if result.ModifiedCount != 1 {
 			err = fmt.Errorf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
-			logger.WithFields(loggrus.Fields{"article": stockArticle}).WithError(err).Errorf("Could not update article")
+			logger.WithFields(loggrus.Fields{"article": stockArticle}).WithError(err).Error("Could not update article")
 			return nil, err
 		}
 		return nil, nil

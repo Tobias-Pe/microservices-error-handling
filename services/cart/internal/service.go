@@ -250,17 +250,19 @@ func (service *Service) ListenUpdateCart() {
 			// add the requested item into the cart
 			index, err := service.database.addToCart(request.CartID, request.ArticleID)
 			if err != nil {
-				logger.WithFields(loggrus.Fields{"request": request}).WithError(err).Error("Could not add to cart.")
+				logger.WithFields(loggrus.Fields{"request": request}).WithError(err).Warn("Could not add to cart.")
 			} else {
 				logger.WithFields(loggrus.Fields{"index": *index, "request": request}).Infof("Inserted item")
 			}
 			err = message.Ack(false)
 			if err != nil && index != nil { // ack could not be sent but database transaction was successfully
-				logger.WithError(err).Error("Could not ack message. Rolling transaction back.")
+				logger.WithError(err).Error("Could not ack message. Trying to roll back...")
 				// rollback transaction because of the missing ack the current request will be resent
 				err = service.database.removeFromCart(request.CartID, *index)
 				if err != nil {
-					logger.WithFields(loggrus.Fields{"request": request}).WithError(err).Error("Could not roll transaction back")
+					logger.WithError(err).Error("Could not rollback.")
+				} else {
+					logger.WithFields(loggrus.Fields{"request": request}).Info("Rolled transaction back.")
 				}
 			}
 		} else {
@@ -272,10 +274,10 @@ func (service *Service) ListenUpdateCart() {
 			}
 		}
 	}
-	logger.Error("Stopped Listening for Articles! Restarting...")
+	logger.Warn("Stopped Listening for Articles! Restarting...")
 	err := service.createArticleListener()
 	if err != nil {
-		logger.Error("Stopped Listening for Articles! Could not restart")
+		logger.Warn("Stopped Listening for Articles! Could not restart")
 	}
 }
 
@@ -291,7 +293,7 @@ func (service *Service) ListenOrders() {
 				logger.WithError(err).Error("Could not ack message.")
 			} else {
 				if cartErr != nil { // there was no such cart in this order --> abort order because wrong information
-					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("Could not get cart from this order. Aborting order...")
+					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not get cart from this order. Aborting order...")
 					status := models.StatusAborted("We could not fetch your cart. Check your cart's ID again.")
 					order.Status = status.Name
 					order.Message = status.Message
@@ -317,7 +319,7 @@ func (service *Service) ListenOrders() {
 			}
 		}
 	}
-	logger.Error("Stopped Listening for Orders! Restarting...")
+	logger.Warn("Stopped Listening for Orders! Restarting...")
 	err := service.createOrderListener()
 	if err != nil {
 		logger.Error("Stopped Listening for Orders! Could not restart")
