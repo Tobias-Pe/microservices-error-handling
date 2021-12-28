@@ -158,7 +158,7 @@ On worker nodes paste command from output of ``init`` command
 
 Deploy stack on to swarm cluster on manager node
 ```bash
-  docker stack deploy --compose-file docker-stack.yml app
+  docker stack deploy --compose-file docker-swarm.yml app
 ```
 
 Optional steps:

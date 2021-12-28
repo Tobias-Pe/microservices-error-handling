@@ -202,10 +202,13 @@ services:
     # ------------------------------------------- MONITORING -----------------------------------------------------------
   prometheus:
     image: ghcr.io/tobias-pe/prometheus:latest
+    build:
+      context: .
+      dockerfile: ./docker/prometheus/Dockerfile
     ports:
       - "9000:9090"
     volumes:
-      - ./config:/etc/prometheus
+      - ./config/prometheus:/etc/prometheus
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -214,6 +217,9 @@ services:
 
   node-exporter:
     image: ghcr.io/tobias-pe/node-exporter:latest
+    build:
+      context: .
+      dockerfile: ./docker/node-exporter/Dockerfile
     command:
       - '--path.sysfs=/host/sys'
       - '--path.procfs=/host/proc'
@@ -230,6 +236,9 @@ services:
 
   dockerd-exporter:
     image: ghcr.io/tobias-pe/dockerd-nginx:latest
+    build:
+      context: .
+      dockerfile: ./docker/nginx/dockerd/Dockerfile
 
   cadvisor:
     image: raymondmm/cadvisor

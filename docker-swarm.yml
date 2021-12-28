@@ -351,11 +351,11 @@ services:
 
     # ------------------------------------------- MONITORING -----------------------------------------------------------
   prometheus:
-    image: ghcr.io/tobias-pe/prometheus:latest
+    image: ghcr.io/tobias-pe/prometheus-swarm:latest
     ports:
       - "9000:9090"
     volumes:
-      - ./config:/etc/prometheus
+      - ./config/prometheus:/etc/prometheus
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
