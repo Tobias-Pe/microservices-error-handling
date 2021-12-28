@@ -76,7 +76,7 @@ func NewCartClient(cartAddress string, cartPort string, rabbitAddress string, ra
 
 func (cartClient *CartClient) initGrpcConnection(cartAddress string, cartPort string) error {
 	// Set up a connection to the server.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	var err error
 	// connection will be closed in main
