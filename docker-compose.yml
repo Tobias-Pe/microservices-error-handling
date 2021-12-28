@@ -1,25 +1,5 @@
 version: "3.8"
 
-#  interesting for docker swarm:
-#  deploy:
-#    mode: replicated
-#    replicas: 2
-#    endpoint_mode: dnsrr
-#    placement:
-#      max_replicas_per_node: 4
-#    resources:
-#      limits:
-#        cpus: '0.50'
-#        memory: 50M
-#      reservations:
-#        cpus: '0.25'
-#        memory: 20M
-#    restart_policy:
-#      condition: on-failure
-#      delay: 5s
-#      max_attempts: 3
-#      window: 30s
-
 services:
 
   # ----------------------------------------- RABBIT-MQ ----------------------------------------------------------------
@@ -385,3 +365,38 @@ services:
       - ./config/docker.env
     depends_on:
       - rabbit-mq
+
+    # ------------------------------------------- MONITORING -----------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.31.2
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 30s
+    ports:
+      - "9000:9090"
+    volumes:
+      - ./config:/etc/prometheus
+      - prometheus_data:/prometheus
+    command: --web.enable-lifecycle  --config.file=/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:8.2.6
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 30s
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    volumes:
+      - ./config:/etc/grafana/provisioning/datasources
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  prometheus_data: { }
+  grafana_data: { }

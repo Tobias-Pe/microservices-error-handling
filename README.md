@@ -159,7 +159,9 @@ Deploy stack on to swarm cluster on manager node
   docker stack deploy --compose-file docker-compose.yml demoapp
 ```
 
-Optional: [Visualizer for Docker-Swarm](https://github.com/dockersamples/docker-swarm-visualizer) :
+Optional steps:
+
+[Visualizer for Docker-Swarm](https://github.com/dockersamples/docker-swarm-visualizer):
 ```bash
   docker service create \
   --name=viz \
@@ -168,6 +170,8 @@ Optional: [Visualizer for Docker-Swarm](https://github.com/dockersamples/docker-
   --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
   alexellis2/visualizer-arm:latest
 ```
+
+[Config docker to publish metrics](https://docs.docker.com/config/daemon/prometheus/#configure-docker)
 
 ## Author ✍️
 
