@@ -355,7 +355,7 @@ services:
     ports:
       - "9000:9090"
     volumes:
-      - ./config/prometheus/prometheus-swarm.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus-swarm:/etc/prometheus
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
