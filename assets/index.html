@@ -75,7 +75,10 @@
     effectiveness
     under pressure of load tests.</p>
 <p><em>This project is part of a Bachelorthesis in Computer Science &#127891;</em></p>
+
+
 <h2 id="api-reference-">API Reference &#128064;</h2>
+
 <h4 id="get-all-articles-">Get all articles &#128717;</h4>
 <pre><code class="lang-http">  GET <span class="hljs-regexp">/articles/</span><span
         class="hljs-variable">${category}</span>
@@ -100,6 +103,7 @@
 <a target="_blank" href="articles">
     <input type="button" value="Show Articles"/>
 </a>
+
 <h4 id="get-an-exchange-rate-">Get an exchange rate &#128176;</h4>
 <pre><code class="lang-http">  GET <span class="hljs-regexp">/exchange/</span><span
         class="hljs-variable">${currency}</span>
@@ -125,6 +129,7 @@
 <a target="_blank" href="exchange/USD">
     <input type="button" value="Show USD"/>
 </a>
+
 <h4 id="create-a-shopping-cart-">Create a shopping cart &#128722;</h4>
 <pre><code class="lang-http">  <span class="hljs-attribute">POST</span> /cart
 </code></pre>
@@ -146,6 +151,7 @@
     </tbody>
 </table>
 <p>Returns the new carts ID.</p>
+
 <h4 id="add-articles-to-a-shopping-cart-">Add articles to a shopping cart &#128722;</h4>
 <pre><code class="lang-http">  PUT <span class="hljs-regexp">/cart/</span><span class="hljs-variable">${id}</span>
 </code></pre>
@@ -182,6 +188,7 @@
     </tbody>
 </table>
 <p>Returns the new carts ID.</p>
+
 <h4 id="get-a-cart-s-content-">Get a cart&#39;s content &#128722;</h4>
 <pre><code class="lang-http">  GET <span class="hljs-regexp">/cart/</span><span class="hljs-variable">${id}</span>
 </code></pre>
@@ -205,6 +212,7 @@
 <a target="_blank" href="cart/1">
     <input type="button" value="Show Cart 1"/>
 </a>
+
 <h4 id="create-an-order-">Create an order &#128203;</h4>
 <pre><code class="lang-http">  <span class="hljs-keyword">POST</span> /<span class="hljs-keyword">order</span>
 </code></pre>
@@ -245,6 +253,7 @@
     </tbody>
 </table>
 <p>Creates an order, that will be validated and shipped in the background.</p>
+
 <h4 id="get-an-order-s-content-">Get an order&#39;s content &#128176;</h4>
 <pre><code class="lang-http">  GET <span class="hljs-regexp">/order/</span><span class="hljs-variable">${id}</span>
 </code></pre>
@@ -265,6 +274,8 @@
     </tbody>
 </table>
 <p>Look at the current status of your order.</p>
+
+
 <h2 id="tech-stack-">Tech Stack &#128218;</h2>
 <p><strong>Order &amp; Stock:</strong> MongoDB with ACID-Transactions</p>
 <p><strong>Cart:</strong> Redis</p>
@@ -272,25 +283,44 @@
 <p><strong>Synchronous Communication:</strong> GRPC</p>
 <p><strong>Asynchronous Communication:</strong> RabbitMQ</p>
 <p><strong>Load Balancing:</strong> NGINX with Docker DNS</p>
+<p><strong>Monitoring:</strong> Prometheus, Grafana, cAdvisor, Node Exporter <em>(To make these docker swarm compatible are some configurations orientated on https://github.com/stefanprodan/swarmprom)</em></p>
+
+
 <h2 id="run-locally-">Run Locally &#127939;</h2>
 <p>Clone the project</p>
-<pre><code class="lang-bash">  git <span class="hljs-keyword">clone</span> <span class="hljs-title">https</span>://github.com/Tobias-Pe/Microservices-Errorhandling
+<pre><code class="language-bash">  git clone https://github.com/Tobias-Pe/Microservices-Errorhandling
 </code></pre>
 <p>Go to the project directory</p>
-<pre><code class="lang-bash">  <span class="hljs-built_in">cd</span> Microservices-Errorhandling
+<pre><code class="language-bash">  cd Microservices-Errorhandling
 </code></pre>
 <p>Start all containers with compose</p>
-<pre><code class="lang-bash">  <span class="hljs-comment">docker</span><span class="hljs-literal">-</span><span
-        class="hljs-comment">compose</span> <span class="hljs-comment">up</span> <span
-        class="hljs-literal">-</span><span class="hljs-literal">-</span><span class="hljs-comment">force</span><span
-        class="hljs-literal">-</span><span class="hljs-comment">recreate</span> <span class="hljs-literal">-</span><span
-        class="hljs-literal">-</span><span class="hljs-comment">build</span> <span class="hljs-literal">-</span><span
-        class="hljs-comment">V</span> <span class="hljs-literal">-</span><span class="hljs-literal">-</span><span
-        class="hljs-comment">remove</span><span class="hljs-literal">-</span><span class="hljs-comment">orphans</span>
+<pre><code class="language-bash">  docker-compose up --force-recreate --build -V --remove-orphans
 </code></pre>
 <p><em>PS: there are some run configurations in the .run folder</em></p>
+
+
 <h2 id="deployment-">Deployment &#128640;</h2>
-<p>With docker-swarm TBD</p>
+<p>Init manager node for cluster</p>
+<pre><code class="language-bash">  docker swarm init
+</code></pre>
+<p>On worker nodes paste command from output of <code>init</code> command</p>
+<pre><code class="language-bash">  docker swarm join ...
+</code></pre>
+<p>Deploy stack on to swarm cluster on manager node</p>
+<pre><code class="language-bash">  docker stack deploy --compose-file docker-stack.yml app
+</code></pre>
+<p>Optional steps:</p>
+<p><a href="https://github.com/dockersamples/docker-swarm-visualizer">Visualizer for Docker-Swarm</a>:</p>
+<pre><code class="language-bash">  docker service create \
+  --name=viz \
+  --publish=8080:8080/tcp \
+  --constraint=node.role==manager \
+  --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+  alexellis2/visualizer-arm:latest
+</code></pre>
+<p><a href="https://docs.docker.com/config/daemon/prometheus/#configure-docker">Config docker to publish metrics</a></p>
+
+
 <h2 id="author-">Author &#9997;</h2>
 <p><a href="https://github.com/Tobias-Pe">@Tobias Peslalz</a></p>
 <p><a href="https://www.linkedin.com/in/tobias-peslalz"><img

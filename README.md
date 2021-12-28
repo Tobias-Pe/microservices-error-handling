@@ -120,6 +120,8 @@ Look at the current status of your order.
 
 **Load Balancing:** NGINX with Docker DNS
 
+**Monitoring:** Prometheus, Grafana, cAdvisor, Node Exporter _(To make these docker swarm compatible are some configurations orientated on https://github.com/stefanprodan/swarmprom)_
+
 ## Run Locally 🏃
 
 Clone the project
@@ -156,7 +158,7 @@ On worker nodes paste command from output of ``init`` command
 
 Deploy stack on to swarm cluster on manager node
 ```bash
-  docker stack deploy --compose-file docker-compose.yml demoapp
+  docker stack deploy --compose-file docker-stack.yml app
 ```
 
 Optional steps:
