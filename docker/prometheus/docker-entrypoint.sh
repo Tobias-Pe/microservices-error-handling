@@ -15,7 +15,7 @@ cat >>/tmp/prometheus.yml <<EOF
   - job_name: '${SERVICE}'
     dns_sd_configs:
     - names:
-      - 'tasks.${SERVICE}'
+      - '${SERVICE}'
       type: 'A'
       port: ${PORT}
 EOF

@@ -4,7 +4,7 @@ USER root
 
 COPY config/prometheus/prometheus-swarm.yml /etc/prometheus/
 
-COPY docker/prometheus/docker-entrypoint.sh /
+COPY docker/prometheus-swarm/docker-entrypoint.sh /
 
 RUN ["chmod", "+x", "/docker-entrypoint.sh"]
 
