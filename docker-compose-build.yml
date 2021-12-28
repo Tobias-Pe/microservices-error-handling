@@ -220,7 +220,7 @@ services:
     environment:
       - DOCKER_GWBRIDGE_IP=172.18.0.1
     configs:
-      - source: ./config/dockerd/Caddyfile
+      - source: dockerd_config
         target: /etc/caddy/Caddyfile
 
   cadvisor:
@@ -249,3 +249,7 @@ services:
 volumes:
   prometheus_data: { }
   grafana_data: { }
+
+configs:
+  dockerd_config:
+    file: ./config/dockerd/Caddyfile
