@@ -8,16 +8,16 @@ import (
 
 func TestInitLogger(t *testing.T) {
 	var logger *logrus.Logger
-	var prevlogger *logrus.Logger
+	var prevLogger *logrus.Logger
 	go func() {
 		for i := 0; i < 1000; i++ {
 			go func(i int) {
 				time.Sleep(time.Millisecond * 600)
-				prevlogger = logger
+				prevLogger = logger
 				logger = InitLogger()
 				if logger == nil {
 					t.Fail()
-				} else if prevlogger != nil && logger != prevlogger {
+				} else if prevLogger != nil && logger != prevLogger {
 					t.Fail()
 				}
 			}(i)
