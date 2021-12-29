@@ -30,7 +30,9 @@ import (
 	"github.com/gin-gonic/gin"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	ginprometheus "github.com/zsais/go-gin-prometheus"
 	"net/http"
+	"strings"
 )
 
 type configuration struct {
@@ -158,6 +160,25 @@ func createRouter(service *service, configuration configuration) {
 	// Creates a gin router with default middleware:
 	// logger and recovery (crash-free) middleware
 	router := gin.Default()
+
+	// prometheus metrics exporter
+	promRouter := ginprometheus.NewPrometheus("gin")
+	// preserving a low cardinality for the request counter --> https://prometheus.io/docs/practices/naming/#labels
+	promRouter.ReqCntURLLabelMappingFn = func(c *gin.Context) string {
+		url := c.Request.URL.Path
+		for _, p := range c.Params {
+			if p.Key == "id" {
+				url = strings.Replace(url, p.Value, ":id", 1)
+				break
+			} else if p.Key == "currency" {
+				url = strings.Replace(url, p.Value, ":currency", 1)
+				break
+			}
+		}
+		return url
+	}
+	promRouter.Use(router)
+
 	router.StaticFile("/favicon.ico", "./assets/favicon.ico")
 	router.LoadHTMLGlob("./assets/index.html")
 	router.GET("/", func(c *gin.Context) {
