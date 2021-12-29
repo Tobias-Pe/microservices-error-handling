@@ -240,6 +240,9 @@ services:
     build:
       context: .
       dockerfile: ./docker/nginx/dockerd/Dockerfile
+    environment:
+      # linux: 172.17.0.1 ; windows: host.docker.internal
+      - DOCKER_GWBRIDGE_IP=172.17.0.1
 
   cadvisor:
     image: raymondmm/cadvisor

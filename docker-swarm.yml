@@ -409,6 +409,9 @@ services:
 
   dockerd-exporter:
     image: ghcr.io/tobias-pe/dockerd-nginx:latest
+    environment:
+      # linux: 172.17.0.1 ; windows: host.docker.internal
+      - DOCKER_GWBRIDGE_IP=172.17.0.1
     deploy:
       mode: global
       restart_policy:
