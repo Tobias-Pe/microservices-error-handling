@@ -47,14 +47,12 @@ func (requestsMetric *RequestsMetric) Increment(err error, requestName string) {
 		if counter, err := requestsMetric.requestsCounterVec.GetMetricWith(prometheus.Labels{"error": err.Error(), "method": requestName}); err == nil {
 			counter.Inc()
 		} else {
-
 			logger.WithError(err).Warn("Could not increment")
 		}
 	} else {
 		if counter, err := requestsMetric.requestsCounterVec.GetMetricWith(prometheus.Labels{"error": "", "method": requestName}); err == nil {
 			counter.Inc()
 		} else {
-
 			logger.WithError(err).Warn("Could not increment")
 		}
 	}
