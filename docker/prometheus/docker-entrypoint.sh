@@ -12,6 +12,8 @@ SERVICE=$(echo "$job" | cut -d":" -f1)
 PORT=$(echo "$job" | cut -d":" -f2)
 
 cat >>/tmp/prometheus.yml <<EOF
+
+
   - job_name: '${SERVICE}'
     dns_sd_configs:
     - names:
