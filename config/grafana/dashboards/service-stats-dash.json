@@ -163,7 +163,7 @@
               },
               {
                 "color": "red",
-                "value": 6
+                "value": 1
               }
             ]
           }
@@ -525,7 +525,7 @@
           "placement": "right"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "multi"
         }
       },
       "pluginVersion": "8.2.6",
@@ -607,7 +607,7 @@
           "placement": "right"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "multi"
         }
       },
       "pluginVersion": "8.2.6",
@@ -689,7 +689,7 @@
           "placement": "right"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "multi"
         }
       },
       "pluginVersion": "8.2.6",
@@ -967,5 +967,5 @@
   "timezone": "",
   "title": "Service Stats",
   "uid": "GY4_Bn0nz",
-  "version": 1
+  "version": 2
 }
