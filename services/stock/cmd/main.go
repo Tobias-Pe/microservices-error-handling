@@ -28,10 +28,10 @@ import (
 	"context"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/services/stock/internal"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc"
 	"log"
 	"net"
@@ -67,21 +67,20 @@ func createServer(configuration configuration) {
 		configuration.rabbitPort,
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-	defer func(MongoClient *mongo.Client, ctx context.Context) {
-		err := MongoClient.Disconnect(ctx)
-		if err != nil {
-			logger.WithError(err).Warn("could not disconnect from mongodb")
-		}
-	}(service.Database.MongoClient, ctx)
-
 	proto.RegisterStockServer(s, service)
+
+	// start metrics exposer
+	metrics.NewServer()
+
 	logger.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		logger.Fatalf("failed to serve: %v", err)
 	}
-	err = service.AmqpChannel.Close()
+	closeConnections(service)
+}
+
+func closeConnections(service *internal.Service) {
+	err := service.AmqpChannel.Close()
 	if err != nil {
 		logger.WithError(err).Error("Error on closing amqp-channel")
 	}
@@ -89,6 +88,12 @@ func createServer(configuration configuration) {
 	if err != nil {
 		logger.WithError(err).Error("Error on closing amqp-connection")
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	err = service.Database.MongoClient.Disconnect(ctx)
+	if err != nil {
+		logger.WithError(err).Warn("could not disconnect from mongodb")
+	}
+	cancel()
 }
 
 func readConfig() configuration {

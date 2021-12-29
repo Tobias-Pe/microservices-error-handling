@@ -28,6 +28,7 @@ import (
 	"context"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/services/order/internal"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -68,6 +69,10 @@ func createServer(configuration configuration) {
 	)
 
 	proto.RegisterOrderServer(s, service)
+
+	// start metrics exposer
+	metrics.NewServer()
+
 	logger.Printf("server listening at %v", lis.Addr())
 	// blocking call. serve until error appears
 	if err := s.Serve(lis); err != nil {

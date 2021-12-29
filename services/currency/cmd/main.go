@@ -27,6 +27,7 @@ package main
 import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/services/currency"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -56,6 +57,10 @@ func createGrpcServer(config configuration) {
 	// create the currency service
 	service := currency.Service{}
 	proto.RegisterCurrencyServer(s, &service)
+
+	// start metrics exposer
+	metrics.NewServer()
+
 	logger.Printf("server listening at %v", lis.Addr())
 	// block until error appears
 	if err := s.Serve(lis); err != nil {

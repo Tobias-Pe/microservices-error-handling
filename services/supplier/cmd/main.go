@@ -26,6 +26,7 @@ package main
 
 import (
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/services/supplier"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -49,9 +50,16 @@ func createServer(configuration configuration) {
 		configuration.rabbitPort,
 	)
 
+	// start metrics exposer
+	metrics.NewServer()
+
 	logger.Infof("Server listening...")
 	service.ListenSupplyRequests()
 
+	closeConnections(service)
+}
+
+func closeConnections(service *supplier.Service) {
 	err := service.AmqpChannel.Close()
 	if err != nil {
 		logger.WithError(err).Error("Error on closing amqp-channel")

@@ -26,6 +26,7 @@ package main
 
 import (
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/services/email"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -75,6 +76,9 @@ func createServer(configuration configuration) {
 		configuration.rabbitAddress,
 		configuration.rabbitPort,
 	)
+
+	// start metrics exposer
+	metrics.NewServer()
 
 	logger.Infof("Server listening...")
 	// listen for orders (blocking)
