@@ -32,7 +32,6 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"google.golang.org/grpc"
 	"math"
@@ -93,7 +92,6 @@ func (cartClient *CartClient) initAmqpConnection(rabbitAddress string, rabbitPor
 	url := fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	conn, err := amqp.Dial(url)
 	if err != nil {
-		logger.WithError(err).WithFields(loggrus.Fields{"url": url}).Error("Could not connect to rabbitMq")
 		return err
 	}
 	// connection will be closed in main
@@ -101,7 +99,6 @@ func (cartClient *CartClient) initAmqpConnection(rabbitAddress string, rabbitPor
 	// channel will be closed in main
 	cartClient.AmqpChannel, err = cartClient.AmqpConn.Channel()
 	if err != nil {
-		logger.WithError(err).Error("Could not create channel")
 		return err
 	}
 	err = cartClient.AmqpChannel.ExchangeDeclare(
@@ -114,7 +111,6 @@ func (cartClient *CartClient) initAmqpConnection(rabbitAddress string, rabbitPor
 		nil,                    // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not declare exchange")
 		return err
 	}
 	return nil

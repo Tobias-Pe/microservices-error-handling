@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	loggrus "github.com/sirupsen/logrus"
 	"strings"
 )
@@ -37,6 +38,7 @@ var logger = loggingUtil.InitLogger()
 
 type Service struct {
 	proto.UnimplementedCurrencyServer
+	RequestsMetric *metrics.RequestsMetric
 }
 
 // getMockExchangeRate mocks the exchange rates from Euro into the targetCurrency
@@ -64,12 +66,13 @@ func getMockExchangeRate(targetCurrency string) (float32, error) {
 }
 
 // GetExchangeRate implementation of in the proto file defined interface of currency service
-func (s *Service) GetExchangeRate(_ context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
+func (service *Service) GetExchangeRate(_ context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
 	exchangeRate, err := getMockExchangeRate(req.CustomerCurrency)
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency}).WithError(err).Warn("requested currency not supported")
 	} else {
 		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency, "Response": exchangeRate}).Info("exchange rate served")
 	}
+	service.RequestsMetric.Increment(err, "GetExchangeRate")
 	return &proto.ReplyExchangeRate{ExchangeRate: exchangeRate}, err
 }

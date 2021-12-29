@@ -29,10 +29,16 @@ import (
 	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"math"
 	"time"
+)
+
+const (
+	methodListenSupply  = "SupplyRequest"
+	methodPublishSupply = "PublishSupply"
 )
 
 var logger = loggingUtil.InitLogger()
@@ -42,15 +48,16 @@ type Service struct {
 	AmqpConn       *amqp.Connection
 	supplyMessages <-chan amqp.Delivery
 	rabbitUrl      string
+	requestsMetric *metrics.RequestsMetric
 }
 
 func NewService(rabbitAddress string, rabbitPort string) *Service {
-	s := &Service{}
-	s.rabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
+	service := &Service{}
+	service.rabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
 	// retry connecting to rabbitmq
 	for i := 0; i < 6; i++ {
-		err = s.initAmqpConnection()
+		err = service.initAmqpConnection()
 		if err == nil {
 			break
 		}
@@ -60,24 +67,25 @@ func NewService(rabbitAddress string, rabbitPort string) *Service {
 	if err != nil {
 		return nil
 	}
-	err = s.createSupplyListener()
+	err = service.createSupplyListener()
 	if err != nil {
 		return nil
 	}
-	return s
+
+	service.requestsMetric = metrics.NewRequestsMetrics()
+
+	return service
 }
 
 func (service *Service) initAmqpConnection() error {
 	conn, err := amqp.Dial(service.rabbitUrl)
 	if err != nil {
-		logger.WithError(err).WithFields(loggrus.Fields{"url": service.rabbitUrl}).Error("Could not connect to rabbitMq")
 		return err
 	}
 	// connection and channel will be closed in main
 	service.AmqpConn = conn
 	service.AmqpChannel, err = conn.Channel()
 	if err != nil {
-		logger.WithError(err).Error("Could not create channel")
 		return err
 	}
 	// prefetchCount 1 in QoS will load-balance messages between many instances of this service
@@ -87,7 +95,6 @@ func (service *Service) initAmqpConnection() error {
 		false, // global
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not change qos settings")
 		return err
 	}
 	return nil
@@ -105,7 +112,6 @@ func (service *Service) createSupplyListener() error {
 		nil,                    // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create exchange")
 		return err
 	}
 	q, err := service.AmqpChannel.QueueDeclare(
@@ -117,7 +123,6 @@ func (service *Service) createSupplyListener() error {
 		nil,   // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create queue")
 		return err
 	}
 	err = service.AmqpChannel.QueueBind(
@@ -128,7 +133,6 @@ func (service *Service) createSupplyListener() error {
 		nil,
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not bind queue")
 		return err
 	}
 
@@ -143,7 +147,6 @@ func (service *Service) createSupplyListener() error {
 		nil,    // args
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not consume queue")
 		return err
 	}
 	return nil
@@ -156,6 +159,7 @@ func (service *Service) supplyArticles(articleID string, amount int) error {
 		Amount:    amount,
 	})
 	if err != nil {
+		service.requestsMetric.Increment(err, methodPublishSupply)
 		return err
 	}
 	err = service.AmqpChannel.Publish(
@@ -169,9 +173,13 @@ func (service *Service) supplyArticles(articleID string, amount int) error {
 			Body:         bytes,
 		})
 	if err != nil {
+		service.requestsMetric.Increment(err, methodPublishSupply)
 		return err
 	}
+
 	logger.WithFields(loggrus.Fields{"article": articleID, "amount": amount}).Infof("Sent Supply.")
+	service.requestsMetric.Increment(err, methodPublishSupply)
+
 	return nil
 }
 
@@ -186,6 +194,7 @@ func (service *Service) ListenSupplyRequests() {
 				logger.WithFields(loggrus.Fields{"request": *request}).WithError(err).Error("Could not supply articles.")
 			}
 			err = message.Ack(false)
+			service.requestsMetric.Increment(err, methodListenSupply)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 			}
@@ -196,13 +205,14 @@ func (service *Service) ListenSupplyRequests() {
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 			}
+			service.requestsMetric.Increment(err, methodListenSupply)
 		}
 	}
 	logger.Warn("Stopped Listening for Supply Requests! Restarting...")
 	// try reconnecting
 	err := service.createSupplyListener()
 	if err != nil {
-		logger.Error("Stopped Listening for Supply Requests! Could not restart")
+		logger.WithError(err).Error("Stopped Listening for Supply Requests! Could not restart")
 	} else {
 		service.ListenSupplyRequests()
 	}

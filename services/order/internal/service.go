@@ -31,6 +31,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -41,25 +42,33 @@ import (
 
 var logger = loggingUtil.InitLogger()
 
+const (
+	methodCreateOrder   = "CreateOrder"
+	methodGetOrder      = "GetOrder"
+	methodListenPersist = "UpdateOrder"
+	methodPublishOrder  = "PublishOrder"
+)
+
 type Service struct {
 	proto.UnimplementedOrderServer
-	Database      *DbConnection
-	AmqpConn      *amqp.Connection
-	AmqpChannel   *amqp.Channel
-	rabbitUrl     string
-	orderMessages <-chan amqp.Delivery
+	Database       *DbConnection
+	AmqpConn       *amqp.Connection
+	AmqpChannel    *amqp.Channel
+	rabbitUrl      string
+	orderMessages  <-chan amqp.Delivery
+	requestsMetric *metrics.RequestsMetric
 }
 
 func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rabbitPort string) *Service {
 	// init mongodb connection
-	s := &Service{
+	server := &Service{
 		Database:  NewDbConnection(mongoAddress, mongoPort),
 		rabbitUrl: fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort),
 	}
 	// retry connection to rabbitmq
 	var err error = nil
 	for i := 0; i < 6; i++ {
-		err = s.initAmqpConnection()
+		err = server.initAmqpConnection()
 		if err == nil {
 			break
 		}
@@ -70,11 +79,14 @@ func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rab
 		return nil
 	}
 
-	err = s.createOrderListener()
+	err = server.createOrderListener()
 	if err != nil {
 		return nil
 	}
-	return s
+
+	server.requestsMetric = metrics.NewRequestsMetrics()
+
+	return server
 }
 
 // CreateOrder implementation of in the proto file defined interface of cart service
@@ -93,13 +105,16 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 	}
 	err := service.Database.createOrder(ctx, &order)
 	if err != nil {
+		service.requestsMetric.Increment(err, methodCreateOrder)
 		return nil, err
 	}
 
 	logger.WithFields(loggrus.Fields{"Request": req, "Order": order}).Info("Order created")
+	service.requestsMetric.Increment(err, methodCreateOrder)
 
 	// broadcast order
 	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
+	service.requestsMetric.Increment(err, methodPublishOrder)
 	if err != nil {
 		return nil, err
 	}
@@ -122,15 +137,19 @@ func (service *Service) GetOrder(ctx context.Context, req *proto.RequestOrder) (
 	// primitive.ObjectID type needed for mongodb
 	orderId, err := primitive.ObjectIDFromHex(req.OrderId)
 	if err != nil {
+		service.requestsMetric.Increment(err, methodGetOrder)
 		return nil, err
 	}
 
 	order, err := service.Database.getOrder(ctx, orderId)
 	if err != nil {
+		service.requestsMetric.Increment(err, methodGetOrder)
 		return nil, err
 	}
 
 	logger.WithFields(loggrus.Fields{"Request": req, "Order": order}).Info("Order request handled")
+	service.requestsMetric.Increment(err, methodGetOrder)
+
 	return &proto.OrderObject{
 		OrderId:            order.ID.Hex(),
 		Status:             order.Status,
@@ -147,7 +166,6 @@ func (service *Service) GetOrder(ctx context.Context, req *proto.RequestOrder) (
 func (service *Service) initAmqpConnection() error {
 	conn, err := amqp.Dial(service.rabbitUrl)
 	if err != nil {
-		logger.WithError(err).WithFields(loggrus.Fields{"url": service.rabbitUrl}).Error("Could not connect to rabbitMq")
 		return err
 	}
 
@@ -155,7 +173,6 @@ func (service *Service) initAmqpConnection() error {
 	service.AmqpConn = conn
 	service.AmqpChannel, err = conn.Channel()
 	if err != nil {
-		logger.WithError(err).Error("Could not create channel")
 		return err
 	}
 
@@ -166,7 +183,6 @@ func (service *Service) initAmqpConnection() error {
 		false, // global
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not change qos settings")
 		return err
 	}
 	return nil
@@ -184,7 +200,6 @@ func (service *Service) createOrderListener() error {
 		nil,                 // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create exchange")
 		return err
 	}
 	q, err := service.AmqpChannel.QueueDeclare(
@@ -196,7 +211,6 @@ func (service *Service) createOrderListener() error {
 		nil,   // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create queue")
 		return err
 	}
 
@@ -212,7 +226,6 @@ func (service *Service) createOrderListener() error {
 			nil,
 		)
 		if err != nil {
-			logger.WithError(err).Error("Could not bind queue")
 			return err
 		}
 	}
@@ -228,7 +241,6 @@ func (service *Service) createOrderListener() error {
 		nil,    // args
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not consume queue")
 		return err
 	}
 	// create coroutine to listen for order messages
@@ -272,6 +284,7 @@ func (service *Service) ListenAndPersistOrders() {
 					logger.WithFields(loggrus.Fields{"order": oldOrder}).Info("Rolled transaction back.")
 				}
 			}
+			service.requestsMetric.Increment(err, methodListenPersist)
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
 			// ack message despite the error, or else we will get this message repeatedly
@@ -279,12 +292,13 @@ func (service *Service) ListenAndPersistOrders() {
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 			}
+			service.requestsMetric.Increment(err, methodListenPersist)
 		}
 	}
 	logger.Warn("Stopped Listening for Orders! Restarting...")
 	// try to reconnect
 	err := service.createOrderListener()
 	if err != nil {
-		logger.Error("Stopped Listening for Orders! Could not restart")
+		logger.WithError(err).Error("Stopped Listening for Orders! Could not restart")
 	}
 }

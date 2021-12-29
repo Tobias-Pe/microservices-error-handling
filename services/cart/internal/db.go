@@ -38,7 +38,7 @@ func (database DbConnection) getCart(strCartId string) (*models.Cart, error) {
 		return nil, err
 	}
 	if len(jsonArticles) == 0 { // check empty slice
-		return nil, fmt.Errorf("there is no cart for this id: %s", strCartId)
+		return nil, fmt.Errorf("there is no cart for this id")
 	}
 	// populate return value
 	var articles []string

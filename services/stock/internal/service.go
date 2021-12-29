@@ -31,6 +31,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -41,7 +42,17 @@ import (
 
 var logger = loggingUtil.InitLogger()
 
-const AbortMessage = "We could not reserve the articles in your cart. Create a cart with existing and available articles."
+const (
+	StockAbortMessage = "We could not reserve the articles in your cart. Create a cart with existing and available articles."
+
+	methodGetArticles             = "GetArticles"
+	methodListenSupply            = "AddSupply"
+	methodPublishSupplyRequest    = "PublishLowSuppl"
+	methodListenReservationOrders = "ReserveArticles"
+	methodListenAbortedOrders     = "AbortReservation"
+	methodListenCompletedOrders   = "CompleteReservation"
+	methodPublishOrder            = "PublishOrder"
+)
 
 type Service struct {
 	proto.UnimplementedStockServer
@@ -53,14 +64,15 @@ type Service struct {
 	abortedOrderMessages   <-chan amqp.Delivery
 	completedOrderMessages <-chan amqp.Delivery
 	supplyMessages         <-chan amqp.Delivery
+	requestsMetric         *metrics.RequestsMetric
 }
 
 func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rabbitPort string) *Service {
-	s := &Service{Database: NewDbConnection(mongoAddress, mongoPort)}
-	s.rabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
+	service := &Service{Database: NewDbConnection(mongoAddress, mongoPort)}
+	service.rabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
 	for i := 0; i < 6; i++ {
-		err = s.initAmqpConnection()
+		err = service.initAmqpConnection()
 		if err == nil {
 			break
 		}
@@ -70,35 +82,36 @@ func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rab
 	if err != nil {
 		return nil
 	}
-	err = s.createOrderListener()
+	err = service.createReservationOrderListener()
 	if err != nil {
 		return nil
 	}
-	err = s.createAbortedOrderListener()
+	err = service.createAbortedOrderListener()
 	if err != nil {
 		return nil
 	}
-	err = s.createCompletedOrderListener()
+	err = service.createCompletedOrderListener()
 	if err != nil {
 		return nil
 	}
-	err = s.createSupplierListener()
+	err = service.createSupplierListener()
 	if err != nil {
 		return nil
 	}
-	return s
+
+	service.requestsMetric = metrics.NewRequestsMetrics()
+
+	return service
 }
 
 func (service *Service) initAmqpConnection() error {
 	conn, err := amqp.Dial(service.rabbitUrl)
 	if err != nil {
-		logger.WithError(err).WithFields(loggrus.Fields{"url": service.rabbitUrl}).Error("Could not connect to rabbitMq")
 		return err
 	}
 	service.AmqpConn = conn
 	service.AmqpChannel, err = conn.Channel()
 	if err != nil {
-		logger.WithError(err).Error("Could not create channel")
 		return err
 	}
 	err = service.AmqpChannel.Qos(
@@ -107,13 +120,12 @@ func (service *Service) initAmqpConnection() error {
 		false, // global
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not change qos settings")
 		return err
 	}
 	return nil
 }
 
-func (service *Service) createOrderListener() error {
+func (service *Service) createReservationOrderListener() error {
 	err := service.AmqpChannel.ExchangeDeclare(
 		requests.OrderTopic, // name
 		"topic",             // type
@@ -124,7 +136,6 @@ func (service *Service) createOrderListener() error {
 		nil,                 // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create exchange")
 		return err
 	}
 	q, err := service.AmqpChannel.QueueDeclare(
@@ -136,7 +147,6 @@ func (service *Service) createOrderListener() error {
 		nil,   // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create queue")
 		return err
 	}
 	err = service.AmqpChannel.QueueBind(
@@ -147,7 +157,6 @@ func (service *Service) createOrderListener() error {
 		nil,
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not bind queue")
 		return err
 	}
 
@@ -161,11 +170,10 @@ func (service *Service) createOrderListener() error {
 		nil,    // args
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not consume queue")
 		return err
 	}
 
-	go service.ListenOrders()
+	go service.ListenReservationOrders()
 	return nil
 }
 
@@ -180,7 +188,6 @@ func (service *Service) createAbortedOrderListener() error {
 		nil,                 // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create exchange")
 		return err
 	}
 	q, err := service.AmqpChannel.QueueDeclare(
@@ -192,7 +199,6 @@ func (service *Service) createAbortedOrderListener() error {
 		nil,   // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create queue")
 		return err
 	}
 	err = service.AmqpChannel.QueueBind(
@@ -203,7 +209,6 @@ func (service *Service) createAbortedOrderListener() error {
 		nil,
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not bind queue")
 		return err
 	}
 
@@ -217,7 +222,6 @@ func (service *Service) createAbortedOrderListener() error {
 		nil,    // args
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not consume queue")
 		return err
 	}
 
@@ -236,7 +240,6 @@ func (service *Service) createCompletedOrderListener() error {
 		nil,                 // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create exchange")
 		return err
 	}
 	q, err := service.AmqpChannel.QueueDeclare(
@@ -248,7 +251,6 @@ func (service *Service) createCompletedOrderListener() error {
 		nil,   // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create queue")
 		return err
 	}
 	err = service.AmqpChannel.QueueBind(
@@ -259,7 +261,6 @@ func (service *Service) createCompletedOrderListener() error {
 		nil,
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not bind queue")
 		return err
 	}
 
@@ -273,7 +274,6 @@ func (service *Service) createCompletedOrderListener() error {
 		nil,    // args
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not consume queue")
 		return err
 	}
 
@@ -292,7 +292,6 @@ func (service *Service) createSupplierListener() error {
 		nil,                    // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create exchange")
 		return err
 	}
 	q, err := service.AmqpChannel.QueueDeclare(
@@ -304,7 +303,6 @@ func (service *Service) createSupplierListener() error {
 		nil,   // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create queue")
 		return err
 	}
 	err = service.AmqpChannel.QueueBind(
@@ -315,7 +313,6 @@ func (service *Service) createSupplierListener() error {
 		nil,
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not bind queue")
 		return err
 	}
 
@@ -329,7 +326,6 @@ func (service *Service) createSupplierListener() error {
 		nil,    // args
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not consume queue")
 		return err
 	}
 
@@ -340,6 +336,7 @@ func (service *Service) createSupplierListener() error {
 func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArticles) (*proto.ResponseArticles, error) {
 	articles, err := service.Database.getArticles(ctx, req.CategoryQuery)
 	if err != nil {
+		service.requestsMetric.Increment(err, methodGetArticles)
 		return nil, err
 	}
 
@@ -355,6 +352,8 @@ func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArtic
 	}
 
 	logger.WithFields(loggrus.Fields{"articles": articles}).Info("Get articles handled")
+	service.requestsMetric.Increment(err, methodGetArticles)
+
 	return &proto.ResponseArticles{Articles: protoArticles}, nil
 }
 
@@ -393,8 +392,10 @@ func (service *Service) orderArticles(id primitive.ObjectID, amount int) error {
 		Amount:    amount,
 	})
 	if err != nil {
+		service.requestsMetric.Increment(err, methodPublishSupplyRequest)
 		return err
 	}
+
 	err = service.AmqpChannel.Publish(
 		requests.ArticlesTopic,          // exchange
 		requests.StockRequestRoutingKey, // routing key
@@ -406,19 +407,25 @@ func (service *Service) orderArticles(id primitive.ObjectID, amount int) error {
 			Body:         bytes,
 		})
 	if err != nil {
+		service.requestsMetric.Increment(err, methodPublishSupplyRequest)
 		return err
 	}
+
 	logger.WithFields(loggrus.Fields{"article": id.Hex(), "amount": amount}).Infof("Published Supply Request")
+	service.requestsMetric.Increment(err, methodPublishSupplyRequest)
+
 	return nil
 }
 
-func (service *Service) ListenOrders() {
+// ListenReservationOrders reads out reservation order messages from bound amqp queue
+func (service *Service) ListenReservationOrders() {
 	for message := range service.orderMessages {
 		order := &models.Order{}
 		err := json.Unmarshal(message.Body, order)
 		if err == nil {
 			price, reservationErr := service.reserveArticlesAndCalcPrice(order)
 			err = message.Ack(false)
+			service.requestsMetric.Increment(err, methodListenReservationOrders)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 				if reservationErr == nil {
@@ -433,48 +440,54 @@ func (service *Service) ListenOrders() {
 					}
 				}
 			} else {
-				if reservationErr != nil {
+				if reservationErr != nil { // could not reserve order --> abort order because wrong information
 					logger.WithFields(loggrus.Fields{"request": *order}).WithError(reservationErr).Warn("Could not reserve this order. Aborting order...")
-					status := models.StatusAborted(AbortMessage)
+					status := models.StatusAborted(StockAbortMessage)
 					order.Status = status.Name
 					order.Message = status.Message
-				} else {
+				} else { // next step for the order is paying the articles in payment-service
 					logger.WithFields(loggrus.Fields{"request": *order}).Infof("Articles reserved for this order.")
 					order.Price = *price
 					status := models.StatusPaying()
 					order.Status = status.Name
 					order.Message = status.Message
 				}
+				// broadcast the order update
 				err = order.PublishOrderStatusUpdate(service.AmqpChannel)
 				if err != nil {
 					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("Could not publish order update")
 				}
+				service.requestsMetric.Increment(err, methodPublishOrder)
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			// ack message despite the error, or else we will get this message repeatedly
 			err = message.Ack(false)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 			}
+			service.requestsMetric.Increment(err, methodListenReservationOrders)
 		}
 	}
 	logger.Warn("Stopped Listening for Orders! Restarting...")
-	err := service.createOrderListener()
+	err := service.createReservationOrderListener()
 	if err != nil {
-		logger.Error("Stopped Listening for Orders! Could not restart")
+		logger.WithError(err).Error("Stopped Listening for Orders! Could not restart")
 	}
 }
 
+// ListenAbortedOrders reads out order messages from bound amqp queue
 func (service *Service) ListenAbortedOrders() {
 	for message := range service.abortedOrderMessages {
 		order := &models.Order{}
 		err := json.Unmarshal(message.Body, order)
 		if err == nil {
-			if order.Message == AbortMessage {
+			if order.Message == StockAbortMessage { // Don't listen for own abortion
 				err = message.Ack(false)
 				if err != nil {
 					logger.WithError(err).Error("Could not ack message.")
 				}
+				service.requestsMetric.Increment(err, methodListenAbortedOrders)
 			} else {
 				var abortionErr error
 				for i := 4; i < 6; i++ {
@@ -489,6 +502,7 @@ func (service *Service) ListenAbortedOrders() {
 					time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
 				}
 				err = message.Ack(false)
+				service.requestsMetric.Increment(err, methodListenAbortedOrders)
 				if err != nil {
 					logger.WithError(err).Error("Could not ack message.")
 					if abortionErr == nil {
@@ -504,19 +518,22 @@ func (service *Service) ListenAbortedOrders() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			// ack message despite the error, or else we will get this message repeatedly
 			err = message.Ack(false)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 			}
+			service.requestsMetric.Increment(err, methodListenAbortedOrders)
 		}
 	}
 	logger.Warn("Stopped Listening for aborted Orders! Restarting...")
 	err := service.createAbortedOrderListener()
 	if err != nil {
-		logger.Error("Stopped Listening for aborted Orders! Could not restart")
+		logger.WithError(err).Error("Stopped Listening for aborted Orders! Could not restart")
 	}
 }
 
+// ListenCompletedOrders reads out order messages from bound amqp queue
 func (service *Service) ListenCompletedOrders() {
 	for message := range service.completedOrderMessages {
 		order := &models.Order{}
@@ -535,6 +552,7 @@ func (service *Service) ListenCompletedOrders() {
 				time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
 			}
 			err = message.Ack(false)
+			service.requestsMetric.Increment(err, methodListenCompletedOrders)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 				if deletionErr == nil {
@@ -551,19 +569,22 @@ func (service *Service) ListenCompletedOrders() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			// ack message despite the error, or else we will get this message repeatedly
 			err = message.Ack(false)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 			}
+			service.requestsMetric.Increment(err, methodListenCompletedOrders)
 		}
 	}
 	logger.Warn("Stopped Listening for completed Orders! Restarting...")
 	err := service.createCompletedOrderListener()
 	if err != nil {
-		logger.Error("Stopped Listening for completed Orders! Could not restart")
+		logger.WithError(err).Error("Stopped Listening for completed Orders! Could not restart")
 	}
 }
 
+// ListenSupply reads out supply messages from bound amqp queue
 func (service *Service) ListenSupply() {
 	for message := range service.supplyMessages {
 		supply := &requests.StockSupplyMessage{}
@@ -582,6 +603,7 @@ func (service *Service) ListenSupply() {
 				time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
 			}
 			err = message.Ack(false)
+			service.requestsMetric.Increment(err, methodListenSupply)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 				if updateErr == nil {
@@ -598,15 +620,17 @@ func (service *Service) ListenSupply() {
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
+			// ack message despite the error, or else we will get this message repeatedly
 			err = message.Ack(false)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 			}
+			service.requestsMetric.Increment(err, methodListenSupply)
 		}
 	}
 	logger.Warn("Stopped Listening for Supply! Restarting...")
 	err := service.createSupplierListener()
 	if err != nil {
-		logger.Error("Stopped Listening for Supply! Could not restart")
+		logger.WithError(err).Error("Stopped Listening for Supply! Could not restart")
 	}
 }

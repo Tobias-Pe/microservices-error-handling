@@ -54,8 +54,12 @@ func createGrpcServer(config configuration) {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
+
 	// create the currency service
-	service := currency.Service{}
+	service := currency.Service{
+		RequestsMetric: metrics.NewRequestsMetrics(),
+	}
+
 	proto.RegisterCurrencyServer(s, &service)
 
 	// start metrics exposer

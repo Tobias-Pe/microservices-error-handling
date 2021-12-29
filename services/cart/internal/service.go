@@ -31,6 +31,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/gomodule/redigo/redis"
 	loggrus "github.com/sirupsen/logrus"
@@ -40,8 +41,15 @@ import (
 	"time"
 )
 
-// expireCartSeconds Seconds until the cart will expire after no updates
-const expireCartSeconds = 172800
+const (
+	// expireCartSeconds Seconds until the cart will expire after no updates
+	expireCartSeconds      = 172800
+	methodGetCart          = "GetCart"
+	methodCreateCart       = "CreateCart"
+	methodListenOrders     = "PopulateOrder"
+	methodListenUpdateCart = "AddToCart"
+	methodPublishOrder     = "PublishOrder"
+)
 
 var logger = loggingUtil.InitLogger()
 
@@ -53,6 +61,7 @@ type Service struct {
 	rabbitUrl       string
 	database        *DbConnection
 	articleMessages <-chan amqp.Delivery
+	requestsMetric  *metrics.RequestsMetric
 }
 
 func NewService(cacheAddress string, cachePort string, rabbitAddress string, rabbitPort string) *Service {
@@ -79,6 +88,9 @@ func NewService(cacheAddress string, cachePort string, rabbitAddress string, rab
 	if err != nil {
 		return nil
 	}
+
+	newService.requestsMetric = metrics.NewRequestsMetrics()
+
 	return &newService
 }
 
@@ -104,14 +116,12 @@ func (service *Service) initRedisConnection(cacheAddress string, cachePort strin
 func (service *Service) initAmqpConnection() error {
 	conn, err := amqp.Dial(service.rabbitUrl)
 	if err != nil {
-		logger.WithError(err).WithFields(loggrus.Fields{"url": service.rabbitUrl}).Error("Could not connect to rabbitMq")
 		return err
 	}
 	// connection and channel close functions will be called in main
 	service.AmqpConn = conn
 	service.AmqpChannel, err = conn.Channel()
 	if err != nil {
-		logger.WithError(err).Error("Could not create channel")
 		return err
 	}
 	// prefetchCount 1 in QoS will load-balance messages between many instances of this service
@@ -121,7 +131,6 @@ func (service *Service) initAmqpConnection() error {
 		false, // global
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not change qos settings")
 		return err
 	}
 	return nil
@@ -139,7 +148,6 @@ func (service *Service) createArticleListener() error {
 		nil,                    // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create exchange")
 		return err
 	}
 	q, err := service.AmqpChannel.QueueDeclare(
@@ -151,7 +159,6 @@ func (service *Service) createArticleListener() error {
 		nil,   // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create queue")
 		return err
 	}
 	err = service.AmqpChannel.QueueBind(
@@ -162,7 +169,6 @@ func (service *Service) createArticleListener() error {
 		nil,
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not bind queue")
 		return err
 	}
 	// articleMessages will be where we will get our messages from
@@ -176,7 +182,6 @@ func (service *Service) createArticleListener() error {
 		nil,    // args
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not consume queue")
 		return err
 	}
 	// make a coroutine which will listen for article messages
@@ -196,7 +201,6 @@ func (service *Service) createOrderListener() error {
 		nil,                 // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create exchange")
 		return err
 	}
 	q, err := service.AmqpChannel.QueueDeclare(
@@ -208,7 +212,6 @@ func (service *Service) createOrderListener() error {
 		nil,                                  // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create queue")
 		return err
 	}
 	err = service.AmqpChannel.QueueBind(
@@ -219,7 +222,6 @@ func (service *Service) createOrderListener() error {
 		nil,
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not bind queue")
 		return err
 	}
 	// orderMessages is where we will get our order messages from
@@ -233,7 +235,6 @@ func (service *Service) createOrderListener() error {
 		nil,    // args
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not consume queue")
 		return err
 	}
 	// create a coroutine to listen for order messages
@@ -248,9 +249,9 @@ func (service *Service) ListenUpdateCart() {
 		err := json.Unmarshal(message.Body, request)
 		if err == nil {
 			// add the requested item into the cart
-			index, err := service.database.addToCart(request.CartID, request.ArticleID)
-			if err != nil {
-				logger.WithFields(loggrus.Fields{"request": request}).WithError(err).Warn("Could not add to cart.")
+			index, cartErr := service.database.addToCart(request.CartID, request.ArticleID)
+			if cartErr != nil {
+				logger.WithFields(loggrus.Fields{"request": request}).WithError(cartErr).Warn("Could not add to cart.")
 			} else {
 				logger.WithFields(loggrus.Fields{"index": *index, "request": request}).Infof("Inserted item")
 			}
@@ -264,6 +265,9 @@ func (service *Service) ListenUpdateCart() {
 				} else {
 					logger.WithFields(loggrus.Fields{"request": request}).Info("Rolled transaction back.")
 				}
+				service.requestsMetric.Increment(err, methodListenUpdateCart)
+			} else {
+				service.requestsMetric.Increment(cartErr, methodListenUpdateCart)
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
@@ -272,6 +276,7 @@ func (service *Service) ListenUpdateCart() {
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 			}
+			service.requestsMetric.Increment(err, methodListenUpdateCart)
 		}
 	}
 	logger.Warn("Stopped Listening for Articles! Restarting...")
@@ -289,6 +294,7 @@ func (service *Service) ListenOrders() {
 		if err == nil {
 			cart, cartErr := service.database.getCart(order.CartID)
 			err = message.Ack(false)
+			service.requestsMetric.Increment(err, methodListenOrders)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 			} else {
@@ -309,6 +315,7 @@ func (service *Service) ListenOrders() {
 				if err != nil {
 					logger.WithFields(loggrus.Fields{"cart": cart, "request": *order}).WithError(err).Error("Could not publish order update")
 				}
+				service.requestsMetric.Increment(err, methodPublishOrder)
 			}
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
@@ -317,12 +324,13 @@ func (service *Service) ListenOrders() {
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 			}
+			service.requestsMetric.Increment(err, methodListenOrders)
 		}
 	}
 	logger.Warn("Stopped Listening for Orders! Restarting...")
 	err := service.createOrderListener()
 	if err != nil {
-		logger.Error("Stopped Listening for Orders! Could not restart")
+		logger.WithError(err).Error("Stopped Listening for Orders! Could not restart")
 	}
 }
 
@@ -330,20 +338,29 @@ func (service *Service) ListenOrders() {
 func (service *Service) CreateCart(_ context.Context, req *proto.RequestNewCart) (*proto.ResponseNewCart, error) {
 	cart, err := service.database.createCart(req.ArticleId)
 	if err != nil {
+		service.requestsMetric.Increment(err, methodCreateCart)
 		return nil, err
 	}
 
 	strId := strconv.Itoa(int(cart.ID))
+
 	logger.WithFields(loggrus.Fields{"ID": cart.ID, "Data": cart.ArticleIDs, "Request": req.ArticleId}).Info("Created new Cart")
+	service.requestsMetric.Increment(err, methodCreateCart)
+
 	return &proto.ResponseNewCart{CartId: strId}, nil
 }
 
 // GetCart implementation of in the proto file defined interface of cart service
 func (service *Service) GetCart(_ context.Context, req *proto.RequestCart) (*proto.ResponseCart, error) {
 	cart, err := service.database.getCart(req.CartId)
+
 	if err != nil {
+		service.requestsMetric.Increment(err, methodGetCart)
 		return nil, err
 	}
+
 	logger.WithFields(loggrus.Fields{"ID": cart.ID, "Data": cart.ArticleIDs, "Request": req.CartId}).Info("Looked up Cart")
+	service.requestsMetric.Increment(err, methodGetCart)
+
 	return &proto.ResponseCart{ArticleIds: cart.ArticleIDs}, nil
 }

@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -40,21 +41,26 @@ import (
 
 var logger = loggingUtil.InitLogger()
 
+const (
+	methodListenOrders = "SendEmail"
+)
+
 type Service struct {
-	AmqpChannel   *amqp.Channel
-	AmqpConn      *amqp.Connection
-	orderMessages <-chan amqp.Delivery
-	rabbitUrl     string
+	AmqpChannel    *amqp.Channel
+	AmqpConn       *amqp.Connection
+	orderMessages  <-chan amqp.Delivery
+	rabbitUrl      string
+	requestsMetric *metrics.RequestsMetric
 }
 
 func NewService(rabbitAddress string, rabbitPort string) *Service {
-	s := &Service{}
+	service := &Service{}
 
-	s.rabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
+	service.rabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
 	// retry connection to rabbitmq
 	for i := 0; i < 6; i++ {
-		err = s.initAmqpConnection()
+		err = service.initAmqpConnection()
 		if err == nil {
 			break
 		}
@@ -65,25 +71,25 @@ func NewService(rabbitAddress string, rabbitPort string) *Service {
 		return nil
 	}
 
-	err = s.createOrderListener()
+	err = service.createOrderListener()
 	if err != nil {
 		return nil
 	}
 
-	return s
+	service.requestsMetric = metrics.NewRequestsMetrics()
+
+	return service
 }
 
 func (service *Service) initAmqpConnection() error {
 	conn, err := amqp.Dial(service.rabbitUrl)
 	if err != nil {
-		logger.WithError(err).WithFields(loggrus.Fields{"url": service.rabbitUrl}).Error("Could not connect to rabbitMq")
 		return err
 	}
 	// connection and channel will be closed in main
 	service.AmqpConn = conn
 	service.AmqpChannel, err = conn.Channel()
 	if err != nil {
-		logger.WithError(err).Error("Could not create channel")
 		return err
 	}
 	// prefetchCount 1 in QoS will load-balance messages between many instances of this service
@@ -93,7 +99,6 @@ func (service *Service) initAmqpConnection() error {
 		false, // global
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not change qos settings")
 		return err
 	}
 	return nil
@@ -111,7 +116,6 @@ func (service *Service) createOrderListener() error {
 		nil,                 // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create exchange")
 		return err
 	}
 	q, err := service.AmqpChannel.QueueDeclare(
@@ -123,7 +127,6 @@ func (service *Service) createOrderListener() error {
 		nil,   // arguments
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not create queue")
 		return err
 	}
 	// listen for completed and aborted orders
@@ -138,7 +141,6 @@ func (service *Service) createOrderListener() error {
 			nil,
 		)
 		if err != nil {
-			logger.WithError(err).Error("Could not bind queue")
 			return err
 		}
 	}
@@ -153,7 +155,6 @@ func (service *Service) createOrderListener() error {
 		nil,    // args
 	)
 	if err != nil {
-		logger.WithError(err).Error("Could not consume queue")
 		return err
 	}
 	return nil
@@ -187,6 +188,7 @@ func (service *Service) ListenOrders() {
 		if err == nil {
 			isAllowed := service.mockEmail(order.CustomerEmail)
 			err = message.Ack(false)
+			service.requestsMetric.Increment(err, methodListenOrders)
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 				if isAllowed { // ack could not be sent but email transaction was successfully
@@ -209,13 +211,14 @@ func (service *Service) ListenOrders() {
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 			}
+			service.requestsMetric.Increment(err, methodListenOrders)
 		}
 	}
 	logger.Warn("Stopped Listening for Orders! Restarting...")
 	// reconnect
 	err := service.createOrderListener()
 	if err != nil {
-		logger.Error("Stopped Listening for Orders! Could not restart")
+		logger.WithError(err).Error("Stopped Listening for Orders! Could not restart")
 	} else {
 		// reconnection successfully --> start listening again
 		service.ListenOrders()
