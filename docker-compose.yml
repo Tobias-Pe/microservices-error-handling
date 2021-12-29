@@ -207,14 +207,12 @@ services:
       dockerfile: ./docker/prometheus/Dockerfile
     ports:
       - "9000:9090"
-    volumes:
-      - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention=${PROMETHEUS_RETENTION:-24h}'
     environment:
-      - JOBS=api-gateway:50000 cart:9216 currency:9216 email:9216 order:9216 payment:9216 shipment:9216 stock:9216 supplier:9216
+      - JOBS=api-gateway:50000 cart:9216 currency:9216 e-mail:9216 order:9216 payment:9216 shipment:9216 stock:9216 supplier:9216
 
   node-exporter:
     image: ghcr.io/tobias-pe/node-exporter:latest
@@ -242,7 +240,7 @@ services:
       dockerfile: ./docker/nginx/dockerd/Dockerfile
     environment:
       # linux: 172.17.0.1 ; windows: host.docker.internal
-      - DOCKER_GWBRIDGE_IP=172.17.0.1
+      - DOCKER_GWBRIDGE_IP=host.docker.internal
 
   cadvisor:
     image: raymondmm/cadvisor
@@ -259,11 +257,6 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - grafana_data:/var/lib/grafana
       - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
       - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards/
       - ./config/grafana/dashboards:/etc/grafana/dashboards/
-
-volumes:
-  prometheus_data: { }
-  grafana_data: { }
