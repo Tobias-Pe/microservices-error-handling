@@ -360,6 +360,8 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention=${PROMETHEUS_RETENTION:-24h}'
+    environment:
+      - JOBS=api-gateway:50000
     deploy:
       mode: replicated
       replicas: 1
