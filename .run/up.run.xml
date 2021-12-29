@@ -9,7 +9,6 @@
         <option name="upForceRecreate" value="true" />
         <option name="upRemoveOrphans" value="true" />
         <option name="upRenewAnonVolumes" value="true" />
-        <option name="upTimeout" value="60" />
       </settings>
     </deployment>
     <method v="2" />
