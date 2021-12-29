@@ -32,7 +32,7 @@ func (database DbConnection) getCart(strCartId string) (*models.Cart, error) {
 		}
 	}(client)
 
-	// article id's are stored as list behind the cartID key
+	// article ids are stored as list behind the cartID key
 	jsonArticles, err := redis.ByteSlices(client.Do("LRANGE", id, 0, -1))
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func (database DbConnection) removeFromCart(strCartId string, index int64) error
 	if err != nil {
 		return err
 	}
-	// remove flaged value
+	// remove flagged value
 	err = client.Send("LREM", cartID, 1, "TOBEREMOVED")
 	if err != nil {
 		return err
