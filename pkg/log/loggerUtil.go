@@ -25,24 +25,63 @@
 package log
 
 import (
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sirupsen/logrus"
 	"os"
+	"sync"
 )
 
+// PrometheusHook contains a counter vector for counting log statements severity levels
+type PrometheusHook struct {
+	counter *prometheus.CounterVec
+}
+
+func NewPrometheusHook() *PrometheusHook {
+	counter := promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "log_statements_total",
+			Help: "Number of log statements, differentiated by log level.",
+		},
+		[]string{"level"},
+	)
+
+	return &PrometheusHook{
+		counter: counter,
+	}
+}
+
+func (h *PrometheusHook) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+func (h *PrometheusHook) Fire(e *logrus.Entry) error {
+	h.counter.WithLabelValues(e.Level.String()).Inc()
+	return nil
+}
+
+// logger is a singleton
+var logger *logrus.Logger
+var once sync.Once
+
 func InitLogger() *logrus.Logger {
-	logger := logrus.New()
-	logger.Out = os.Stdout
-	logger.SetLevel(logrus.InfoLevel)
-	logger.SetFormatter(&logrus.TextFormatter{
-		ForceColors:      true,
-		DisableColors:    false,
-		DisableTimestamp: false,
-		FullTimestamp:    true,
-		TimestampFormat:  "15:04:05",
-		DisableSorting:   false,
-		SortingFunc:      nil,
-		PadLevelText:     true,
-		QuoteEmptyFields: true,
+	once.Do(func() {
+		logger = logrus.New()
+		logger.Out = os.Stdout
+		logger.SetLevel(logrus.InfoLevel)
+		logger.SetFormatter(&logrus.TextFormatter{
+			ForceColors:      true,
+			DisableColors:    false,
+			DisableTimestamp: false,
+			FullTimestamp:    true,
+			TimestampFormat:  "15:04:05",
+			DisableSorting:   false,
+			SortingFunc:      nil,
+			PadLevelText:     true,
+			QuoteEmptyFields: true,
+		})
+		logger.AddHook(NewPrometheusHook())
 	})
+
 	return logger
 }
