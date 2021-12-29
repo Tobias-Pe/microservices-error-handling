@@ -361,7 +361,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention=${PROMETHEUS_RETENTION:-24h}'
     environment:
-      - JOBS=api-gateway:50000
+      - JOBS=api-gateway:50000 cart:9216 currency:9216 email:9216 order:9216 payment:9216 shipment:9216 stock:9216 supplier:9216
     deploy:
       mode: replicated
       replicas: 1
