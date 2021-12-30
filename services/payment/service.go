@@ -155,7 +155,7 @@ func (service *Service) ListenOrders() {
 func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) error {
 	isAllowed, err := service.mockPayment(order.CustomerCreditCard)
 	if !isAllowed { // abort order because of invalid payment data
-		logger.WithFields(loggrus.Fields{"payment_status": isAllowed, "request": *order}).Warn("Payment unsuccessfully. Aborting order...")
+		logger.WithFields(loggrus.Fields{"payment_status": isAllowed, "request": *order}).WithError(err).Warn("Payment unsuccessfully. Aborting order...")
 		status := models.StatusAborted("We could not get the needed amount from your credit card. Please check your account.")
 		order.Status = status.Name
 		order.Message = status.Message

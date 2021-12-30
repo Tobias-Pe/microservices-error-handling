@@ -158,7 +158,7 @@ func (service *Service) ListenOrders() {
 func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) error {
 	isAllowed, err := service.mockShipment(order.CustomerAddress, order.Articles)
 	if !isAllowed { // abort order because of invalid shipment data
-		logger.WithFields(loggrus.Fields{"shipment_status": isAllowed, "request": *order}).Warn("Shipment unsuccessfully. Aborting order...")
+		logger.WithFields(loggrus.Fields{"shipment_status": isAllowed, "request": *order}).WithError(err).Warn("Shipment unsuccessfully. Aborting order...")
 		status := models.StatusAborted("We could not ship the articles to your address. Please check your address.")
 		order.Status = status.Name
 		order.Message = status.Message
