@@ -30,6 +30,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"math"
@@ -44,20 +45,18 @@ const (
 var logger = loggingUtil.InitLogger()
 
 type Service struct {
-	AmqpChannel    *amqp.Channel
-	AmqpConn       *amqp.Connection
+	rabbitmq.AmqpService
 	supplyMessages <-chan amqp.Delivery
-	rabbitUrl      string
 	requestsMetric *metrics.RequestsMetric
 }
 
 func NewService(rabbitAddress string, rabbitPort string) *Service {
 	service := &Service{}
-	service.rabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
+	service.RabbitURL = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
 	// retry connecting to rabbitmq
 	for i := 0; i < 6; i++ {
-		err = service.initAmqpConnection()
+		err = service.InitAmqpConnection()
 		if err == nil {
 			break
 		}
@@ -67,6 +66,7 @@ func NewService(rabbitAddress string, rabbitPort string) *Service {
 	if err != nil {
 		return nil
 	}
+
 	err = service.createSupplyListener()
 	if err != nil {
 		return nil
@@ -77,78 +77,17 @@ func NewService(rabbitAddress string, rabbitPort string) *Service {
 	return service
 }
 
-func (service *Service) initAmqpConnection() error {
-	conn, err := amqp.Dial(service.rabbitUrl)
-	if err != nil {
-		return err
-	}
-	// connection and channel will be closed in main
-	service.AmqpConn = conn
-	service.AmqpChannel, err = conn.Channel()
-	if err != nil {
-		return err
-	}
-	// prefetchCount 1 in QoS will load-balance messages between many instances of this service
-	err = service.AmqpChannel.Qos(
-		1,     // prefetch count
-		0,     // prefetch size
-		false, // global
-	)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// createOrderListener initialises exchange and queue and binds the queue to a topic and routing key to listen from
+// createSupplyListener initialises exchange and queue and binds the queue to a topic and routing key to listen from
 func (service *Service) createSupplyListener() error {
-	err := service.AmqpChannel.ExchangeDeclare(
-		requests.ArticlesTopic, // name
-		"topic",                // type
-		true,                   // durable
-		false,                  // auto-deleted
-		false,                  // internal
-		false,                  // no-wait
-		nil,                    // arguments
-	)
-	if err != nil {
-		return err
-	}
-	q, err := service.AmqpChannel.QueueDeclare(
-		"supplier_"+requests.ArticlesTopic+"_queue", // name
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
-	if err != nil {
-		return err
-	}
-	err = service.AmqpChannel.QueueBind(
-		q.Name,                          // queue name
-		requests.StockRequestRoutingKey, // routing key
-		requests.ArticlesTopic,          // exchange
-		false,
-		nil,
-	)
+	var err error
+	queueName := fmt.Sprintf("supplier_%s_queue", requests.ArticlesTopic)
+	routingKeys := []string{requests.StockRequestRoutingKey}
+
+	service.supplyMessages, err = service.CreateListener(requests.ArticlesTopic, queueName, routingKeys)
 	if err != nil {
 		return err
 	}
 
-	// supplyMessages will be where we get our supply messages from
-	service.supplyMessages, err = service.AmqpChannel.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -162,6 +101,7 @@ func (service *Service) supplyArticles(articleID string, amount int) error {
 		service.requestsMetric.Increment(err, methodPublishSupply)
 		return err
 	}
+
 	err = service.AmqpChannel.Publish(
 		requests.ArticlesTopic,    // exchange
 		requests.SupplyRoutingKey, // routing key
@@ -172,13 +112,12 @@ func (service *Service) supplyArticles(articleID string, amount int) error {
 			ContentType:  "application/json",
 			Body:         bytes,
 		})
+	service.requestsMetric.Increment(err, methodPublishSupply)
 	if err != nil {
-		service.requestsMetric.Increment(err, methodPublishSupply)
 		return err
 	}
 
 	logger.WithFields(loggrus.Fields{"article": articleID, "amount": amount}).Infof("Sent Supply.")
-	service.requestsMetric.Increment(err, methodPublishSupply)
 
 	return nil
 }
@@ -186,18 +125,22 @@ func (service *Service) supplyArticles(articleID string, amount int) error {
 // ListenSupplyRequests reads out supply messages from bound amqp queue
 func (service *Service) ListenSupplyRequests() {
 	for message := range service.supplyMessages {
+		// unmarshall message into StockSupplyMessage
 		request := &requests.StockSupplyMessage{}
 		err := json.Unmarshal(message.Body, request)
 		if err == nil {
-			err := service.supplyArticles(request.ArticleID, request.Amount)
+			err = service.supplyArticles(request.ArticleID, request.Amount)
 			if err != nil {
 				logger.WithFields(loggrus.Fields{"request": *request}).WithError(err).Error("Could not supply articles.")
 			}
-			err = message.Ack(false)
-			service.requestsMetric.Increment(err, methodListenSupply)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
+
+			ackErr := message.Ack(false)
+			if ackErr != nil {
+				// no need to rollback transaction
+				logger.WithError(ackErr).Error("Could not ack message.")
+				err = fmt.Errorf("%v ; %v", err.Error(), ackErr.Error())
 			}
+
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
 			// ack message despite the error, or else we will get this message repeatedly
@@ -205,9 +148,10 @@ func (service *Service) ListenSupplyRequests() {
 			if err != nil {
 				logger.WithError(err).Error("Could not ack message.")
 			}
-			service.requestsMetric.Increment(err, methodListenSupply)
 		}
+		service.requestsMetric.Increment(err, methodListenSupply)
 	}
+
 	logger.Warn("Stopped Listening for Supply Requests! Restarting...")
 	// try reconnecting
 	err := service.createSupplyListener()

@@ -35,6 +35,9 @@ import (
 )
 
 const (
+	// CartAbortMessage is needed by stock service --> there will be no reservation to abort
+	CartAbortMessage = "We could not fetch your cart. Check your cart's ID again."
+
 	statusNameReserving = "RESERVING"
 	statusNameFetching  = "FETCHING"
 	statusNamePaying    = "PAYING"

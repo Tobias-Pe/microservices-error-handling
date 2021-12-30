@@ -33,6 +33,7 @@ import (
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
 	"github.com/gomodule/redigo/redis"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -55,11 +56,9 @@ var logger = loggingUtil.InitLogger()
 
 type Service struct {
 	proto.UnimplementedCartServer
-	AmqpChannel     *amqp.Channel
-	AmqpConn        *amqp.Connection
-	orderMessages   <-chan amqp.Delivery
-	rabbitUrl       string
+	rabbitmq.AmqpService
 	database        *DbConnection
+	orderMessages   <-chan amqp.Delivery
 	articleMessages <-chan amqp.Delivery
 	requestsMetric  *metrics.RequestsMetric
 }
@@ -67,10 +66,10 @@ type Service struct {
 func NewService(cacheAddress string, cachePort string, rabbitAddress string, rabbitPort string) *Service {
 	newService := Service{}
 	newService.initRedisConnection(cacheAddress, cachePort)
-	newService.rabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
+	newService.RabbitURL = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
 	for i := 0; i < 6; i++ {
-		err = newService.initAmqpConnection()
+		err = newService.InitAmqpConnection()
 		if err == nil {
 			break
 		}
@@ -80,10 +79,12 @@ func NewService(cacheAddress string, cachePort string, rabbitAddress string, rab
 	if err != nil {
 		return nil
 	}
+
 	err = newService.createArticleListener()
 	if err != nil {
 		return nil
 	}
+
 	err = newService.createOrderListener()
 	if err != nil {
 		return nil
@@ -112,172 +113,59 @@ func (service *Service) initRedisConnection(cacheAddress string, cachePort strin
 	}
 }
 
-// initAmqpConnection connects to rabbitmq
-func (service *Service) initAmqpConnection() error {
-	conn, err := amqp.Dial(service.rabbitUrl)
-	if err != nil {
-		return err
-	}
-	// connection and channel close functions will be called in main
-	service.AmqpConn = conn
-	service.AmqpChannel, err = conn.Channel()
-	if err != nil {
-		return err
-	}
-	// prefetchCount 1 in QoS will load-balance messages between many instances of this service
-	err = service.AmqpChannel.Qos(
-		1,     // prefetch count
-		0,     // prefetch size
-		false, // global
-	)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // createArticleListener initialises exchange and queue and binds the queue to a topic and routing key to listen from
 func (service *Service) createArticleListener() error {
-	err := service.AmqpChannel.ExchangeDeclare(
-		requests.ArticlesTopic, // name
-		"topic",                // type
-		true,                   // durable
-		false,                  // auto-deleted
-		false,                  // internal
-		false,                  // no-wait
-		nil,                    // arguments
-	)
+	var err error
+	queueName := fmt.Sprintf("cart_%s_queue", requests.ArticlesTopic)
+	routingKeys := []string{requests.AddToCartRoutingKey}
+
+	service.articleMessages, err = service.CreateListener(requests.ArticlesTopic, queueName, routingKeys)
 	if err != nil {
 		return err
 	}
-	q, err := service.AmqpChannel.QueueDeclare(
-		"cart_"+requests.ArticlesTopic+"_queue", // name
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
-	if err != nil {
-		return err
-	}
-	err = service.AmqpChannel.QueueBind(
-		q.Name,                       // queue name
-		requests.AddToCartRoutingKey, // routing key
-		requests.ArticlesTopic,       // exchange
-		false,
-		nil,
-	)
-	if err != nil {
-		return err
-	}
-	// articleMessages will be where we will get our messages from
-	service.articleMessages, err = service.AmqpChannel.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	if err != nil {
-		return err
-	}
+
 	// make a coroutine which will listen for article messages
 	go service.ListenUpdateCart()
+
 	return nil
 }
 
-// createOrderListener initialises exchange and queue and binds the queue to a topic and routing key to listen from
+// createOrderListener creates and binds queue to listen for orders in status fetching
 func (service *Service) createOrderListener() error {
-	err := service.AmqpChannel.ExchangeDeclare(
-		requests.OrderTopic, // name
-		"topic",             // type
-		true,                // durable
-		false,               // auto-deleted
-		false,               // internal
-		false,               // no-wait
-		nil,                 // arguments
-	)
+	var err error
+	queueName := fmt.Sprintf("cart_%s_queue", requests.OrderTopic)
+	routingKeys := []string{requests.OrderStatusFetch}
+
+	service.orderMessages, err = service.CreateListener(requests.OrderTopic, queueName, routingKeys)
 	if err != nil {
 		return err
 	}
-	q, err := service.AmqpChannel.QueueDeclare(
-		"cart_"+requests.OrderTopic+"_queue", // name
-		true,                                 // durable
-		false,                                // delete when unused
-		false,                                // exclusive
-		false,                                // no-wait
-		nil,                                  // arguments
-	)
-	if err != nil {
-		return err
-	}
-	err = service.AmqpChannel.QueueBind(
-		q.Name,                    // queue name
-		requests.OrderStatusFetch, // routing key
-		requests.OrderTopic,       // exchange
-		false,
-		nil,
-	)
-	if err != nil {
-		return err
-	}
-	// orderMessages is where we will get our order messages from
-	service.orderMessages, err = service.AmqpChannel.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	if err != nil {
-		return err
-	}
+
 	// create a coroutine to listen for order messages
 	go service.ListenOrders()
+
 	return nil
 }
 
 // ListenUpdateCart reads out article messages from bound amqp queue
 func (service *Service) ListenUpdateCart() {
 	for message := range service.articleMessages {
+		// unmarshall message into PutArticleInCartRequest
 		request := &requests.PutArticleInCartRequest{}
 		err := json.Unmarshal(message.Body, request)
-		if err == nil {
-			// add the requested item into the cart
-			index, cartErr := service.database.addToCart(request.CartID, request.ArticleID)
-			if cartErr != nil {
-				logger.WithFields(loggrus.Fields{"request": request}).WithError(cartErr).Warn("Could not add to cart.")
-			} else {
-				logger.WithFields(loggrus.Fields{"index": *index, "request": request}).Infof("Inserted item")
-			}
-			err = message.Ack(false)
-			if err != nil && index != nil { // ack could not be sent but database transaction was successfully
-				logger.WithError(err).Error("Could not ack message. Trying to roll back...")
-				// rollback transaction because of the missing ack the current request will be resent
-				err = service.database.removeFromCart(request.CartID, *index)
-				if err != nil {
-					logger.WithError(err).Error("Could not rollback.")
-				} else {
-					logger.WithFields(loggrus.Fields{"request": request}).Info("Rolled transaction back.")
-				}
-				service.requestsMetric.Increment(err, methodListenUpdateCart)
-			} else {
-				service.requestsMetric.Increment(cartErr, methodListenUpdateCart)
-			}
-		} else {
+		if err != nil {
 			logger.WithError(err).Error("Could not unmarshall message")
 			// ack message despite the error, or else we will get this message repeatedly
-			err = message.Ack(false)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
+			ackErr := message.Ack(false)
+			if ackErr != nil {
+				logger.WithError(ackErr).Error("Could not ack message.")
+				err = fmt.Errorf("%v ; %v", err.Error(), ackErr.Error())
 			}
-			service.requestsMetric.Increment(err, methodListenUpdateCart)
+		} else {
+			// unmarshall successfully --> handle the request
+			err = service.handleUpdateCart(request, message)
 		}
+		service.requestsMetric.Increment(err, methodListenUpdateCart)
 	}
 	logger.Warn("Stopped Listening for Articles! Restarting...")
 	err := service.createArticleListener()
@@ -286,52 +174,92 @@ func (service *Service) ListenUpdateCart() {
 	}
 }
 
+func (service *Service) handleUpdateCart(request *requests.PutArticleInCartRequest, message amqp.Delivery) error {
+	// add the requested item into the cart
+	index, err := service.database.addToCart(request.CartID, request.ArticleID)
+	if err != nil {
+		logger.WithFields(loggrus.Fields{"request": request}).WithError(err).Warn("Could not add to cart.")
+
+		// ack message & ignore error because rollback is not needed
+		_ = message.Ack(false)
+
+		return err
+	}
+	logger.WithFields(loggrus.Fields{"index": *index, "request": request}).Infof("Inserted item")
+
+	// ack this transaction
+	err = message.Ack(false)
+	if err != nil { // ack could not be sent but database transaction was successfully
+		logger.WithError(err).Error("Could not ack message. Trying to roll back...")
+		// rollback transaction. because of the missing ack the current request will be resent
+		rollbackErr := service.database.removeFromCart(request.CartID, *index)
+		if rollbackErr != nil {
+			logger.WithError(rollbackErr).Error("Could not rollback.")
+			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
+		} else {
+			logger.WithFields(loggrus.Fields{"request": request}).Info("Rolled transaction back.")
+		}
+	}
+
+	return err
+}
+
 // ListenOrders reads out order messages from bound amqp queue
 func (service *Service) ListenOrders() {
 	for message := range service.orderMessages {
+		// unmarshall message into order
 		order := &models.Order{}
 		err := json.Unmarshal(message.Body, order)
-		if err == nil {
-			cart, cartErr := service.database.getCart(order.CartID)
-			err = message.Ack(false)
-			service.requestsMetric.Increment(err, methodListenOrders)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
-			} else {
-				if cartErr != nil { // there was no such cart in this order --> abort order because wrong information
-					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not get cart from this order. Aborting order...")
-					status := models.StatusAborted("We could not fetch your cart. Check your cart's ID again.")
-					order.Status = status.Name
-					order.Message = status.Message
-				} else { // next step for the order is reserving the articles from the cart in stock
-					logger.WithFields(loggrus.Fields{"cart": cart, "request": *order}).Infof("Got cart for this order.")
-					order.Articles = cart.ArticleIDs
-					status := models.StatusReserving()
-					order.Status = status.Name
-					order.Message = status.Message
-				}
-				// broadcast the order update
-				err = order.PublishOrderStatusUpdate(service.AmqpChannel)
-				if err != nil {
-					logger.WithFields(loggrus.Fields{"cart": cart, "request": *order}).WithError(err).Error("Could not publish order update")
-				}
-				service.requestsMetric.Increment(err, methodPublishOrder)
-			}
-		} else {
+		if err != nil {
 			logger.WithError(err).Error("Could not unmarshall message")
 			// ack message despite the error, or else we will get this message repeatedly
-			err = message.Ack(false)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
+			ackErr := message.Ack(false)
+			if ackErr != nil {
+				logger.WithError(ackErr).Error("Could not ack message.")
+				err = fmt.Errorf("%v ; %v", err.Error(), ackErr.Error())
 			}
-			service.requestsMetric.Increment(err, methodListenOrders)
+		} else {
+			// unmarshall successfully --> handle the order
+			err = service.handleOrder(order, message)
 		}
+		service.requestsMetric.Increment(err, methodListenOrders)
 	}
 	logger.Warn("Stopped Listening for Orders! Restarting...")
+	// try to reconnect
 	err := service.createOrderListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for Orders! Could not restart")
 	}
+}
+
+func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) error {
+	// fetch the cart
+	cart, err := service.database.getCart(order.CartID)
+	if err != nil { // there was no such cart in this order --> abort order because wrong information
+		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not get cart from this order. Aborting order...")
+		status := models.StatusAborted(models.CartAbortMessage)
+		order.Status = status.Name
+		order.Message = status.Message
+	} else { // next step for the order is reserving the articles from the cart in stock
+		logger.WithFields(loggrus.Fields{"cart": cart, "request": *order}).Infof("Got cart for this order.")
+		status := models.StatusReserving()
+		order.Status = status.Name
+		order.Message = status.Message
+		order.Articles = cart.ArticleIDs
+	}
+
+	// broadcast the order update
+	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
+	service.requestsMetric.Increment(err, methodPublishOrder)
+	if err != nil {
+		logger.WithFields(loggrus.Fields{"cart": cart, "request": *order}).WithError(err).Error("Could not publish order update")
+		return err
+	}
+
+	// there is no rollback transaction for this so ignore the ack error
+	_ = message.Ack(false)
+
+	return err
 }
 
 // CreateCart implementation of in the proto file defined interface of cart service

@@ -33,6 +33,7 @@ import (
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -56,23 +57,21 @@ const (
 
 type Service struct {
 	proto.UnimplementedStockServer
-	Database               *DbConnection
-	AmqpChannel            *amqp.Channel
-	AmqpConn               *amqp.Connection
-	orderMessages          <-chan amqp.Delivery
-	rabbitUrl              string
-	abortedOrderMessages   <-chan amqp.Delivery
-	completedOrderMessages <-chan amqp.Delivery
-	supplyMessages         <-chan amqp.Delivery
-	requestsMetric         *metrics.RequestsMetric
+	rabbitmq.AmqpService
+	Database                 *DbConnection
+	reservationOrderMessages <-chan amqp.Delivery
+	abortedOrderMessages     <-chan amqp.Delivery
+	completedOrderMessages   <-chan amqp.Delivery
+	supplyMessages           <-chan amqp.Delivery
+	requestsMetric           *metrics.RequestsMetric
 }
 
 func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rabbitPort string) *Service {
 	service := &Service{Database: NewDbConnection(mongoAddress, mongoPort)}
-	service.rabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
+	service.RabbitURL = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
 	for i := 0; i < 6; i++ {
-		err = service.initAmqpConnection()
+		err = service.InitAmqpConnection()
 		if err == nil {
 			break
 		}
@@ -104,239 +103,79 @@ func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rab
 	return service
 }
 
-func (service *Service) initAmqpConnection() error {
-	conn, err := amqp.Dial(service.rabbitUrl)
-	if err != nil {
-		return err
-	}
-	service.AmqpConn = conn
-	service.AmqpChannel, err = conn.Channel()
-	if err != nil {
-		return err
-	}
-	err = service.AmqpChannel.Qos(
-		1,     // prefetch count
-		0,     // prefetch size
-		false, // global
-	)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
+// createReservationOrderListener creates and binds queue to listen for orders in status reservation
 func (service *Service) createReservationOrderListener() error {
-	err := service.AmqpChannel.ExchangeDeclare(
-		requests.OrderTopic, // name
-		"topic",             // type
-		true,                // durable
-		false,               // auto-deleted
-		false,               // internal
-		false,               // no-wait
-		nil,                 // arguments
-	)
-	if err != nil {
-		return err
-	}
-	q, err := service.AmqpChannel.QueueDeclare(
-		"stock_"+requests.OrderTopic+"_queue", // name
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
-	if err != nil {
-		return err
-	}
-	err = service.AmqpChannel.QueueBind(
-		q.Name,                      // queue name
-		requests.OrderStatusReserve, // routing key
-		requests.OrderTopic,         // exchange
-		false,
-		nil,
-	)
+	var err error
+	queueName := fmt.Sprintf("stock_%s_queue", requests.OrderTopic)
+	routingKeys := []string{requests.OrderStatusReserve}
+
+	service.reservationOrderMessages, err = service.CreateListener(requests.OrderTopic, queueName, routingKeys)
 	if err != nil {
 		return err
 	}
 
-	service.orderMessages, err = service.AmqpChannel.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	if err != nil {
-		return err
-	}
-
+	// create a coroutine to listen for these messages
 	go service.ListenReservationOrders()
+
 	return nil
 }
 
+// createAbortedOrderListener creates and binds queue to listen for orders in status aborted
 func (service *Service) createAbortedOrderListener() error {
-	err := service.AmqpChannel.ExchangeDeclare(
-		requests.OrderTopic, // name
-		"topic",             // type
-		true,                // durable
-		false,               // auto-deleted
-		false,               // internal
-		false,               // no-wait
-		nil,                 // arguments
-	)
-	if err != nil {
-		return err
-	}
-	q, err := service.AmqpChannel.QueueDeclare(
-		"stock_"+requests.OrderTopic+"_aborted_queue", // name
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
-	if err != nil {
-		return err
-	}
-	err = service.AmqpChannel.QueueBind(
-		q.Name,                    // queue name
-		requests.OrderStatusAbort, // routing key
-		requests.OrderTopic,       // exchange
-		false,
-		nil,
-	)
+	var err error
+	queueName := fmt.Sprintf("stock_%s_aborted_queue", requests.OrderTopic)
+	routingKeys := []string{requests.OrderStatusAbort}
+
+	service.abortedOrderMessages, err = service.CreateListener(requests.OrderTopic, queueName, routingKeys)
 	if err != nil {
 		return err
 	}
 
-	service.abortedOrderMessages, err = service.AmqpChannel.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	if err != nil {
-		return err
-	}
-
+	// create a coroutine to listen for these messages
 	go service.ListenAbortedOrders()
+
 	return nil
 }
 
+// createCompletedOrderListener creates and binds queue to listen for orders in status completed
 func (service *Service) createCompletedOrderListener() error {
-	err := service.AmqpChannel.ExchangeDeclare(
-		requests.OrderTopic, // name
-		"topic",             // type
-		true,                // durable
-		false,               // auto-deleted
-		false,               // internal
-		false,               // no-wait
-		nil,                 // arguments
-	)
-	if err != nil {
-		return err
-	}
-	q, err := service.AmqpChannel.QueueDeclare(
-		"stock_"+requests.OrderTopic+"_completed_queue", // name
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
-	if err != nil {
-		return err
-	}
-	err = service.AmqpChannel.QueueBind(
-		q.Name,                       // queue name
-		requests.OrderStatusComplete, // routing key
-		requests.OrderTopic,          // exchange
-		false,
-		nil,
-	)
+	var err error
+	queueName := fmt.Sprintf("stock_%s_completed_queue", requests.OrderTopic)
+	routingKeys := []string{requests.OrderStatusComplete}
+
+	service.completedOrderMessages, err = service.CreateListener(requests.OrderTopic, queueName, routingKeys)
 	if err != nil {
 		return err
 	}
 
-	service.completedOrderMessages, err = service.AmqpChannel.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	if err != nil {
-		return err
-	}
-
+	// create a coroutine to listen for these messages
 	go service.ListenCompletedOrders()
+
 	return nil
 }
 
+// createSupplierListener creates and binds queue to listen for supply responses
 func (service *Service) createSupplierListener() error {
-	err := service.AmqpChannel.ExchangeDeclare(
-		requests.ArticlesTopic, // name
-		"topic",                // type
-		true,                   // durable
-		false,                  // auto-deleted
-		false,                  // internal
-		false,                  // no-wait
-		nil,                    // arguments
-	)
-	if err != nil {
-		return err
-	}
-	q, err := service.AmqpChannel.QueueDeclare(
-		"stock_"+requests.ArticlesTopic+"_queue", // name
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
-	if err != nil {
-		return err
-	}
-	err = service.AmqpChannel.QueueBind(
-		q.Name,                    // queue name
-		requests.SupplyRoutingKey, // routing key
-		requests.ArticlesTopic,    // exchange
-		false,
-		nil,
-	)
+	var err error
+	queueName := fmt.Sprintf("stock_%s_queue", requests.ArticlesTopic)
+	routingKeys := []string{requests.SupplyRoutingKey}
+
+	service.supplyMessages, err = service.CreateListener(requests.ArticlesTopic, queueName, routingKeys)
 	if err != nil {
 		return err
 	}
 
-	service.supplyMessages, err = service.AmqpChannel.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	if err != nil {
-		return err
-	}
-
+	// create a coroutine to listen for these messages
 	go service.ListenSupply()
+
 	return nil
 }
 
+// GetArticles implementation of in the proto file defined interface of stock service
 func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArticles) (*proto.ResponseArticles, error) {
 	articles, err := service.Database.getArticles(ctx, req.CategoryQuery)
+	service.requestsMetric.Increment(err, methodGetArticles)
 	if err != nil {
-		service.requestsMetric.Increment(err, methodGetArticles)
 		return nil, err
 	}
 
@@ -352,12 +191,14 @@ func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArtic
 	}
 
 	logger.WithFields(loggrus.Fields{"articles": articles}).Info("Get articles handled")
-	service.requestsMetric.Increment(err, methodGetArticles)
 
 	return &proto.ResponseArticles{Articles: protoArticles}, nil
 }
 
+// reserveArticlesAndCalcPrice reserves the order and with the returned list of articles calculates the price of all reserved articles.
+// Also, if the reserved article is low on stock publishes a supply request.
 func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float64, error) {
+	// map articleId onto the amount of to be reserved articles
 	articleQuantityMap := map[string]int{}
 	for _, id := range order.Articles {
 		_, exists := articleQuantityMap[id]
@@ -367,17 +208,22 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 			articleQuantityMap[id] = 1
 		}
 	}
+	// reserve articles
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	defer cancel()
 	reservedArticles, err := service.Database.reserveOrder(ctx, articleQuantityMap, *order)
-	cancel()
 	if err != nil {
 		return nil, err
 	}
+	// calculate the price
 	price := 0.0
 	for _, article := range *reservedArticles {
+		// price of the reserved article times the ordered quantity
 		price += article.Price * float64(articleQuantityMap[article.ID.Hex()])
+		// check the article
 		if article.Amount <= 10 {
-			err := service.orderArticles(article.ID, 50)
+			// publish supply order
+			err = service.orderArticles(article.ID, 50)
 			if err != nil {
 				logger.WithError(err).Error("Could not publish supply request")
 			}
@@ -386,6 +232,7 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 	return &price, nil
 }
 
+// orderArticles broadcasts a supply request
 func (service *Service) orderArticles(id primitive.ObjectID, amount int) error {
 	bytes, err := json.Marshal(requests.StockSupplyMessage{
 		ArticleID: id.Hex(),
@@ -406,231 +253,293 @@ func (service *Service) orderArticles(id primitive.ObjectID, amount int) error {
 			ContentType:  "application/json",
 			Body:         bytes,
 		})
+	service.requestsMetric.Increment(err, methodPublishSupplyRequest)
 	if err != nil {
-		service.requestsMetric.Increment(err, methodPublishSupplyRequest)
 		return err
 	}
 
 	logger.WithFields(loggrus.Fields{"article": id.Hex(), "amount": amount}).Infof("Published Supply Request")
-	service.requestsMetric.Increment(err, methodPublishSupplyRequest)
 
 	return nil
 }
 
 // ListenReservationOrders reads out reservation order messages from bound amqp queue
 func (service *Service) ListenReservationOrders() {
-	for message := range service.orderMessages {
+	for message := range service.reservationOrderMessages {
+		// unmarshall message into order
 		order := &models.Order{}
 		err := json.Unmarshal(message.Body, order)
-		if err == nil {
-			price, reservationErr := service.reserveArticlesAndCalcPrice(order)
-			err = message.Ack(false)
-			service.requestsMetric.Increment(err, methodListenReservationOrders)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
-				if reservationErr == nil {
-					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-					err = service.Database.rollbackReserveOrder(ctx, *order)
-					cancel()
-					if err != nil {
-						logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Rolling back unsuccessfully")
-					} else {
-						logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
-					}
-				}
-			} else {
-				if reservationErr != nil { // could not reserve order --> abort order because wrong information
-					logger.WithFields(loggrus.Fields{"request": *order}).WithError(reservationErr).Warn("Could not reserve this order. Aborting order...")
-					status := models.StatusAborted(StockAbortMessage)
-					order.Status = status.Name
-					order.Message = status.Message
-				} else { // next step for the order is paying the articles in payment-service
-					logger.WithFields(loggrus.Fields{"request": *order}).Infof("Articles reserved for this order.")
-					order.Price = *price
-					status := models.StatusPaying()
-					order.Status = status.Name
-					order.Message = status.Message
-				}
-				// broadcast the order update
-				err = order.PublishOrderStatusUpdate(service.AmqpChannel)
-				if err != nil {
-					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("Could not publish order update")
-				}
-				service.requestsMetric.Increment(err, methodPublishOrder)
-			}
-		} else {
+		if err != nil {
 			logger.WithError(err).Error("Could not unmarshall message")
 			// ack message despite the error, or else we will get this message repeatedly
-			err = message.Ack(false)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
+			ackErr := message.Ack(false)
+			if ackErr != nil {
+				logger.WithError(ackErr).Error("Could not ack message.")
+				err = fmt.Errorf("%v ; %v", err.Error(), ackErr.Error())
 			}
-			service.requestsMetric.Increment(err, methodListenReservationOrders)
+		} else {
+			// unmarshall successfully --> handle the order
+			err = service.handleReservationOrder(order, message)
 		}
+		service.requestsMetric.Increment(err, methodListenReservationOrders)
 	}
+
 	logger.Warn("Stopped Listening for Orders! Restarting...")
+	// try to reconnect
 	err := service.createReservationOrderListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for Orders! Could not restart")
 	}
 }
 
+func (service *Service) handleReservationOrder(order *models.Order, message amqp.Delivery) error {
+	price, err := service.reserveArticlesAndCalcPrice(order)
+	if err != nil { // could not reserve order --> abort order because wrong information
+		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Aborting order...")
+		status := models.StatusAborted(StockAbortMessage)
+		order.Status = status.Name
+		order.Message = status.Message
+	} else { // next step for the order is paying the articles in payment-service
+		logger.WithFields(loggrus.Fields{"request": *order}).Infof("Articles reserved for this order.")
+		status := models.StatusPaying()
+		order.Status = status.Name
+		order.Message = status.Message
+		order.Price = *price
+	}
+
+	// broadcast the order update
+	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
+	service.requestsMetric.Increment(err, methodPublishOrder)
+	if err != nil {
+		logger.WithFields(loggrus.Fields{"order": *order}).WithError(err).Error("Could not publish order update")
+		return err
+	}
+
+	err = message.Ack(false)
+	if err != nil { // ack could not be sent but database transaction was successfully
+		logger.WithError(err).Error("Could not ack message. Trying to roll back...")
+
+		// rollback transaction. because of the missing ack the current request will be resent
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+		defer cancel()
+		rollbackErr := service.Database.rollbackReserveOrder(ctx, *order)
+		if rollbackErr != nil {
+			logger.WithError(rollbackErr).Error("Could not rollback.")
+			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
+		} else {
+			logger.WithFields(loggrus.Fields{"order": *order}).Info("Rolling back successfully")
+		}
+	}
+
+	return err
+}
+
 // ListenAbortedOrders reads out order messages from bound amqp queue
 func (service *Service) ListenAbortedOrders() {
 	for message := range service.abortedOrderMessages {
+		// unmarshall message into order
 		order := &models.Order{}
 		err := json.Unmarshal(message.Body, order)
-		if err == nil {
-			if order.Message == StockAbortMessage { // Don't listen for own abortion
-				err = message.Ack(false)
-				if err != nil {
-					logger.WithError(err).Error("Could not ack message.")
-				}
-				service.requestsMetric.Increment(err, methodListenAbortedOrders)
-			} else {
-				var abortionErr error
-				for i := 4; i < 6; i++ {
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-					abortionErr = service.Database.rollbackReserveOrder(ctx, *order)
-					cancel()
-					if abortionErr == nil {
-						logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation undone.")
-						break
-					}
-					logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(abortionErr).Warn("Could not delete reservation. Retrying...")
-					time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
-				}
-				err = message.Ack(false)
-				service.requestsMetric.Increment(err, methodListenAbortedOrders)
-				if err != nil {
-					logger.WithError(err).Error("Could not ack message.")
-					if abortionErr == nil {
-						logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
-						_, err = service.reserveArticlesAndCalcPrice(order)
-						if err != nil {
-							logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Rolling back unsuccessfully")
-						} else {
-							logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
-						}
-					}
-				}
-			}
-		} else {
+		if err != nil {
 			logger.WithError(err).Error("Could not unmarshall message")
 			// ack message despite the error, or else we will get this message repeatedly
-			err = message.Ack(false)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
+			ackErr := message.Ack(false)
+			if ackErr != nil {
+				logger.WithError(ackErr).Error("Could not ack message.")
+				err = fmt.Errorf("%v ; %v", err.Error(), ackErr.Error())
 			}
-			service.requestsMetric.Increment(err, methodListenAbortedOrders)
+		} else {
+			// unmarshall successfully --> handle the order
+			err = service.handleAbortedOrder(order, message)
 		}
+		service.requestsMetric.Increment(err, methodListenAbortedOrders)
 	}
+
 	logger.Warn("Stopped Listening for aborted Orders! Restarting...")
+	// try to reconnect
 	err := service.createAbortedOrderListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for aborted Orders! Could not restart")
 	}
 }
 
+func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Delivery) error {
+	var err error
+
+	// Don't listen for own abortion or abortions from cart service --> there will be no reservation
+	if order.Message == StockAbortMessage || order.Message == models.CartAbortMessage {
+		err = message.Ack(false)
+		return err
+	}
+
+	// retry deleting aborted order from reservations
+	for i := 4; i < 6; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+		// aborting reservation == rollback reservation
+		err = service.Database.rollbackReserveOrder(ctx, *order)
+		cancel()
+		if err == nil {
+			logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation undone.")
+			break
+		}
+		logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(err).Info("Could not delete reservation. Retrying...")
+		time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
+	}
+	if err != nil {
+		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not delete reservation.")
+
+		// there is no rollback needed so ignore the ack error
+		_ = message.Ack(false)
+
+		return err
+	}
+
+	err = message.Ack(false)
+	if err != nil { // ack could not be sent but database transaction was successfully
+		logger.WithError(err).Error("Could not ack message. Trying to roll back...")
+
+		// rollback transaction. because of the missing ack the current request will be resent
+		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
+		_, rollbackErr := service.reserveArticlesAndCalcPrice(order)
+		if rollbackErr != nil {
+			logger.WithError(rollbackErr).Error("Could not rollback.")
+			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
+		} else {
+			logger.WithFields(loggrus.Fields{"order": *order}).Info("Rolling back successfully")
+		}
+	}
+
+	return err
+}
+
 // ListenCompletedOrders reads out order messages from bound amqp queue
 func (service *Service) ListenCompletedOrders() {
 	for message := range service.completedOrderMessages {
+		// unmarshall message into order
 		order := &models.Order{}
 		err := json.Unmarshal(message.Body, order)
-		if err == nil {
-			var deletionErr error
-			for i := 4; i < 7; i++ {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-				deletionErr = service.Database.deleteReservation(ctx, order.ID)
-				cancel()
-				if deletionErr == nil {
-					logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation deleted.")
-					break
-				}
-				logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(deletionErr).Error("Could not delete reservation. Retrying...")
-				time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
-			}
-			err = message.Ack(false)
-			service.requestsMetric.Increment(err, methodListenCompletedOrders)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
-				if deletionErr == nil {
-					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-					err = service.Database.rollbackDeleteReservation(ctx, order.ID)
-					cancel()
-					if err != nil {
-						logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Rolling back unsuccessfully")
-					} else {
-						logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
-					}
-				}
-			}
-		} else {
+		if err != nil {
 			logger.WithError(err).Error("Could not unmarshall message")
 			// ack message despite the error, or else we will get this message repeatedly
-			err = message.Ack(false)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
+			ackErr := message.Ack(false)
+			if ackErr != nil {
+				logger.WithError(ackErr).Error("Could not ack message.")
+				err = fmt.Errorf("%v ; %v", err.Error(), ackErr.Error())
 			}
-			service.requestsMetric.Increment(err, methodListenCompletedOrders)
+		} else {
+			// unmarshall successfully --> handle the order
+			err = service.handleCompletedOrder(order, message)
 		}
+		service.requestsMetric.Increment(err, methodListenCompletedOrders)
 	}
+
 	logger.Warn("Stopped Listening for completed Orders! Restarting...")
+	// try to reconnect
 	err := service.createCompletedOrderListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for completed Orders! Could not restart")
 	}
 }
 
+func (service *Service) handleCompletedOrder(order *models.Order, message amqp.Delivery) error {
+	var err error
+
+	// retry deleting completed order from reservations
+	for i := 4; i < 7; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+		// remove the reservation
+		err = service.Database.deleteReservation(ctx, order.ID)
+		cancel()
+		if err == nil {
+			logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation deleted.")
+			break
+		}
+		logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(err).Info("Could not delete reservation. Retrying...")
+		time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
+	}
+	if err != nil {
+		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not delete reservation.")
+
+		// there is no rollback needed so ignore the ack error
+		_ = message.Ack(false)
+
+		return err
+	}
+
+	err = message.Ack(false)
+	if err != nil { // ack could not be sent but database transaction was successfully
+		logger.WithError(err).Error("Could not ack message. Trying to roll back...")
+
+		// rollback transaction. because of the missing ack the current request will be resent
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+		rollbackErr := service.Database.rollbackDeleteReservation(ctx, order.ID)
+		cancel()
+		if err != nil {
+			logger.WithError(rollbackErr).Error("Could not rollback.")
+			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
+		} else {
+			logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+		}
+	}
+
+	return err
+}
+
 // ListenSupply reads out supply messages from bound amqp queue
 func (service *Service) ListenSupply() {
 	for message := range service.supplyMessages {
+		// unmarshall message into StockSupplyMessage
 		supply := &requests.StockSupplyMessage{}
 		err := json.Unmarshal(message.Body, supply)
-		if err == nil {
-			var updateErr error
-			for i := 4; i < 7; i++ {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-				updateErr = service.Database.restockArticle(ctx, supply.ArticleID, supply.Amount)
-				cancel()
-				if updateErr == nil {
-					logger.WithFields(loggrus.Fields{"request": *supply}).Infof("Restocked.")
-					break
-				}
-				logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *supply}).WithError(updateErr).Error("Could not restock requested article. Retrying...")
-				time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
-			}
-			err = message.Ack(false)
-			service.requestsMetric.Increment(err, methodListenSupply)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
-				if updateErr == nil {
-					logger.WithFields(loggrus.Fields{"request": *supply}).WithError(err).Info("Rolling back transaction...")
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-					err = service.Database.rollbackRestockArticle(ctx, supply.ArticleID, supply.Amount)
-					cancel()
-					if err != nil {
-						logger.WithFields(loggrus.Fields{"request": *supply}).WithError(err).Warn("Rolling back unsuccessfully")
-					} else {
-						logger.WithFields(loggrus.Fields{"request": *supply}).Info("Rolling back successfully")
-					}
-				}
-			}
-		} else {
+		if err != nil {
 			logger.WithError(err).Error("Could not unmarshall message")
 			// ack message despite the error, or else we will get this message repeatedly
-			err = message.Ack(false)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
+			ackErr := message.Ack(false)
+			if ackErr != nil {
+				logger.WithError(ackErr).Error("Could not ack message.")
+				err = fmt.Errorf("%v ; %v", err.Error(), ackErr.Error())
 			}
-			service.requestsMetric.Increment(err, methodListenSupply)
+		} else {
+			// unmarshall successfully --> handle the order
+			err = service.handleSupply(supply, message)
 		}
+		service.requestsMetric.Increment(err, methodListenSupply)
 	}
 	logger.Warn("Stopped Listening for Supply! Restarting...")
 	err := service.createSupplierListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for Supply! Could not restart")
 	}
+}
+
+func (service *Service) handleSupply(supply *requests.StockSupplyMessage, message amqp.Delivery) error {
+	var err error
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	defer cancel()
+
+	err = service.Database.restockArticle(ctx, supply.ArticleID, supply.Amount)
+	if err != nil {
+		logger.WithFields(loggrus.Fields{"request": *supply}).WithError(err).Warn("Could not restock supply.")
+
+		// there is no rollback needed so ignore the ack error
+		_ = message.Ack(false)
+
+		return err
+	}
+
+	err = message.Ack(false)
+	if err != nil {
+		logger.WithError(err).Error("Could not ack message.")
+
+		logger.WithFields(loggrus.Fields{"request": *supply}).WithError(err).Info("Rolling back transaction...")
+		rollbackErr := service.Database.rollbackRestockArticle(ctx, supply.ArticleID, supply.Amount)
+		if err != nil {
+			logger.WithError(rollbackErr).Error("Could not rollback.")
+			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
+		} else {
+			logger.WithFields(loggrus.Fields{"request": *supply}).Info("Rolling back successfully")
+		}
+	}
+	return err
 }

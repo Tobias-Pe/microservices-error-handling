@@ -31,6 +31,7 @@ import (
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"math"
@@ -46,20 +47,18 @@ const (
 var logger = loggingUtil.InitLogger()
 
 type Service struct {
-	AmqpChannel    *amqp.Channel
-	AmqpConn       *amqp.Connection
+	rabbitmq.AmqpService
 	orderMessages  <-chan amqp.Delivery
-	rabbitUrl      string
 	requestsMetric *metrics.RequestsMetric
 }
 
 func NewService(rabbitAddress string, rabbitPort string) *Service {
 	service := &Service{}
-	service.rabbitUrl = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
+	service.RabbitURL = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
 	// retry connecting to rabbitmq
 	for i := 0; i < 6; i++ {
-		err = service.initAmqpConnection()
+		err = service.InitAmqpConnection()
 		if err == nil {
 			break
 		}
@@ -80,86 +79,25 @@ func NewService(rabbitAddress string, rabbitPort string) *Service {
 	return service
 }
 
-func (service *Service) initAmqpConnection() error {
-	conn, err := amqp.Dial(service.rabbitUrl)
-	if err != nil {
-		return err
-	}
-	// connection and channel will be closed in main
-	service.AmqpConn = conn
-	service.AmqpChannel, err = conn.Channel()
-	if err != nil {
-		return err
-	}
-	// prefetchCount 1 in QoS will load-balance messages between many instances of this service
-	err = service.AmqpChannel.Qos(
-		1,     // prefetch count
-		0,     // prefetch size
-		false, // global
-	)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// createOrderListener initialises exchange and queue and binds the queue to a topic and routing key to listen from
+// createOrderListener creates and binds queue to listen for orders in status shipping
 func (service *Service) createOrderListener() error {
-	err := service.AmqpChannel.ExchangeDeclare(
-		requests.OrderTopic, // name
-		"topic",             // type
-		true,                // durable
-		false,               // auto-deleted
-		false,               // internal
-		false,               // no-wait
-		nil,                 // arguments
-	)
-	if err != nil {
-		return err
-	}
-	q, err := service.AmqpChannel.QueueDeclare(
-		"shipment_"+requests.OrderTopic+"_queue", // name
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
-	if err != nil {
-		return err
-	}
-	err = service.AmqpChannel.QueueBind(
-		q.Name,                   // queue name
-		requests.OrderStatusShip, // routing key
-		requests.OrderTopic,      // exchange
-		false,
-		nil,
-	)
+	var err error
+	queueName := fmt.Sprintf("shipment_%s_queue", requests.OrderTopic)
+	routingKeys := []string{requests.OrderStatusShip}
+
+	service.orderMessages, err = service.CreateListener(requests.OrderTopic, queueName, routingKeys)
 	if err != nil {
 		return err
 	}
 
-	// orderMessages will be where we get our order messages from
-	service.orderMessages, err = service.AmqpChannel.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
 // mockShipment simulates the logistic process before shipping
-func (service *Service) mockShipment(customerAddress string, articles []string) bool {
+func (service *Service) mockShipment(customerAddress string, articles []string) (bool, error) {
 	// validation
 	if len(customerAddress) <= 3 {
-		return false
+		return false, fmt.Errorf("customer address invalid")
 	}
 	// simulate work: random sleep for every letter in address
 	for range customerAddress {
@@ -171,7 +109,7 @@ func (service *Service) mockShipment(customerAddress string, articles []string) 
 		timeout := rand.Intn(3)
 		time.Sleep(time.Duration(timeout) * time.Millisecond)
 	}
-	return true
+	return true, nil
 }
 
 func (service *Service) mockShipmentRollback(customerAddress string, articles []string) {
@@ -190,49 +128,23 @@ func (service *Service) mockShipmentRollback(customerAddress string, articles []
 // ListenOrders reads out order messages from bound amqp queue
 func (service *Service) ListenOrders() {
 	for message := range service.orderMessages {
+		// unmarshall message into order
 		order := &models.Order{}
 		err := json.Unmarshal(message.Body, order)
 		if err == nil {
-			isAllowed := service.mockShipment(order.CustomerAddress, order.Articles)
-			err = message.Ack(false)
-			service.requestsMetric.Increment(err, methodListenOrders)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
-				if isAllowed { // ack could not be sent but transaction was successfully
-					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
-					// rollback transaction. because of the missing ack the current request will be resent
-					service.mockShipmentRollback(order.CustomerAddress, order.Articles)
-					logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
-				}
-			} else {
-				if !isAllowed { // abort order because of invalid shipment data
-					logger.WithFields(loggrus.Fields{"shipment_status": isAllowed, "request": *order}).Warn("Shipment unsuccessfully. Aborting order...")
-					status := models.StatusAborted("We could not ship the articles to your address. Please check your address.")
-					order.Status = status.Name
-					order.Message = status.Message
-				} else {
-					logger.WithFields(loggrus.Fields{"request": *order}).Infof("Order shipped.")
-					status := models.StatusComplete()
-					order.Status = status.Name
-					order.Message = status.Message
-				}
-				// broadcast updated order
-				err = order.PublishOrderStatusUpdate(service.AmqpChannel)
-				if err != nil {
-					logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("Could not publish order update")
-				}
-				service.requestsMetric.Increment(err, methodPublishOrder)
-			}
+			err = service.handleOrder(order, message)
 		} else {
 			logger.WithError(err).Error("Could not unmarshall message")
 			// ack message despite the error, or else we will get this message repeatedly
-			err = message.Ack(false)
-			if err != nil {
-				logger.WithError(err).Error("Could not ack message.")
+			ackErr := message.Ack(false)
+			if ackErr != nil {
+				logger.WithError(ackErr).Error("Could not ack message.")
+				err = fmt.Errorf("%v ; %v", err.Error(), ackErr.Error())
 			}
-			service.requestsMetric.Increment(err, methodListenOrders)
 		}
+		service.requestsMetric.Increment(err, methodListenOrders)
 	}
+
 	logger.Warn("Stopped Listening for Orders! Restarting...")
 	// try reconnecting
 	err := service.createOrderListener()
@@ -241,4 +153,39 @@ func (service *Service) ListenOrders() {
 	} else {
 		service.ListenOrders()
 	}
+}
+
+func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) error {
+	isAllowed, err := service.mockShipment(order.CustomerAddress, order.Articles)
+	if !isAllowed { // abort order because of invalid shipment data
+		logger.WithFields(loggrus.Fields{"shipment_status": isAllowed, "request": *order}).Warn("Shipment unsuccessfully. Aborting order...")
+		status := models.StatusAborted("We could not ship the articles to your address. Please check your address.")
+		order.Status = status.Name
+		order.Message = status.Message
+	} else {
+		logger.WithFields(loggrus.Fields{"request": *order}).Infof("Order shipped.")
+		status := models.StatusComplete()
+		order.Status = status.Name
+		order.Message = status.Message
+	}
+
+	// broadcast updated order
+	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
+	service.requestsMetric.Increment(err, methodPublishOrder)
+	if err != nil {
+		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("Could not publish order update")
+		return err
+	}
+
+	err = message.Ack(false)
+	if err != nil {
+		logger.WithError(err).Error("Could not ack message.")
+
+		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
+		// rollback transaction. because of the missing ack the current request will be resent
+		service.mockShipmentRollback(order.CustomerAddress, order.Articles)
+		logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+	}
+
+	return err
 }
