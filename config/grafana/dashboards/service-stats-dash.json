@@ -251,9 +251,9 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (job,method) (requests_total{})",
+          "expr": "sum by (job,method,url) (requests_total{error=\"\"} or gin_requests_total{code=~\"^(2).+\"})",
           "interval": "",
-          "legendFormat": "{{job}}-{{method}}",
+          "legendFormat": "{{job}}-{{method}}{{url}}",
           "refId": "A"
         }
       ],
@@ -309,9 +309,9 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (job,method,error) (requests_total{error!=\"\"})",
+          "expr": "sum by (job,method,url,error,code) (requests_total{error!=\"\"} or gin_requests_total{code!~\"^(2).+\",code!=\"404\"})",
           "interval": "",
-          "legendFormat": "{{job}}-{{method}}-{{error}}",
+          "legendFormat": "{{job}}-{{method}}{{url}}-{{error}}{{code}}",
           "refId": "A"
         }
       ],
@@ -1078,5 +1078,5 @@
   "timezone": "",
   "title": "Service Stats",
   "uid": "GY4_Bn0nz",
-  "version": 1
+  "version": 4
 }
