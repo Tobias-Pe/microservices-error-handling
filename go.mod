@@ -57,7 +57,7 @@ require (
 )
 
 require (
-	github.com/gomodule/redigo v1.8.6
+	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/streadway/amqp v1.0.0
 	golang.org/x/net v0.0.0-20211029224645-99673261e6eb // indirect
 	golang.org/x/sys v0.0.0-20211019181941-9d821ace8654 // indirect
