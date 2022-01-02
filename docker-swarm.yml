@@ -34,7 +34,7 @@ services:
     image: ghcr.io/tobias-pe/api-gateway:latest
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 8
       placement:
         max_replicas_per_node: 4
       resources:
@@ -75,7 +75,7 @@ services:
     image: ghcr.io/tobias-pe/currency:latest
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 4
       placement:
         max_replicas_per_node: 4
       resources:
@@ -112,7 +112,7 @@ services:
       - ./config/docker.env
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 6
       placement:
         max_replicas_per_node: 4
       resources:
@@ -171,7 +171,7 @@ services:
     image: ghcr.io/tobias-pe/cart:latest
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 4
       placement:
         max_replicas_per_node: 4
       resources:
@@ -222,7 +222,7 @@ services:
     image: ghcr.io/tobias-pe/order:latest
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 6
       placement:
         max_replicas_per_node: 4
       resources:
@@ -258,7 +258,7 @@ services:
     image: ghcr.io/tobias-pe/payment:latest
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 4
       placement:
         max_replicas_per_node: 4
       resources:
@@ -282,7 +282,7 @@ services:
     image: ghcr.io/tobias-pe/shipment:latest
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 4
       placement:
         max_replicas_per_node: 4
       resources:
@@ -306,7 +306,7 @@ services:
     image: ghcr.io/tobias-pe/email:latest
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 4
       placement:
         max_replicas_per_node: 4
       resources:
@@ -330,7 +330,7 @@ services:
     image: ghcr.io/tobias-pe/supplier:latest
     deploy:
       mode: replicated
-      replicas: 2
+      replicas: 4
       placement:
         max_replicas_per_node: 4
       resources:
