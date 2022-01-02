@@ -45,7 +45,7 @@ type CurrencyClient struct {
 
 func NewCurrencyClient(currencyAddress string, currencyPort string) *CurrencyClient {
 	// Set up a connection to the server.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ConnectionTimeSecs)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, currencyAddress+":"+currencyPort, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
@@ -69,7 +69,7 @@ func (currencyClient CurrencyClient) GetExchangeRate() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("only letters in param allowed, your param: %s", currency)})
 			return
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), ConnectionTimeSecs*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 		targetCurrency := &proto.RequestExchangeRate{CustomerCurrency: currency}
 		response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)
