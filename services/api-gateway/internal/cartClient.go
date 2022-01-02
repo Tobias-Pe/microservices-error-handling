@@ -39,6 +39,8 @@ import (
 	"time"
 )
 
+const ConnectionTimeSecs = 60
+
 type CartClient struct {
 	GrpcConn    *grpc.ClientConn
 	AmqpConn    *amqp.Connection
@@ -75,7 +77,7 @@ func NewCartClient(cartAddress string, cartPort string, rabbitAddress string, ra
 
 func (cartClient *CartClient) initGrpcConnection(cartAddress string, cartPort string) error {
 	// Set up a connection to the server.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ConnectionTimeSecs)
 	defer cancel()
 	var err error
 	// connection will be closed in main

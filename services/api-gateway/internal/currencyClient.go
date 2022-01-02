@@ -69,7 +69,7 @@ func (currencyClient CurrencyClient) GetExchangeRate() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("only letters in param allowed, your param: %s", currency)})
 			return
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), ConnectionTimeSecs*time.Second)
 		defer cancel()
 		targetCurrency := &proto.RequestExchangeRate{CustomerCurrency: currency}
 		response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)

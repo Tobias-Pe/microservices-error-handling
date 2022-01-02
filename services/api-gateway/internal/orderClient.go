@@ -45,7 +45,7 @@ type OrderClient struct {
 func NewOrderClient(orderAddress string, orderPort string) *OrderClient {
 	logger.Infof("connecting to order: %s", orderAddress+":"+orderPort)
 	// Set up a connection to the server.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ConnectionTimeSecs)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, orderAddress+":"+orderPort, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
