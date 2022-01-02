@@ -45,14 +45,15 @@ type OrderClient struct {
 func NewOrderClient(orderAddress string, orderPort string) *OrderClient {
 	logger.Infof("connecting to order: %s", orderAddress+":"+orderPort)
 	// Set up a connection to the server.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*35)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, orderAddress+":"+orderPort, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		logger.WithError(err).Error("did not connect to order-service")
-	} else {
-		logger.Infoln("Connection to order-service successfully!")
+		return nil
 	}
+	logger.Infoln("Connection to order-service successfully!")
+
 	client := proto.NewOrderClient(conn)
 	return &OrderClient{Conn: conn, client: client}
 }

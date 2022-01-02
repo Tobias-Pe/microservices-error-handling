@@ -50,26 +50,25 @@ type configuration struct {
 	rabbitPort      string
 }
 
-type service struct {
-	currencyClient *internal.CurrencyClient
-	stockClient    *internal.StockClient
-	cartClient     *internal.CartClient
-	orderClient    *internal.OrderClient
-}
-
 var logger = loggingUtil.InitLogger()
 
 func main() {
 	configuration := readConfig()
 
+	service := newService(configuration)
+
+	createRouter(service, configuration)
+}
+
+func newService(configuration configuration) *service {
 	service := &service{
 		currencyClient: createCurrencyClient(configuration),
 		stockClient:    createStockClient(configuration),
 		cartClient:     createCartClient(configuration),
 		orderClient:    createOrderClient(configuration),
+		config:         configuration,
 	}
-
-	createRouter(service, configuration)
+	return service
 }
 
 // readConfig fetches the needed addresses and ports for connections from the environment variables or the local.env file
@@ -185,23 +184,101 @@ func createRouter(service *service, configuration configuration) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
 
-	router.GET("/exchange/:currency", service.currencyClient.GetExchangeRate())
-	router.GET("/articles/*category", service.stockClient.GetArticles())
-	router.POST("/cart", service.cartClient.CreateCart())
-	router.GET("/cart/:id", service.cartClient.GetCart())
-	router.PUT("/cart/:id", service.cartClient.AddToCart())
-	router.GET("/order/:id", service.orderClient.GetOrder())
-	router.POST("/order", service.orderClient.CreateOrder())
+	router.GET("/exchange/:currency", service.GetExchangeRateHandler())
+	router.GET("/articles/*category", service.GetArticles())
+	router.POST("/cart", service.CreateCart())
+	router.GET("/cart/:id", service.GetCart())
+	router.PUT("/cart/:id", service.AddToCart())
+	router.GET("/order/:id", service.GetOrder())
+	router.POST("/order", service.CreateOrder())
 
 	err := router.Run(":" + configuration.port)
 	if err != nil {
 		return
 	}
 
-	service.closeConnections()
+	service.CloseConnections()
 }
 
-func (service *service) closeConnections() {
+type service struct {
+	currencyClient *internal.CurrencyClient
+	stockClient    *internal.StockClient
+	cartClient     *internal.CartClient
+	orderClient    *internal.OrderClient
+	config         configuration
+}
+
+func (service *service) GetExchangeRateHandler() gin.HandlerFunc {
+	if service.currencyClient != nil {
+		return service.currencyClient.GetExchangeRate()
+	} else {
+		return func(c *gin.Context) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "currency service not available"})
+		}
+	}
+}
+
+func (service *service) GetArticles() gin.HandlerFunc {
+	if service.stockClient != nil {
+		return service.stockClient.GetArticles()
+	} else {
+		return func(c *gin.Context) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "stock service not available"})
+		}
+	}
+}
+
+func (service *service) CreateCart() gin.HandlerFunc {
+	if service.cartClient != nil {
+		return service.cartClient.CreateCart()
+	} else {
+		return func(c *gin.Context) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "cart service not available"})
+		}
+	}
+}
+
+func (service *service) GetCart() gin.HandlerFunc {
+	if service.cartClient != nil {
+		return service.cartClient.GetCart()
+	} else {
+		return func(c *gin.Context) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "cart service not available"})
+		}
+	}
+}
+
+func (service *service) AddToCart() gin.HandlerFunc {
+	if service.cartClient != nil {
+		return service.cartClient.AddToCart()
+	} else {
+		return func(c *gin.Context) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "cart service not available"})
+		}
+	}
+}
+
+func (service *service) GetOrder() gin.HandlerFunc {
+	if service.orderClient != nil {
+		return service.orderClient.GetOrder()
+	} else {
+		return func(c *gin.Context) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "order service not available"})
+		}
+	}
+}
+
+func (service *service) CreateOrder() gin.HandlerFunc {
+	if service.orderClient != nil {
+		return service.orderClient.CreateOrder()
+	} else {
+		return func(c *gin.Context) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "order service not available"})
+		}
+	}
+}
+
+func (service *service) CloseConnections() {
 	err := service.stockClient.Conn.Close()
 	if err != nil {
 		logger.WithError(err).Error("Error on closing connection to stock-service")

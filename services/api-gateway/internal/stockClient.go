@@ -41,14 +41,15 @@ type StockClient struct {
 
 func NewStockClient(stockAddress string, stockPort string) *StockClient {
 	// Set up a connection to the server.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, stockAddress+":"+stockPort, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		logger.WithError(err).Error("did not connect to stock-service")
-	} else {
-		logger.Infoln("Connection to stock-service successfully!")
+		return nil
 	}
+	logger.Infoln("Connection to stock-service successfully!")
+
 	client := proto.NewStockClient(conn)
 	return &StockClient{Conn: conn, client: client}
 }

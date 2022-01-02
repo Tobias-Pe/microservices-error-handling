@@ -45,14 +45,15 @@ type CurrencyClient struct {
 
 func NewCurrencyClient(currencyAddress string, currencyPort string) *CurrencyClient {
 	// Set up a connection to the server.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, currencyAddress+":"+currencyPort, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		logger.WithError(err).Error("did not connect to currency-service")
-	} else {
-		logger.Infoln("Connection to currency-service successfully!")
+		return nil
 	}
+	logger.Infoln("Connection to currency-service successfully!")
+
 	client := proto.NewCurrencyClient(conn)
 	return &CurrencyClient{Conn: conn, client: client}
 }
