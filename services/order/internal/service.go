@@ -56,6 +56,7 @@ type Service struct {
 	Database       *DbConnection
 	orderMessages  <-chan amqp.Delivery
 	requestsMetric *metrics.RequestsMetric
+	orderMetric    *metrics.OrdersMetric
 }
 
 func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rabbitPort string) *Service {
@@ -84,6 +85,7 @@ func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rab
 	}
 
 	server.requestsMetric = metrics.NewRequestsMetrics()
+	server.orderMetric = metrics.NewOrdersMetric()
 
 	return server
 }
@@ -118,6 +120,7 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 		return nil, err
 	}
 
+	service.orderMetric.Increment(order)
 	return &proto.OrderObject{
 		OrderId:            order.ID.Hex(),
 		Status:             order.Status,
@@ -246,13 +249,18 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 		rollbackErr := service.Database.updateOrder(ctx, *oldOrder)
 
 		if rollbackErr != nil {
+			service.orderMetric.Decrement(*oldOrder)
+			service.orderMetric.Increment(*order)
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
 			logger.WithFields(loggrus.Fields{"order": oldOrder}).Info("Rolled transaction back.")
 		}
-
+		return err
 	}
 
-	return err
+	service.orderMetric.Decrement(*oldOrder)
+	service.orderMetric.Increment(*order)
+
+	return nil
 }
