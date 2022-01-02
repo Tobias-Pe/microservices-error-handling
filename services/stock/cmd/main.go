@@ -27,8 +27,8 @@ package main
 import (
 	"context"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/http-router"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/services/stock/internal"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -70,7 +70,7 @@ func createServer(configuration configuration) {
 	proto.RegisterStockServer(s, service)
 
 	// start metrics exposer
-	metrics.NewServer()
+	httpRouter.NewServer()
 
 	logger.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
