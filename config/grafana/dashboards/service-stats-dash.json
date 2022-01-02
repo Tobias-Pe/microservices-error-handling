@@ -251,7 +251,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (job,method,url) (requests_total{error=\"\"} or gin_requests_total{code=~\"^(2).+\"})",
+          "expr": "sum by (job,method,url) (requests_total{error=\"\"} or gin_requests_total{code=~\"^(2).+\",url!=\"/favicon.ico\"})",
           "interval": "",
           "legendFormat": "{{job}}-{{method}}{{url}}",
           "refId": "A"
@@ -267,9 +267,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-BlYlRd"
+            "mode": "thresholds"
           },
-          "displayName": "${__series.name}",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -277,6 +276,18 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
               }
             ]
           }
@@ -289,11 +300,8 @@
         "x": 0,
         "y": 26
       },
-      "id": 18,
+      "id": 20,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -302,21 +310,79 @@
           "fields": "",
           "values": false
         },
-        "text": {},
-        "textMode": "auto"
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
       },
       "pluginVersion": "8.2.6",
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (job,method,url,error,code) (requests_total{error!=\"\"} or gin_requests_total{code!~\"^(2).+\",code!=\"404\"})",
+          "expr": "count (sum (rate(gin_requests_total{}[1m]) or rate(requests_total{}[1m])) by (instance,job)) by (job)",
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Instances",
+      "type": "gauge"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "id": 18,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "pluginVersion": "8.2.6",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum by (job,method,url,code) (requests_total{error!=\"\"} or gin_requests_total{code!~\"^(2).+\",code!=\"404\",url!=\"/favicon.ico\"})",
           "interval": "",
           "legendFormat": "{{job}}-{{method}}{{url}}-{{error}}{{code}}",
           "refId": "A"
         }
       ],
       "title": "Requests Total - Errors",
-      "type": "stat"
+      "type": "bargauge"
     },
     {
       "datasource": null,
@@ -374,7 +440,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 34
+        "y": 44
       },
       "id": 5,
       "interval": "10s",
@@ -461,7 +527,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 34
+        "y": 44
       },
       "id": 8,
       "options": {
@@ -544,7 +610,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 44
+        "y": 54
       },
       "id": 11,
       "options": {
@@ -626,7 +692,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 44
+        "y": 54
       },
       "id": 15,
       "options": {
@@ -708,7 +774,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 54
+        "y": 64
       },
       "id": 9,
       "options": {
@@ -790,7 +856,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 54
+        "y": 64
       },
       "id": 10,
       "options": {
@@ -872,7 +938,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 64
+        "y": 74
       },
       "id": 14,
       "options": {
@@ -954,7 +1020,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 64
+        "y": 74
       },
       "id": 12,
       "options": {
@@ -1036,7 +1102,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 74
+        "y": 84
       },
       "id": 13,
       "options": {
@@ -1061,6 +1127,63 @@
       ],
       "title": "Email Requests",
       "type": "timeseries"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 94
+      },
+      "id": 21,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "pluginVersion": "8.2.6",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum by (job,method,url,error,code) (requests_total{error!=\"\"} or gin_requests_total{code!~\"^(2).+\",code!=\"404\",url!=\"/favicon.ico\"})",
+          "interval": "",
+          "legendFormat": "{{job}}-{{method}}{{url}}-{{error}}{{code}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Requests Total - Errors",
+      "type": "bargauge"
     }
   ],
   "refresh": "5s",
@@ -1078,5 +1201,5 @@
   "timezone": "",
   "title": "Service Stats",
   "uid": "GY4_Bn0nz",
-  "version": 4
+  "version": 3
 }
