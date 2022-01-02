@@ -211,6 +211,8 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention=${PROMETHEUS_RETENTION:-24h}'
+    volumes:
+      - prometheus_data:/prometheus
     environment:
       - JOBS=api-gateway:50000 cart:9216 currency:9216 e-mail:9216 order:9216 payment:9216 shipment:9216 stock:9216 supplier:9216
 
@@ -257,6 +259,11 @@ services:
     ports:
       - "3000:3000"
     volumes:
+      - grafana_data:/var/lib/grafana
       - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
       - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards/
       - ./config/grafana/dashboards:/etc/grafana/dashboards/
+
+volumes:
+  prometheus_data: { }
+  grafana_data: { }
