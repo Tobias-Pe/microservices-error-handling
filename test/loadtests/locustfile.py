@@ -1,6 +1,7 @@
-from json import JSONDecodeError
-from locust import HttpUser, task, between
 import random
+from json import JSONDecodeError
+
+from locust import HttpUser, task, between
 
 
 def decision(probability):
@@ -8,6 +9,7 @@ def decision(probability):
 
 
 class OnlyLookingUser(HttpUser):
+    weight = 3
     exchangeLands = ['USD', 'GBP', 'INR', 'CAS', 'JPY', 'SEK', 'PLN']
 
     wait_time = between(0.5, 5)
@@ -20,15 +22,7 @@ class OnlyLookingUser(HttpUser):
                 response.failure(response.text)
         self.client.request_name = None
 
-    @task(4)
-    def articles(self):
-        self.client.request_name = "/articles/"
-        with self.client.get("/articles/", catch_response=True) as response:
-            if not response.ok:
-                response.failure(response.text)
-        self.client.request_name = None
-
-    @task(3)
+    @task(10)
     def exchange(self):
         self.client.request_name = "/exchange/${currency}"
         with self.client.get("/exchange/" + random.choice(self.exchangeLands), catch_response=True) as response:
@@ -38,6 +32,7 @@ class OnlyLookingUser(HttpUser):
 
 
 class CartUser(HttpUser):
+    weight = 1
     cart_id = -1
     to_be_bought = ""
 
@@ -89,6 +84,7 @@ class CartUser(HttpUser):
 
 
 class OrderUser(HttpUser):
+    weight = 5
     current_order_id = ""
     cart_id = -1
     to_be_bought = ""
