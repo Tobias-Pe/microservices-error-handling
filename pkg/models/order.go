@@ -104,11 +104,11 @@ func IsProgressive(newStatus string, oldStatus string) bool {
 	case statusNameAborted:
 		return false
 	case statusNameFetching:
-		return newStatus == statusNameReserving || newStatus == statusNameAborted
+		return newStatus == statusNameReserving || newStatus == statusNamePaying || newStatus == statusNameShipping || newStatus == statusNameAborted || newStatus == statusNameCompleted
 	case statusNameReserving:
-		return newStatus == statusNamePaying || newStatus == statusNameAborted
+		return newStatus == statusNamePaying || newStatus == statusNameShipping || newStatus == statusNameAborted || newStatus == statusNameCompleted
 	case statusNamePaying:
-		return newStatus == statusNameShipping || newStatus == statusNameAborted
+		return newStatus == statusNameShipping || newStatus == statusNameAborted || newStatus == statusNameCompleted
 	case statusNameShipping:
 		return newStatus == statusNameCompleted || newStatus == statusNameAborted
 	}
