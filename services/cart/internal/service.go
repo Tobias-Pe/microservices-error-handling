@@ -185,7 +185,7 @@ func (service *Service) handleUpdateCart(request *requests.PutArticleInCartReque
 
 		return err
 	}
-	logger.WithFields(loggrus.Fields{"index": *index, "request": request}).Infof("Inserted item")
+	logger.WithFields(loggrus.Fields{"request": request}).Infof("Inserted item")
 
 	// ack this transaction
 	err = message.Ack(false)
@@ -241,7 +241,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 		order.Status = status.Name
 		order.Message = status.Message
 	} else { // next step for the order is reserving the articles from the cart in stock
-		logger.WithFields(loggrus.Fields{"cart": cart, "request": *order}).Infof("Got cart for this order.")
+		logger.WithFields(loggrus.Fields{"response": cart, "request": *order}).Infof("Got cart for this order.")
 		status := models.StatusReserving()
 		order.Status = status.Name
 		order.Message = status.Message
@@ -252,7 +252,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
 	service.requestsMetric.Increment(err, methodPublishOrder)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"cart": cart, "request": *order}).WithError(err).Error("Could not publish order update")
+		logger.WithFields(loggrus.Fields{"response": *order}).WithError(err).Error("Could not publish order update")
 		return err
 	}
 
@@ -272,7 +272,7 @@ func (service *Service) CreateCart(_ context.Context, req *proto.RequestNewCart)
 
 	strId := strconv.Itoa(int(cart.ID))
 
-	logger.WithFields(loggrus.Fields{"ID": cart.ID, "Data": cart.ArticleIDs, "request": req.ArticleId}).Info("Created new Cart")
+	logger.WithFields(loggrus.Fields{"response": cart, "request": req.ArticleId}).Info("Created new Cart")
 	service.requestsMetric.Increment(err, methodCreateCart)
 
 	return &proto.ResponseNewCart{CartId: strId}, nil
@@ -287,7 +287,7 @@ func (service *Service) GetCart(_ context.Context, req *proto.RequestCart) (*pro
 		return nil, err
 	}
 
-	logger.WithFields(loggrus.Fields{"ID": cart.ID, "Data": cart.ArticleIDs, "request": req.CartId}).Info("Looked up Cart")
+	logger.WithFields(loggrus.Fields{"response": cart, "request": req.CartId}).Info("Looked up Cart")
 	service.requestsMetric.Increment(err, methodGetCart)
 
 	return &proto.ResponseCart{ArticleIds: cart.ArticleIDs}, nil

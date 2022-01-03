@@ -112,7 +112,7 @@ func readConfig() configuration {
 	err := viper.ReadInConfig()
 
 	if err != nil {
-		logger.Info(err)
+		logger.WithError(err).Error("could not read in envs")
 	}
 
 	serverAddress := ""

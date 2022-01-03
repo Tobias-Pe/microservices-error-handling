@@ -103,7 +103,7 @@ func readConfig() configuration {
 	viper.AutomaticEnv()
 	err := viper.ReadInConfig()
 	if err != nil {
-		logger.Info(err)
+		logger.WithError(err).Error("could not read in envs")
 	}
 	serverPort := viper.GetString("STOCK_PORT")
 	serverAddress := ""
@@ -112,16 +112,7 @@ func readConfig() configuration {
 	rabbitAddress := viper.GetString("RABBIT_MQ_ADDRESS")
 	rabbitPort := viper.GetString("RABBIT_MQ_PORT")
 
-	logger.WithFields(loggrus.Fields{
-		"STOCK_PORT":          serverPort,
-		"STOCK_ADDRESS":       serverAddress,
-		"STOCK_MONGO_ADDRESS": mongoAddress,
-		"STOCK_MONGO_PORT":    mongoPort,
-		"RABBIT_MQ_ADDRESS":   rabbitAddress,
-		"RABBIT_MQ_PORT":      rabbitPort,
-	}).Info("config variables read")
-
-	return configuration{
+	config := configuration{
 		serverAddress: serverAddress,
 		serverPort:    serverPort,
 		mongoAddress:  mongoAddress,
@@ -129,4 +120,10 @@ func readConfig() configuration {
 		rabbitAddress: rabbitAddress,
 		rabbitPort:    rabbitPort,
 	}
+
+	logger.WithFields(loggrus.Fields{
+		"response": config,
+	}).Info("config variables read")
+
+	return config
 }

@@ -151,7 +151,7 @@ func (order Order) PublishOrderStatusUpdate(channel *amqp.Channel) error {
 	if err != nil {
 		return err
 	}
-	logger.WithFields(loggrus.Fields{"order": order}).Infof("Published Order update")
+	logger.WithFields(loggrus.Fields{"request": order}).Infof("Published Order update")
 	return nil
 }
 

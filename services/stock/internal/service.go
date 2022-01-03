@@ -190,7 +190,7 @@ func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArtic
 		})
 	}
 
-	logger.WithFields(loggrus.Fields{"articles": articles}).Info("Get articles handled")
+	logger.WithFields(loggrus.Fields{"response": articles}).Info("Get articles handled")
 
 	return &proto.ResponseArticles{Articles: protoArticles}, nil
 }
@@ -258,7 +258,7 @@ func (service *Service) orderArticles(id primitive.ObjectID, amount int) error {
 		return err
 	}
 
-	logger.WithFields(loggrus.Fields{"article": id.Hex(), "amount": amount}).Infof("Published Supply Request")
+	logger.WithFields(loggrus.Fields{"request": id.Hex(), "response": amount}).Infof("Published Supply Request")
 
 	return nil
 }
@@ -311,7 +311,7 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
 	service.requestsMetric.Increment(err, methodPublishOrder)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"order": *order}).WithError(err).Error("Could not publish order update")
+		logger.WithError(err).Error("Could not publish order update")
 		return err
 	}
 
@@ -327,7 +327,7 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
-			logger.WithFields(loggrus.Fields{"order": *order}).Info("Rolling back successfully")
+			logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
 		}
 	}
 
@@ -405,7 +405,7 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
-			logger.WithFields(loggrus.Fields{"order": *order}).Info("Rolling back successfully")
+			logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
 		}
 	}
 

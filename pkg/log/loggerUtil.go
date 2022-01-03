@@ -62,6 +62,16 @@ func (h *PrometheusHook) Fire(e *logrus.Entry) error {
 	return nil
 }
 
+type serviceLogger struct {
+	serviceName string
+	formatter   logrus.Formatter
+}
+
+func (l serviceLogger) Format(entry *logrus.Entry) ([]byte, error) {
+	entry.Data["service"] = l.serviceName
+	return l.formatter.Format(entry)
+}
+
 // logger is a singleton
 var logger *logrus.Logger
 var once sync.Once
@@ -76,12 +86,23 @@ func InitLogger() *logrus.Logger {
 			DisableColors:    false,
 			DisableTimestamp: false,
 			FullTimestamp:    true,
-			TimestampFormat:  "15:04:05",
+			TimestampFormat:  "15:04:05.000",
 			DisableSorting:   false,
 			SortingFunc:      nil,
 			PadLevelText:     true,
 			QuoteEmptyFields: true,
 		})
+
+		// logger logs constantly service name field
+		hostname, err := os.Hostname()
+		if err != nil {
+			logger.WithError(err).Error("could not get hostname")
+		}
+		logger.SetFormatter(serviceLogger{
+			serviceName: hostname,
+			formatter:   logger.Formatter,
+		})
+
 		logger.AddHook(NewPrometheusHook())
 
 		config := &logrus_influxdb.Config{
@@ -93,7 +114,7 @@ func InitLogger() *logrus.Logger {
 			AppName:       "Microservices-Errorhandling",
 			Tags:          []string{"logrus-logs"},
 			BatchInterval: 5 * time.Second,
-			BatchCount:    0, // set to "0" to disable batching
+			BatchCount:    10, // set to "0" to disable batching
 		}
 
 		go func() {

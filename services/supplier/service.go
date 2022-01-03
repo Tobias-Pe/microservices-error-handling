@@ -117,7 +117,7 @@ func (service *Service) supplyArticles(articleID string, amount int) error {
 		return err
 	}
 
-	logger.WithFields(loggrus.Fields{"article": articleID, "amount": amount}).Infof("Sent Supply.")
+	logger.WithFields(loggrus.Fields{"request": articleID, "response": amount}).Infof("Sent Supply.")
 
 	return nil
 }

@@ -81,13 +81,15 @@ func readConfig() configuration {
 	viper.AutomaticEnv()
 	err := viper.ReadInConfig()
 	if err != nil {
-		logger.Info(err)
+		logger.WithError(err).Error("could not read in envs")
 	}
 
 	serverPort := viper.GetString("CURRENCY_PORT")
 	serverAddress := ""
 
-	logger.WithFields(loggrus.Fields{"CURRENCY_PORT": serverPort, "CURRENCY_ADDRESS": serverAddress}).Info("config variables read")
+	config := configuration{address: serverAddress, port: serverPort}
 
-	return configuration{address: serverAddress, port: serverPort}
+	logger.WithFields(loggrus.Fields{"response": config}).Info("config variables read")
+
+	return config
 }

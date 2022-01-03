@@ -110,7 +110,7 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 		return nil, err
 	}
 
-	logger.WithFields(loggrus.Fields{"request": req, "Order": order}).Info("Order created")
+	logger.WithFields(loggrus.Fields{"request": req, "response": order}).Info("Order created")
 	service.requestsMetric.Increment(err, methodCreateOrder)
 
 	// broadcast order
@@ -149,7 +149,7 @@ func (service *Service) GetOrder(ctx context.Context, req *proto.RequestOrder) (
 		return nil, err
 	}
 
-	logger.WithFields(loggrus.Fields{"request": req, "Order": order}).Info("Order request handled")
+	logger.WithFields(loggrus.Fields{"request": req, "response": order}).Info("Order request handled")
 	service.requestsMetric.Increment(err, methodGetOrder)
 
 	return &proto.OrderObject{
@@ -266,7 +266,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
-			logger.WithFields(loggrus.Fields{"order": oldOrder}).Info("Rolled transaction back.")
+			logger.WithFields(loggrus.Fields{"response": oldOrder}).Info("Rolled transaction back.")
 		}
 		return err
 	}
