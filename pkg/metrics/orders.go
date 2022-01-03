@@ -43,10 +43,12 @@ func NewOrdersMetric() *OrdersMetric {
 		},
 		[]string{"status"},
 	)
+
 	_, err := orderMetric.ordersGaugeVec.GetMetricWith(prometheus.Labels{"status": models.StatusFetching().Name})
 	if err != nil {
 		return nil
 	}
+
 	_, err = orderMetric.ordersGaugeVec.GetMetricWith(prometheus.Labels{"status": models.StatusReserving().Name})
 	if err != nil {
 		return nil
@@ -55,6 +57,7 @@ func NewOrdersMetric() *OrdersMetric {
 	if err != nil {
 		return nil
 	}
+
 	_, err = orderMetric.ordersGaugeVec.GetMetricWith(prometheus.Labels{"status": models.StatusShipping().Name})
 	if err != nil {
 		return nil
@@ -63,10 +66,12 @@ func NewOrdersMetric() *OrdersMetric {
 	if err != nil {
 		return nil
 	}
+
 	_, err = orderMetric.ordersGaugeVec.GetMetricWith(prometheus.Labels{"status": models.StatusAborted("").Name})
 	if err != nil {
 		return nil
 	}
+
 	return &orderMetric
 }
 

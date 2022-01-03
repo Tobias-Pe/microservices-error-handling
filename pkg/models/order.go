@@ -95,6 +95,26 @@ func StatusAborted(message string) Status {
 	}
 }
 
+// IsProgressive will compare the current status with the parameter status for status order.
+// returns if the current status is a new progressive status after the one in the parameter
+func IsProgressive(newStatus string, oldStatus string) bool {
+	switch newStatus {
+	case statusNameCompleted:
+		return false
+	case statusNameAborted:
+		return false
+	case statusNameFetching:
+		return oldStatus == statusNameReserving || oldStatus == statusNameAborted
+	case statusNameReserving:
+		return oldStatus == statusNamePaying || oldStatus == statusNameAborted
+	case statusNamePaying:
+		return oldStatus == statusNameShipping || oldStatus == statusNameAborted
+	case statusNameShipping:
+		return oldStatus == statusNameCompleted || oldStatus == statusNameAborted
+	}
+	return false
+}
+
 type Order struct {
 	ID                 primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	Status             string             `json:"status" bson:"status"`

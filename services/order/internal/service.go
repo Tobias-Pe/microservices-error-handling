@@ -229,6 +229,18 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 		return err
 	}
 
+	// check for progressive status
+	if !models.IsProgressive(order.Status, oldOrder.Status) {
+		err = fmt.Errorf("the new order is not progressive")
+		// order doesn't exist
+		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("This order is not progressive.")
+
+		// ack message & ignore error because rollback is not needed
+		_ = message.Ack(false)
+
+		return err
+	}
+
 	// update order
 	err = service.Database.updateOrder(ctx, *order)
 	if err != nil {
