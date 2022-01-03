@@ -25,11 +25,13 @@
 package log
 
 import (
+	"github.com/Abramovic/logrus_influxdb"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sirupsen/logrus"
 	"os"
 	"sync"
+	"time"
 )
 
 // PrometheusHook contains a counter vector for counting log statements severity levels
@@ -81,6 +83,31 @@ func InitLogger() *logrus.Logger {
 			QuoteEmptyFields: true,
 		})
 		logger.AddHook(NewPrometheusHook())
+
+		config := &logrus_influxdb.Config{
+			Host:          "influxdb",
+			Port:          8086,
+			Database:      "logrus",
+			UseHTTPS:      false,
+			Precision:     "ns",
+			AppName:       "Microservices-Errorhandling",
+			Tags:          []string{"logrus-logs"},
+			BatchInterval: 5 * time.Second,
+			BatchCount:    0, // set to "0" to disable batching
+		}
+
+		go func() {
+			for {
+				hook, err := logrus_influxdb.NewInfluxDB(config)
+				if err == nil {
+					logger.Hooks.Add(hook)
+					break
+				} else {
+					time.Sleep(time.Second * 5)
+				}
+			}
+			logger.Infof("Connected to Influx!")
+		}()
 	})
 
 	return logger
