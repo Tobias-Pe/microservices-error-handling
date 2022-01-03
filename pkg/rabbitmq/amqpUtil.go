@@ -50,9 +50,9 @@ func (service *AmqpService) InitAmqpConnection() error {
 
 	// prefetchCount 1 in QoS will load-balance messages between many instances of this service
 	err = service.AmqpChannel.Qos(
-		1,     // prefetch count
-		0,     // prefetch size
-		false, // global
+		1,    // prefetch count
+		0,    // prefetch size
+		true, // global
 	)
 	if err != nil {
 		return err
