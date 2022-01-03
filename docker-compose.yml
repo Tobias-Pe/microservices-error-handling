@@ -254,6 +254,9 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
     command: -logtostderr -docker_only
 
+  influxdb:
+    image: influxdb:1.8
+
   grafana:
     image: grafana/grafana:8.2.6
     ports:
