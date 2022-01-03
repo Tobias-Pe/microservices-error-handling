@@ -150,6 +150,7 @@
           "color": {
             "mode": "thresholds"
           },
+          "displayName": "${__series.name}",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -199,7 +200,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "count (sum (rate(gin_requests_total{}[1m]) or rate(requests_total{}[1m])) by (instance,job)) by (job)",
+          "expr": "count (sum (rate(log_statements_total{}[1m])) by (instance,job)) by (job)",
           "interval": "",
           "legendFormat": "{{job}}",
           "refId": "A"
@@ -495,8 +496,9 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "continuous-GrYlRd"
           },
+          "displayName": "${__series.name}",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -504,10 +506,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -1296,8 +1294,9 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "continuous-BlYlRd"
           },
+          "displayName": "${__series.name}",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1305,10 +1304,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -1316,10 +1311,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 98
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 88
       },
       "id": 21,
       "options": {
@@ -1347,6 +1342,53 @@
       ],
       "title": "Requests Total - Errors",
       "type": "bargauge"
+    },
+    {
+      "datasource": "Influx",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "color-text",
+            "filterable": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 24,
+        "x": 0,
+        "y": 98
+      },
+      "id": 27,
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "8.2.6",
+      "targets": [
+        {
+          "query": "SELECT * FROM \"logrus\" WHERE $timeFilter GROUP BY \"level\"",
+          "rawQuery": true,
+          "refId": "A",
+          "resultFormat": "table"
+        }
+      ],
+      "title": "Logs - All",
+      "type": "table"
     }
   ],
   "refresh": "5s",
@@ -1357,7 +1399,7 @@
     "list": []
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {},
