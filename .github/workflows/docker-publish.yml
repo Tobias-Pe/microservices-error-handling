@@ -8,7 +8,7 @@ on:
 
 jobs:
   dockerfiles:
-    name: Build and push {{matrix.image}}
+    name: Build and push ${{matrix.image}}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
