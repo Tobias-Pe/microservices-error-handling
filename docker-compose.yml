@@ -28,6 +28,8 @@ services:
       dockerfile: ./services/api-gateway/Dockerfile
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=api-gateway
     depends_on:
       - currency-nginx
       - stock-nginx
@@ -54,6 +56,8 @@ services:
       dockerfile: ./services/currency/Dockerfile
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=currency
 
   # ------------------------------------------- STOCK ------------------------------------------------------------------
 
@@ -69,11 +73,13 @@ services:
 
   stock:
     image: ghcr.io/tobias-pe/stock:latest
-    env_file:
-      - ./config/docker.env
     build:
       context: .
       dockerfile: ./services/stock/Dockerfile
+    env_file:
+      - ./config/docker.env
+    environment:
+      - SERVICE_NAME=stock
     depends_on:
       - stock-mongodb
       - mongo_seed
@@ -111,6 +117,8 @@ services:
       dockerfile: ./services/cart/Dockerfile
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=cart
     depends_on:
       - cart-redis
       - rabbit-mq
@@ -141,6 +149,8 @@ services:
       dockerfile: ./services/order/Dockerfile
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=order
     depends_on:
       - order-mongodb
       - rabbit-mq
@@ -159,6 +169,8 @@ services:
       dockerfile: ./services/payment/Dockerfile
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=payment
     depends_on:
       - rabbit-mq
 
@@ -171,6 +183,8 @@ services:
       dockerfile: ./services/shipment/Dockerfile
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=shipment
     depends_on:
       - rabbit-mq
 
@@ -183,6 +197,8 @@ services:
       dockerfile: ./services/email/Dockerfile
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=e-mail
     depends_on:
       - rabbit-mq
 
@@ -195,6 +211,8 @@ services:
       dockerfile: ./services/supplier/Dockerfile
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=supplier
     depends_on:
       - rabbit-mq
 

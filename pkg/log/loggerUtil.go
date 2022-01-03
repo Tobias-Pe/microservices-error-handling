@@ -29,6 +29,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"os"
 	"sync"
 	"time"
@@ -94,12 +95,16 @@ func InitLogger() *logrus.Logger {
 		})
 
 		// logger logs constantly service name field
-		hostname, err := os.Hostname()
+		viper.AutomaticEnv()
+		err := viper.ReadInConfig()
 		if err != nil {
-			logger.WithError(err).Error("could not get hostname")
+			logger.WithError(err).Error("could not read in envs")
 		}
+		serviceName := viper.GetString("SERVICE_NAME")
+
+		// change formatter to always add service_name field
 		logger.SetFormatter(serviceLogger{
-			serviceName: hostname,
+			serviceName: serviceName,
 			formatter:   logger.Formatter,
 		})
 

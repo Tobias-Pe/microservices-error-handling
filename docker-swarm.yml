@@ -49,6 +49,8 @@ services:
         window: 30s
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=api-gateway
     depends_on:
       - currency-nginx
       - stock-nginx
@@ -90,6 +92,8 @@ services:
         window: 30s
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=currency
 
   # ------------------------------------------- STOCK ------------------------------------------------------------------
 
@@ -110,6 +114,8 @@ services:
     image: ghcr.io/tobias-pe/stock:latest
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=stock
     deploy:
       mode: replicated
       replicas: 6
@@ -186,6 +192,8 @@ services:
         window: 30s
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=cart
     depends_on:
       - cart-redis
       - rabbit-mq
@@ -237,6 +245,8 @@ services:
         window: 30s
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=order
     depends_on:
       - order-mongodb
       - rabbit-mq
@@ -273,6 +283,8 @@ services:
         window: 30s
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=payment
     depends_on:
       - rabbit-mq
 
@@ -297,6 +309,8 @@ services:
         window: 30s
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=shipment
     depends_on:
       - rabbit-mq
 
@@ -321,6 +335,8 @@ services:
         window: 30s
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=e-mail
     depends_on:
       - rabbit-mq
 
@@ -345,6 +361,8 @@ services:
         window: 30s
     env_file:
       - ./config/docker.env
+    environment:
+      - SERVICE_NAME=supplier
     depends_on:
       - rabbit-mq
 
