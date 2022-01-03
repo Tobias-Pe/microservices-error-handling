@@ -264,6 +264,25 @@ services:
       - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards/
       - ./config/grafana/dashboards:/etc/grafana/dashboards/
 
+    # ------------------------------------------- LOAD-TESTING ---------------------------------------------------------
+  locust-master:
+    image: ghcr.io/tobias-pe/locust:latest
+    build:
+      context: .
+      dockerfile: ./docker/locust/Dockerfile
+    ports:
+      - "8089:8089"
+    command: --master -H http://api-gateway-nginx:50000
+
+  locust-worker:
+    image: ghcr.io/tobias-pe/locust:latest
+    build:
+      context: .
+      dockerfile: ./docker/locust/Dockerfile
+    command: --worker --master-host locust-master
+    depends_on:
+      - locust-master
+
 volumes:
   prometheus_data: { }
   grafana_data: { }
