@@ -1,0 +1,26 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="up build scale" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
+    <deployment type="docker-compose.yml">
+      <settings>
+        <option name="envFilePath" value="" />
+        <option name="removeVolumesOnComposeDown" value="true" />
+        <option name="commandLineOptions" value="--build" />
+        <option name="sourceFilePath" value="docker-compose.yml" />
+        <option name="upRemoveOrphans" value="true" />
+        <option name="upRenewAnonVolumes" value="true" />
+        <upScaledServices>
+          <entry key="api-gateway" value="8" />
+          <entry key="stock" value="6" />
+          <entry key="order" value="6" />
+          <entry key="currency" value="4" />
+          <entry key="shipment" value="4" />
+          <entry key="cart" value="4" />
+          <entry key="payment" value="4" />
+          <entry key="e-mail" value="2" />
+          <entry key="locust-worker" value="5" />
+        </upScaledServices>
+      </settings>
+    </deployment>
+    <method v="2" />
+  </configuration>
+</component>

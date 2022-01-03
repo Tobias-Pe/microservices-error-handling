@@ -4,7 +4,7 @@
       <settings>
         <option name="envFilePath" value="" />
         <option name="removeVolumesOnComposeDown" value="true" />
-        <option name="sourceFilePath" value="docker-stack.yml" />
+        <option name="sourceFilePath" value="docker-swarm.yml" />
         <option name="upAlwaysRecreate" value="true" />
         <option name="upForceRecreate" value="true" />
         <option name="upNoBuild" value="true" />
