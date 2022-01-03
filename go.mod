@@ -3,6 +3,7 @@ module github.com/Tobias-Pe/Microservices-Errorhandling
 go 1.17
 
 require (
+	github.com/Abramovic/logrus_influxdb v0.0.0-20191225071031-ec7855d61bb9
 	github.com/gin-gonic/gin v1.7.7
 	github.com/prometheus/client_golang v1.11.0
 	github.com/sirupsen/logrus v1.8.1
@@ -25,6 +26,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab // indirect
 	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/leodido/go-urn v1.2.0 // indirect
