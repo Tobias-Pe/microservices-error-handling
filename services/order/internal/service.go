@@ -110,7 +110,7 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 		return nil, err
 	}
 
-	logger.WithFields(loggrus.Fields{"Request": req, "Order": order}).Info("Order created")
+	logger.WithFields(loggrus.Fields{"request": req, "Order": order}).Info("Order created")
 	service.requestsMetric.Increment(err, methodCreateOrder)
 
 	// broadcast order
@@ -149,7 +149,7 @@ func (service *Service) GetOrder(ctx context.Context, req *proto.RequestOrder) (
 		return nil, err
 	}
 
-	logger.WithFields(loggrus.Fields{"Request": req, "Order": order}).Info("Order request handled")
+	logger.WithFields(loggrus.Fields{"request": req, "Order": order}).Info("Order request handled")
 	service.requestsMetric.Increment(err, methodGetOrder)
 
 	return &proto.OrderObject{

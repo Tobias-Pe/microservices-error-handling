@@ -272,7 +272,7 @@ func (service *Service) CreateCart(_ context.Context, req *proto.RequestNewCart)
 
 	strId := strconv.Itoa(int(cart.ID))
 
-	logger.WithFields(loggrus.Fields{"ID": cart.ID, "Data": cart.ArticleIDs, "Request": req.ArticleId}).Info("Created new Cart")
+	logger.WithFields(loggrus.Fields{"ID": cart.ID, "Data": cart.ArticleIDs, "request": req.ArticleId}).Info("Created new Cart")
 	service.requestsMetric.Increment(err, methodCreateCart)
 
 	return &proto.ResponseNewCart{CartId: strId}, nil
@@ -287,7 +287,7 @@ func (service *Service) GetCart(_ context.Context, req *proto.RequestCart) (*pro
 		return nil, err
 	}
 
-	logger.WithFields(loggrus.Fields{"ID": cart.ID, "Data": cart.ArticleIDs, "Request": req.CartId}).Info("Looked up Cart")
+	logger.WithFields(loggrus.Fields{"ID": cart.ID, "Data": cart.ArticleIDs, "request": req.CartId}).Info("Looked up Cart")
 	service.requestsMetric.Increment(err, methodGetCart)
 
 	return &proto.ResponseCart{ArticleIds: cart.ArticleIDs}, nil

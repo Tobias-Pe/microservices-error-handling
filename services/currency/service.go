@@ -69,9 +69,9 @@ func getMockExchangeRate(targetCurrency string) (float32, error) {
 func (service *Service) GetExchangeRate(_ context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
 	exchangeRate, err := getMockExchangeRate(req.CustomerCurrency)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency}).WithError(err).Warn("requested currency not supported")
+		logger.WithFields(loggrus.Fields{"request": req.CustomerCurrency}).WithError(err).Warn("requested currency not supported")
 	} else {
-		logger.WithFields(loggrus.Fields{"Request:": req.CustomerCurrency, "Response": exchangeRate}).Info("exchange rate served")
+		logger.WithFields(loggrus.Fields{"request": req.CustomerCurrency, "response": exchangeRate}).Info("exchange rate served")
 	}
 	service.RequestsMetric.Increment(err, "GetExchangeRate")
 	return &proto.ReplyExchangeRate{ExchangeRate: exchangeRate}, err
