@@ -47,7 +47,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 18,
+        "h": 9,
         "w": 12,
         "x": 0,
         "y": 0
@@ -150,6 +150,71 @@
           "color": {
             "mode": "thresholds"
           },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "id": 20,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "8.2.6",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "count (sum (rate(gin_requests_total{}[1m]) or rate(requests_total{}[1m])) by (instance,job)) by (job)",
+          "interval": "",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Instances",
+      "type": "gauge"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
           "displayName": "${__series.name}",
           "mappings": [],
           "thresholds": {
@@ -210,7 +275,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "mappings": [],
           "thresholds": {
@@ -219,18 +284,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 0
-              },
-              {
-                "color": "yellow",
-                "value": 1
-              },
-              {
-                "color": "green",
-                "value": 2
               }
             ]
           }
@@ -243,8 +296,11 @@
         "x": 0,
         "y": 18
       },
-      "id": 20,
+      "id": 17,
       "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -253,22 +309,23 @@
           "fields": "",
           "values": false
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "text": {}
+        "text": {},
+        "textMode": "auto"
       },
       "pluginVersion": "8.2.6",
       "targets": [
         {
           "exemplar": true,
-          "expr": "count (sum (rate(gin_requests_total{}[1m]) or rate(requests_total{}[1m])) by (instance,job)) by (job)",
+          "expr": "sum by (job,method,url) (requests_total{error=\"\",method=~\".*[Oo]rder.*\",method!=\"GetOrder\"} or requests_total{method=\"SendEmail\"} or requests_total{method=\"CompleteReservation\"} or requests_total{method=\"ReserveArticles\"})",
           "interval": "",
-          "legendFormat": "{{job}}",
+          "legendFormat": "{{job}}-{{method}}{{url}}",
           "refId": "A"
         }
       ],
-      "title": "Active Instances",
-      "type": "gauge"
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Requests Orders",
+      "type": "stat"
     },
     {
       "datasource": null,
@@ -349,7 +406,7 @@
         "x": 0,
         "y": 27
       },
-      "id": 17,
+      "id": 24,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -369,7 +426,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (job,method,url) (requests_total{error=\"\"} or gin_requests_total{code=~\"^(2).+\",url!=\"/favicon.ico\"})",
+          "expr": "sum by (job,method,url) (requests_total{error=\"\",method!~\".*[Oo]rder.*\",method!=\"CompleteReservation\",method!=\"ReserveArticles\",method!=\"SendEmail\"} or gin_requests_total{code=~\"^(2).+\",url!=\"/favicon.ico\"})",
           "interval": "",
           "legendFormat": "{{job}}-{{method}}{{url}}",
           "refId": "A"
@@ -377,7 +434,7 @@
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Requests Total",
+      "title": "Requests Total - Other",
       "type": "stat"
     },
     {
@@ -1254,5 +1311,5 @@
   "timezone": "",
   "title": "Service Stats",
   "uid": "GY4_Bn0nz",
-  "version": 1
+  "version": 2
 }
