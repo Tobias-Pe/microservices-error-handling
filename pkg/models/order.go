@@ -95,22 +95,22 @@ func StatusAborted(message string) Status {
 	}
 }
 
-// IsProgressive will compare the current status with the parameter status for status order.
-// returns if the current status is a new progressive status after the one in the parameter
+// IsProgressive will compare two status.
+// returns if the current status is a new progressive status after old one.
 func IsProgressive(newStatus string, oldStatus string) bool {
-	switch newStatus {
+	switch oldStatus {
 	case statusNameCompleted:
 		return false
 	case statusNameAborted:
 		return false
 	case statusNameFetching:
-		return oldStatus == statusNameReserving || oldStatus == statusNameAborted
+		return newStatus == statusNameReserving || newStatus == statusNameAborted
 	case statusNameReserving:
-		return oldStatus == statusNamePaying || oldStatus == statusNameAborted
+		return newStatus == statusNamePaying || newStatus == statusNameAborted
 	case statusNamePaying:
-		return oldStatus == statusNameShipping || oldStatus == statusNameAborted
+		return newStatus == statusNameShipping || newStatus == statusNameAborted
 	case statusNameShipping:
-		return oldStatus == statusNameCompleted || oldStatus == statusNameAborted
+		return newStatus == statusNameCompleted || newStatus == statusNameAborted
 	}
 	return false
 }
