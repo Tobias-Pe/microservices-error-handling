@@ -8,3 +8,11 @@ datasources:
     isDefault: true
     version: 1
     editable: true
+
+  - name: Influx
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    version: 1
+    editable: true
+    database: logrus
