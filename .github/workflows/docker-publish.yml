@@ -52,6 +52,8 @@ jobs:
             path: ./docker/node-exporter/Dockerfile
           - image: dockerd-nginx
             path: ./docker/nginx/dockerd/Dockerfile
+          - image: locust
+            path: ./docker/locust/Dockerfile
 
     steps:
       -
