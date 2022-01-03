@@ -349,7 +349,7 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 12,
+        "w": 10,
         "x": 12,
         "y": 18
       },
@@ -378,6 +378,59 @@
         }
       ],
       "title": "Order Status",
+      "type": "bargauge"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 2,
+        "x": 22,
+        "y": 18
+      },
+      "id": 25,
+      "options": {
+        "displayMode": "lcd",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "pluginVersion": "8.2.6",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum (orders_total{})",
+          "interval": "",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Orders Total",
       "type": "bargauge"
     },
     {
@@ -1311,5 +1364,5 @@
   "timezone": "",
   "title": "Service Stats",
   "uid": "GY4_Bn0nz",
-  "version": 2
+  "version": 1
 }
