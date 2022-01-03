@@ -96,20 +96,7 @@ func readConfig() configuration {
 	rabbitAddress := viper.GetString("RABBIT_MQ_ADDRESS")
 	rabbitPort := viper.GetString("RABBIT_MQ_PORT")
 
-	logger.WithFields(loggrus.Fields{
-		"API_GATEWAY_PORT":    serverPort,
-		"API_GATEWAY_ADDRESS": serverAddress,
-		"CURRENCY_PORT":       currencyPort,
-		"CURRENCY_ADDRESS":    currencyAddress,
-		"STOCK_ADDRESS":       stockAddress,
-		"STOCK_PORT":          stockPort,
-		"ORDER_ADDRESS":       orderAddress,
-		"ORDER_PORT":          orderPort,
-		"RABBIT_MQ_ADDRESS":   rabbitAddress,
-		"RABBIT_MQ_PORT":      rabbitPort,
-	}).Info("config variables read")
-
-	return configuration{
+	config := configuration{
 		address:         serverAddress,
 		port:            serverPort,
 		currencyAddress: currencyAddress,
@@ -123,6 +110,12 @@ func readConfig() configuration {
 		rabbitAddress:   rabbitAddress,
 		rabbitPort:      rabbitPort,
 	}
+
+	logger.WithFields(loggrus.Fields{
+		"response": config,
+	}).Info("config variables read")
+
+	return config
 }
 
 func createCurrencyClient(configuration configuration) *internal.CurrencyClient {

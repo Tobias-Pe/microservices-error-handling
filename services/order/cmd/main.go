@@ -122,15 +122,7 @@ func readConfig() configuration {
 	rabbitAddress := viper.GetString("RABBIT_MQ_ADDRESS")
 	rabbitPort := viper.GetString("RABBIT_MQ_PORT")
 
-	logger.WithFields(loggrus.Fields{"ORDER_PORT": serverPort,
-		"ORDER_ADDRESS":       serverAddress,
-		"ORDER_MONGO_ADDRESS": mongoAddress,
-		"ORDER_MONGO_PORT":    mongoPort,
-		"RABBIT_MQ_ADDRESS":   rabbitAddress,
-		"RABBIT_MQ_PORT":      rabbitPort,
-	}).Info("config variables read")
-
-	return configuration{
+	config := configuration{
 		serverAddress: serverAddress,
 		serverPort:    serverPort,
 		mongoAddress:  mongoAddress,
@@ -138,4 +130,10 @@ func readConfig() configuration {
 		rabbitAddress: rabbitAddress,
 		rabbitPort:    rabbitPort,
 	}
+
+	logger.WithFields(loggrus.Fields{
+		"response": config,
+	}).Info("config variables read")
+
+	return config
 }
