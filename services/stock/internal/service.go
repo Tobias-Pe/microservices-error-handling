@@ -305,7 +305,7 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 	price, err := service.reserveArticlesAndCalcPrice(order)
 	if err != nil { // could not reserve order --> abort order because wrong information
 		if !errors.Is(err, customerrors.ErrNoModification) && !errors.Is(err, customerrors.ErrLowStock) { // it must be a transaction error
-			// return unacknowledged for retry
+			_ = message.Reject(true) // nack and requeue message
 			return err
 		}
 		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Aborting order...")
