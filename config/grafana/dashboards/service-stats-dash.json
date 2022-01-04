@@ -1381,17 +1381,18 @@
       "pluginVersion": "8.2.6",
       "targets": [
         {
-          "query": "SELECT * FROM \"logrus\" WHERE $timeFilter GROUP BY \"level\"",
+          "query": "SELECT * FROM \"logrus\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "table"
         }
       ],
       "title": "Logs - All",
+      "transformations": [],
       "type": "table"
     }
   ],
-  "refresh": "5s",
+  "refresh": "",
   "schemaVersion": 32,
   "style": "dark",
   "tags": [],
@@ -1399,7 +1400,7 @@
     "list": []
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-2m",
     "to": "now"
   },
   "timepicker": {},
