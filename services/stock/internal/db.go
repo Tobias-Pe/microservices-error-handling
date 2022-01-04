@@ -51,15 +51,15 @@ func NewDbConnection(mongoAddress string, mongoPort string) *DbConnection {
 	mongoUri := "mongodb://" + mongoAddress + ":" + mongoPort
 	db.MongoClient, err = mongo.NewClient(options.Client().ApplyURI(mongoUri))
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).WithError(err).Error("Could not connect to DB")
+		logger.WithFields(loggrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	err = db.MongoClient.Connect(ctx)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).WithError(err).Error("Could not connect to DB")
+		logger.WithFields(loggrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
 	} else {
-		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).Info("Connection to DB successfully!")
+		logger.WithFields(loggrus.Fields{"request": mongoUri}).Info("Connection to DB successfully!")
 	}
 	db.stockCollection = db.MongoClient.Database("mongo_db").Collection("stock")
 	db.reservationCollection = db.MongoClient.Database("mongo_db").Collection("reservation")
@@ -67,18 +67,20 @@ func NewDbConnection(mongoAddress string, mongoPort string) *DbConnection {
 }
 
 func (database *DbConnection) getArticles(ctx context.Context, category string) (*[]models.Article, error) {
+	// configuration for transaction
 	wc := writeconcern.New(writeconcern.WMajority())
 	rc := readconcern.Snapshot()
 	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
+
 	session, err := database.MongoClient.StartSession()
 	if err != nil {
 		return nil, err
 	}
-	defer session.EndSession(context.Background())
+	defer session.EndSession(ctx)
 
-	callback := database.newCallbackGetArticles(ctx, category)
+	callback := database.newCallbackGetArticles(category)
 
-	result, err := session.WithTransaction(context.Background(), callback, txnOpts)
+	result, err := session.WithTransaction(ctx, callback, txnOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -86,15 +88,15 @@ func (database *DbConnection) getArticles(ctx context.Context, category string) 
 	return &articles, nil
 }
 
-func (database *DbConnection) newCallbackGetArticles(ctx context.Context, category string) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (database *DbConnection) newCallbackGetArticles(category string) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		var articles []models.Article
 		var cursor *mongo.Cursor
 		var err error
 		if len(strings.TrimSpace(category)) == 0 {
-			cursor, err = database.stockCollection.Find(ctx, bson.M{})
+			cursor, err = database.stockCollection.Find(sessionContext, bson.M{})
 		} else {
-			cursor, err = database.stockCollection.Find(ctx, bson.M{"category": strings.ToLower(category)})
+			cursor, err = database.stockCollection.Find(sessionContext, bson.M{"category": strings.ToLower(category)})
 		}
 		if err != nil {
 			return nil, err
@@ -104,8 +106,8 @@ func (database *DbConnection) newCallbackGetArticles(ctx context.Context, catego
 			if err != nil {
 				logger.WithError(err).Warn("cursor could not be closed!")
 			}
-		}(cursor, ctx)
-		if err = cursor.All(ctx, &articles); err != nil {
+		}(cursor, sessionContext)
+		if err = cursor.All(sessionContext, &articles); err != nil {
 			return nil, err
 		}
 		return articles, nil
@@ -114,6 +116,7 @@ func (database *DbConnection) newCallbackGetArticles(ctx context.Context, catego
 }
 
 func (database *DbConnection) reserveOrder(ctx context.Context, articleQuantityMap map[string]int, order models.Order) (*[]models.Article, error) {
+	// configuration for transaction
 	wc := writeconcern.New(writeconcern.WMajority())
 	rc := readconcern.Snapshot()
 	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
@@ -121,11 +124,11 @@ func (database *DbConnection) reserveOrder(ctx context.Context, articleQuantityM
 	if err != nil {
 		return nil, err
 	}
-	defer session.EndSession(context.Background())
+	defer session.EndSession(ctx)
 
-	callback := database.newCallbackReserveOrder(ctx, articleQuantityMap, order)
+	callback := database.newCallbackReserveOrder(articleQuantityMap, order)
 
-	result, err := session.WithTransaction(context.Background(), callback, txnOpts)
+	result, err := session.WithTransaction(ctx, callback, txnOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +136,7 @@ func (database *DbConnection) reserveOrder(ctx context.Context, articleQuantityM
 	return &articles, nil
 }
 
-func (database *DbConnection) newCallbackReserveOrder(ctx context.Context, articleQuantityMap map[string]int, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[string]int, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		var articles []models.Article
 
@@ -144,7 +147,7 @@ func (database *DbConnection) newCallbackReserveOrder(ctx context.Context, artic
 			if err != nil {
 				return nil, err
 			}
-			if err := database.stockCollection.FindOne(ctx, bson.M{"_id": hex}).Decode(stockArticle); err != nil {
+			if err := database.stockCollection.FindOne(sessionContext, bson.M{"_id": hex}).Decode(stockArticle); err != nil {
 				return nil, err
 			}
 			var updatedAmount = stockArticle.Amount - int32(amount)
@@ -155,7 +158,7 @@ func (database *DbConnection) newCallbackReserveOrder(ctx context.Context, artic
 			articles = append(articles, *stockArticle)
 			// update article
 			result, err := database.stockCollection.ReplaceOne(
-				ctx,
+				sessionContext,
 				bson.M{"_id": stockArticle.ID},
 				stockArticle,
 			)
@@ -169,7 +172,7 @@ func (database *DbConnection) newCallbackReserveOrder(ctx context.Context, artic
 			}
 		}
 		// make reservation
-		_, err := database.reservationCollection.InsertOne(ctx, order)
+		_, err := database.reservationCollection.InsertOne(sessionContext, order)
 		if err != nil {
 			return nil, err
 		}
@@ -190,6 +193,7 @@ func (database *DbConnection) rollbackReserveOrder(ctx context.Context, order mo
 		}
 	}
 
+	// configuration for transaction
 	wc := writeconcern.New(writeconcern.WMajority())
 	rc := readconcern.Snapshot()
 	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
@@ -197,11 +201,11 @@ func (database *DbConnection) rollbackReserveOrder(ctx context.Context, order mo
 	if err != nil {
 		return err
 	}
-	defer session.EndSession(context.Background())
+	defer session.EndSession(ctx)
 
-	callback := database.newCallbackRollbackReserveOrder(ctx, articleQuantityMap, order)
+	callback := database.newCallbackRollbackReserveOrder(articleQuantityMap, order)
 
-	_, err = session.WithTransaction(context.Background(), callback, txnOpts)
+	_, err = session.WithTransaction(ctx, callback, txnOpts)
 	if err != nil {
 		return err
 	}
@@ -209,10 +213,10 @@ func (database *DbConnection) rollbackReserveOrder(ctx context.Context, order mo
 	return nil
 }
 
-func (database *DbConnection) newCallbackRollbackReserveOrder(ctx context.Context, articleQuantityMap map[string]int, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (database *DbConnection) newCallbackRollbackReserveOrder(articleQuantityMap map[string]int, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// undo reservation
-		deleted, err := database.reservationCollection.DeleteOne(ctx, bson.M{"_id": order.ID})
+		deleted, err := database.reservationCollection.DeleteOne(sessionContext, bson.M{"_id": order.ID})
 		if err != nil {
 			return nil, err
 		}
@@ -227,7 +231,7 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(ctx context.Contex
 			if err != nil {
 				return nil, err
 			}
-			if err := database.stockCollection.FindOne(ctx, bson.M{"_id": hex}).Decode(stockArticle); err != nil {
+			if err := database.stockCollection.FindOne(sessionContext, bson.M{"_id": hex}).Decode(stockArticle); err != nil {
 				return nil, err
 			}
 			var updatedAmount = stockArticle.Amount + int32(amount)
@@ -237,7 +241,7 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(ctx context.Contex
 			stockArticle.Amount = updatedAmount
 			// update article
 			result, err := database.stockCollection.ReplaceOne(
-				ctx,
+				sessionContext,
 				bson.M{"_id": stockArticle.ID},
 				stockArticle,
 			)
@@ -257,7 +261,7 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(ctx context.Contex
 }
 
 func (database *DbConnection) deleteReservation(ctx context.Context, orderID primitive.ObjectID) error {
-
+	// configuration for transaction
 	wc := writeconcern.New(writeconcern.WMajority())
 	rc := readconcern.Snapshot()
 	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
@@ -265,11 +269,11 @@ func (database *DbConnection) deleteReservation(ctx context.Context, orderID pri
 	if err != nil {
 		return err
 	}
-	defer session.EndSession(context.Background())
+	defer session.EndSession(ctx)
 
-	callback := database.newCallbackDeleteReservation(ctx, orderID)
+	callback := database.newCallbackDeleteReservation(orderID)
 
-	_, err = session.WithTransaction(context.Background(), callback, txnOpts)
+	_, err = session.WithTransaction(ctx, callback, txnOpts)
 	if err != nil {
 		return err
 	}
@@ -278,13 +282,14 @@ func (database *DbConnection) deleteReservation(ctx context.Context, orderID pri
 
 }
 
-func (database *DbConnection) newCallbackDeleteReservation(ctx context.Context, orderID primitive.ObjectID) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (database *DbConnection) newCallbackDeleteReservation(orderID primitive.ObjectID) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// undo reservation
-		deleted, err := database.reservationCollection.DeleteOne(ctx, bson.M{"_id": orderID})
+		deleted, err := database.reservationCollection.DeleteOne(sessionContext, bson.M{"_id": orderID})
 		if err != nil {
 			return nil, err
 		}
+
 		if deleted.DeletedCount != 1 {
 			return nil, fmt.Errorf("there is no reservation for this order")
 		}
@@ -294,7 +299,7 @@ func (database *DbConnection) newCallbackDeleteReservation(ctx context.Context, 
 }
 
 func (database *DbConnection) rollbackDeleteReservation(ctx context.Context, orderID primitive.ObjectID) error {
-
+	// configuration for transaction
 	wc := writeconcern.New(writeconcern.WMajority())
 	rc := readconcern.Snapshot()
 	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
@@ -302,11 +307,11 @@ func (database *DbConnection) rollbackDeleteReservation(ctx context.Context, ord
 	if err != nil {
 		return err
 	}
-	defer session.EndSession(context.Background())
+	defer session.EndSession(ctx)
 
-	callback := database.newCallbackRollbackDeleteReservation(ctx, orderID)
+	callback := database.newCallbackRollbackDeleteReservation(orderID)
 
-	_, err = session.WithTransaction(context.Background(), callback, txnOpts)
+	_, err = session.WithTransaction(ctx, callback, txnOpts)
 	if err != nil {
 		return err
 	}
@@ -315,10 +320,10 @@ func (database *DbConnection) rollbackDeleteReservation(ctx context.Context, ord
 
 }
 
-func (database *DbConnection) newCallbackRollbackDeleteReservation(ctx context.Context, orderID primitive.ObjectID) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (database *DbConnection) newCallbackRollbackDeleteReservation(orderID primitive.ObjectID) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// undo reservation
-		_, err := database.reservationCollection.InsertOne(ctx, bson.M{"_id": orderID})
+		_, err := database.reservationCollection.InsertOne(sessionContext, bson.M{"_id": orderID})
 		if err != nil {
 			return nil, err
 		}
@@ -332,6 +337,7 @@ func (database *DbConnection) restockArticle(ctx context.Context, paramArticleID
 	if err != nil {
 		return err
 	}
+	// configuration for transaction
 	wc := writeconcern.New(writeconcern.WMajority())
 	rc := readconcern.Snapshot()
 	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
@@ -339,11 +345,11 @@ func (database *DbConnection) restockArticle(ctx context.Context, paramArticleID
 	if err != nil {
 		return err
 	}
-	defer session.EndSession(context.Background())
+	defer session.EndSession(ctx)
 
-	callback := database.newCallbackRestockArticle(ctx, articleID, amount)
+	callback := database.newCallbackRestockArticle(articleID, amount)
 
-	_, err = session.WithTransaction(context.Background(), callback, txnOpts)
+	_, err = session.WithTransaction(ctx, callback, txnOpts)
 	if err != nil {
 		return err
 	}
@@ -352,17 +358,17 @@ func (database *DbConnection) restockArticle(ctx context.Context, paramArticleID
 
 }
 
-func (database *DbConnection) newCallbackRestockArticle(ctx context.Context, articleID primitive.ObjectID, amount int) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (database *DbConnection) newCallbackRestockArticle(articleID primitive.ObjectID, amount int) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// get article
 		var stockArticle = &models.Article{}
-		if err := database.stockCollection.FindOne(ctx, bson.M{"_id": articleID}).Decode(stockArticle); err != nil {
+		if err := database.stockCollection.FindOne(sessionContext, bson.M{"_id": articleID}).Decode(stockArticle); err != nil {
 			return nil, err
 		}
 		stockArticle.Amount = stockArticle.Amount + int32(amount)
 		// update article
 		result, err := database.stockCollection.ReplaceOne(
-			ctx,
+			sessionContext,
 			bson.M{"_id": stockArticle.ID},
 			stockArticle,
 		)
@@ -384,6 +390,7 @@ func (database *DbConnection) rollbackRestockArticle(ctx context.Context, paramA
 	if err != nil {
 		return err
 	}
+	// configuration for transaction
 	wc := writeconcern.New(writeconcern.WMajority())
 	rc := readconcern.Snapshot()
 	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
@@ -391,11 +398,11 @@ func (database *DbConnection) rollbackRestockArticle(ctx context.Context, paramA
 	if err != nil {
 		return err
 	}
-	defer session.EndSession(context.Background())
+	defer session.EndSession(ctx)
 
-	callback := database.newCallbackRollbackRestockArticle(ctx, articleID, amount)
+	callback := database.newCallbackRollbackRestockArticle(articleID, amount)
 
-	_, err = session.WithTransaction(context.Background(), callback, txnOpts)
+	_, err = session.WithTransaction(ctx, callback, txnOpts)
 	if err != nil {
 		return err
 	}
@@ -404,17 +411,17 @@ func (database *DbConnection) rollbackRestockArticle(ctx context.Context, paramA
 
 }
 
-func (database *DbConnection) newCallbackRollbackRestockArticle(ctx context.Context, articleID primitive.ObjectID, amount int) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (database *DbConnection) newCallbackRollbackRestockArticle(articleID primitive.ObjectID, amount int) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// get article
 		var stockArticle = &models.Article{}
-		if err := database.stockCollection.FindOne(ctx, bson.M{"_id": articleID}).Decode(stockArticle); err != nil {
+		if err := database.stockCollection.FindOne(sessionContext, bson.M{"_id": articleID}).Decode(stockArticle); err != nil {
 			return nil, err
 		}
 		stockArticle.Amount = stockArticle.Amount - int32(amount)
 		// update article
 		result, err := database.stockCollection.ReplaceOne(
-			ctx,
+			sessionContext,
 			bson.M{"_id": stockArticle.ID},
 			stockArticle,
 		)

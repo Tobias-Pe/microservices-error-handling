@@ -51,16 +51,16 @@ func NewDbConnection(mongoAddress string, mongoPort string) *DbConnection {
 	mongoUri := "mongodb://" + mongoAddress + ":" + mongoPort
 	db.MongoClient, err = mongo.NewClient(options.Client().ApplyURI(mongoUri))
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).WithError(err).Error("Could not connect to DB")
+		logger.WithFields(loggrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
 	}
 	// connect to mongodb
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	err = db.MongoClient.Connect(ctx)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).WithError(err).Error("Could not connect to DB")
+		logger.WithFields(loggrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
 	} else {
-		logger.WithFields(loggrus.Fields{"mongoURI": mongoUri}).Info("Connection to DB successfully!")
+		logger.WithFields(loggrus.Fields{"request": mongoUri}).Info("Connection to DB successfully!")
 	}
 	// fetch the collection for all order operations
 	db.orderCollection = db.MongoClient.Database("mongo_db").Collection("order")
@@ -79,11 +79,11 @@ func (database *DbConnection) createOrder(ctx context.Context, order *models.Ord
 		return err
 	}
 	// close session on return of this method
-	defer session.EndSession(context.Background())
+	defer session.EndSession(ctx)
 	// get the callback function for the transaction
-	callback := database.newCallbackCreateOrder(ctx, *order)
+	callback := database.newCallbackCreateOrder(*order)
 	// do the transaction
-	result, err := session.WithTransaction(context.Background(), callback, txnOpts)
+	result, err := session.WithTransaction(ctx, callback, txnOpts)
 	if err != nil {
 		return err
 	}
@@ -94,10 +94,10 @@ func (database *DbConnection) createOrder(ctx context.Context, order *models.Ord
 }
 
 // newCallbackCreateOrder callback for acid transaction in createOrder
-func (database *DbConnection) newCallbackCreateOrder(ctx context.Context, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (database *DbConnection) newCallbackCreateOrder(order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// insert order into order collection
-		orderResult, err := database.orderCollection.InsertOne(ctx, order)
+		orderResult, err := database.orderCollection.InsertOne(sessionContext, order)
 		if err != nil {
 			return nil, err
 		}
@@ -106,7 +106,7 @@ func (database *DbConnection) newCallbackCreateOrder(ctx context.Context, order 
 	return callback
 }
 
-// createOrder acid compliant transaction to get an order
+// getOrder acid compliant transaction to get an order
 func (database *DbConnection) getOrder(ctx context.Context, orderId primitive.ObjectID) (*models.Order, error) {
 	// configuration for transaction
 	wc := writeconcern.New(writeconcern.WMajority())
@@ -118,11 +118,11 @@ func (database *DbConnection) getOrder(ctx context.Context, orderId primitive.Ob
 		return nil, err
 	}
 	// close session on return of this method
-	defer session.EndSession(context.Background())
+	defer session.EndSession(ctx)
 	// get the callback function for the transaction
-	callback := database.newCallbackGetOrder(ctx, orderId)
+	callback := database.newCallbackGetOrder(orderId)
 	// do the transaction
-	result, err := session.WithTransaction(context.Background(), callback, txnOpts)
+	result, err := session.WithTransaction(ctx, callback, txnOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -132,10 +132,10 @@ func (database *DbConnection) getOrder(ctx context.Context, orderId primitive.Ob
 }
 
 // newCallbackGetOrder callback for acid transaction in getOrder
-func (database *DbConnection) newCallbackGetOrder(ctx context.Context, orderId primitive.ObjectID) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (database *DbConnection) newCallbackGetOrder(orderId primitive.ObjectID) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// query collection for the orderId
-		result := database.orderCollection.FindOne(ctx, bson.M{"_id": orderId})
+		result := database.orderCollection.FindOne(sessionContext, bson.M{"_id": orderId})
 		// decode the result into an order object
 		order := models.Order{}
 		err := result.Decode(&order)
@@ -148,7 +148,7 @@ func (database *DbConnection) newCallbackGetOrder(ctx context.Context, orderId p
 	return callback
 }
 
-// createOrder acid compliant transaction to update an order
+// updateOrder acid compliant transaction to create an order
 func (database *DbConnection) updateOrder(ctx context.Context, order models.Order) error {
 	// configuration for transaction
 	wc := writeconcern.New(writeconcern.WMajority())
@@ -160,11 +160,11 @@ func (database *DbConnection) updateOrder(ctx context.Context, order models.Orde
 		return err
 	}
 	// close session on return of this method
-	defer session.EndSession(context.Background())
+	defer session.EndSession(ctx)
 	// get the callback function for the transaction
-	callback := database.newCallbackUpdateOrder(ctx, order)
+	callback := database.newCallbackUpdateOrder(order)
 	// do the transaction
-	_, err = session.WithTransaction(context.Background(), callback, txnOpts)
+	_, err = session.WithTransaction(ctx, callback, txnOpts)
 
 	if err != nil {
 		return err
@@ -173,23 +173,87 @@ func (database *DbConnection) updateOrder(ctx context.Context, order models.Orde
 }
 
 // newCallbackUpdateOrder callback for acid transaction in updateOrder
-func (database *DbConnection) newCallbackUpdateOrder(ctx context.Context, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (database *DbConnection) newCallbackUpdateOrder(order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// replace order with matching ID
 		result, err := database.orderCollection.ReplaceOne(
-			ctx,
+			sessionContext,
 			bson.M{"_id": order.ID},
 			order,
 		)
 		if err != nil {
 			return nil, err
 		}
+
 		// throw error if no order was updated
 		if result.ModifiedCount != 1 {
 			err = fmt.Errorf("modified count %v != 1 for order with id: %v", result.ModifiedCount, order.ID)
 			return nil, err
 		}
 		return result, nil
+	}
+	return callback
+}
+
+// getAndUpdateOrder acid compliant transaction to update an order. Returns the old overwritten order.
+func (database *DbConnection) getAndUpdateOrder(ctx context.Context, order models.Order) (*models.Order, error) {
+	// configuration for transaction
+	wc := writeconcern.New(writeconcern.WMajority())
+	rc := readconcern.Snapshot()
+	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
+	// open up session to mongodb
+	session, err := database.MongoClient.StartSession()
+	if err != nil {
+		return nil, err
+	}
+	// close session on return of this method
+	defer session.EndSession(ctx)
+	// get the callback function for the transaction
+	callback := database.newCallbackGetAndUpdateOrder(order)
+	// do the transaction
+	result, err := session.WithTransaction(ctx, callback, txnOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	order = result.(models.Order)
+	return &order, nil
+}
+
+// newCallbackGetAndUpdateOrder callback for acid transaction in getAndUpdateOrder
+func (database *DbConnection) newCallbackGetAndUpdateOrder(order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
+	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
+		// query collection for the orderId
+		result := database.orderCollection.FindOne(sessionContext, bson.M{"_id": order.ID})
+		// decode the result into an order object
+		oldOrder := models.Order{}
+		err := result.Decode(&oldOrder)
+		if err != nil {
+			return nil, err
+		}
+
+		if !models.IsProgressive(order.Status, oldOrder.Status) {
+			return nil, fmt.Errorf("current status: %v, New requested status: %v", oldOrder.Status, order.Status)
+		}
+
+		// replace order with matching ID
+		result2, err := database.orderCollection.ReplaceOne(
+			sessionContext,
+			bson.M{"_id": order.ID},
+			order,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// throw error if no order was updated
+		if result2.ModifiedCount != 1 {
+			err = fmt.Errorf("modified count %v != 1 for order with id: %v", result2.ModifiedCount, order.ID)
+			return nil, err
+		}
+
+		// return oldOrder for rollback
+		return oldOrder, nil
 	}
 	return callback
 }
