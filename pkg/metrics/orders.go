@@ -35,14 +35,15 @@ type OrdersMetric struct {
 }
 
 func NewOrdersMetric() *OrdersMetric {
-	orderMetric := OrdersMetric{}
-	orderMetric.ordersGaugeVec = promauto.NewGaugeVec(
+	ordersGaugeVec := promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "orders_total",
+			Name: "orders",
 			Help: "The total number of orders by status.",
 		},
 		[]string{"status"},
 	)
+
+	orderMetric := OrdersMetric{ordersGaugeVec}
 
 	_, err := orderMetric.ordersGaugeVec.GetMetricWith(prometheus.Labels{"status": models.StatusFetching().Name})
 	if err != nil {
@@ -53,6 +54,7 @@ func NewOrdersMetric() *OrdersMetric {
 	if err != nil {
 		return nil
 	}
+
 	_, err = orderMetric.ordersGaugeVec.GetMetricWith(prometheus.Labels{"status": models.StatusComplete().Name})
 	if err != nil {
 		return nil
@@ -62,6 +64,7 @@ func NewOrdersMetric() *OrdersMetric {
 	if err != nil {
 		return nil
 	}
+
 	_, err = orderMetric.ordersGaugeVec.GetMetricWith(prometheus.Labels{"status": models.StatusPaying().Name})
 	if err != nil {
 		return nil

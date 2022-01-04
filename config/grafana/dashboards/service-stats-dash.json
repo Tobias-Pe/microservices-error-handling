@@ -372,7 +372,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum (orders_total{}) by (status)",
+          "expr": "sum (orders{}) by (status)",
           "interval": "",
           "legendFormat": "{{status}}",
           "refId": "A"
@@ -425,7 +425,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum (orders_total{})",
+          "expr": "sum (orders{})",
           "interval": "",
           "legendFormat": "{{status}}",
           "refId": "A"
