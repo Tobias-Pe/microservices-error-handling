@@ -146,6 +146,7 @@ func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[str
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		var articles []models.Article
 
+		// get all articles
 		for articleID, amount := range articleQuantityMap {
 			// get article
 			var stockArticle = &models.Article{}
@@ -178,9 +179,16 @@ func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[str
 				return nil, err
 			}
 		}
+
 		// make reservation
-		_, err := database.reservationCollection.InsertOne(sessionContext, order)
+		result, err := database.reservationCollection.InsertOne(sessionContext, order)
 		if err != nil {
+			return nil, err
+		}
+		if result.InsertedID == nil {
+			msg := fmt.Sprintf("insert not worked for order: %v", order)
+			err = errors.Wrap(customerrors.ErrNoModification, msg)
+			logger.WithFields(loggrus.Fields{"request": order}).WithError(err).Error("Could not insert order into reservations")
 			return nil, err
 		}
 
