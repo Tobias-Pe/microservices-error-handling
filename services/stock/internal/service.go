@@ -227,6 +227,7 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 	// calculate the price
 	price := 0.0
 	for _, article := range *reservedArticles {
+		service.stockMetric.UpdateArticle(article)
 		// price of the reserved article times the ordered quantity
 		price += article.Price * float64(articleQuantityMap[article.ID.Hex()])
 		// check the article
@@ -338,13 +339,14 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 
 		// rollback transaction. because of the missing ack the current request will be resent
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		rollbackErr := service.Database.rollbackReserveOrder(ctx, *order)
+		articles, rollbackErr := service.Database.rollbackReserveOrder(ctx, *order)
 		cancel()
 		if rollbackErr != nil {
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
 			service.stockMetric.DecrementReservation()
+			service.stockMetric.UpdateArticles(*articles)
 			logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
 		}
 	}
@@ -393,7 +395,7 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 	// retry deleting aborted order from reservations
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	// aborting reservation == rollback reservation
-	err = service.Database.rollbackReserveOrder(ctx, *order)
+	articles, err := service.Database.rollbackReserveOrder(ctx, *order)
 	cancel()
 
 	if err != nil {
@@ -410,6 +412,7 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 	}
 	logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation undone.")
 	service.stockMetric.DecrementReservation()
+	service.stockMetric.UpdateArticles(*articles)
 
 	err = message.Ack(false)
 	if err != nil { // ack could not be sent but database transaction was successfully
@@ -533,7 +536,7 @@ func (service *Service) handleSupply(supply *requests.StockSupplyMessage, messag
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
 
-	err = service.Database.restockArticle(ctx, supply.ArticleID, supply.Amount)
+	article, err := service.Database.restockArticle(ctx, supply.ArticleID, supply.Amount)
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"request": *supply}).WithError(err).Warn("Could not restock supply.")
 
@@ -546,6 +549,8 @@ func (service *Service) handleSupply(supply *requests.StockSupplyMessage, messag
 
 		return err
 	}
+	logger.WithFields(loggrus.Fields{"request": *supply}).Info("Supply restocked.")
+	service.stockMetric.UpdateArticle(*article)
 
 	err = message.Ack(false)
 	if err != nil {

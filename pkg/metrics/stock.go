@@ -25,12 +25,14 @@
 package metrics
 
 import (
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 type StockMetric struct {
 	reservationsGauge prometheus.Gauge
+	articlesGaugeVec  *prometheus.GaugeVec
 }
 
 func NewStockMetric() *StockMetric {
@@ -41,17 +43,46 @@ func NewStockMetric() *StockMetric {
 		},
 	)
 
+	articlesGaugeVec := promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "articles",
+			Help: "The total number of articles by id, name and category.",
+		},
+		[]string{"id", "name", "category"},
+	)
+
 	orderMetric := StockMetric{
 		reservationsGauge: reservationsGauge,
+		articlesGaugeVec:  articlesGaugeVec,
 	}
 
 	return &orderMetric
 }
 
-func (requestsMetric *StockMetric) IncrementReservation() {
-	requestsMetric.reservationsGauge.Inc()
+func (stockMetric *StockMetric) IncrementReservation() {
+	stockMetric.reservationsGauge.Inc()
 }
 
-func (requestsMetric *StockMetric) DecrementReservation() {
-	requestsMetric.reservationsGauge.Dec()
+func (stockMetric *StockMetric) DecrementReservation() {
+	stockMetric.reservationsGauge.Dec()
+}
+
+func (stockMetric *StockMetric) UpdateArticle(article models.Article) {
+	gauge, err := stockMetric.articlesGaugeVec.GetMetricWith(prometheus.Labels{"id": article.ID.Hex(), "name": article.Name, "category": article.Category})
+	if err == nil {
+		gauge.Set(float64(article.Amount))
+	} else {
+		logger.WithError(err).Warn("Could not update")
+	}
+}
+
+func (stockMetric *StockMetric) UpdateArticles(articles []models.Article) {
+	for _, article := range articles {
+		gauge, err := stockMetric.articlesGaugeVec.GetMetricWith(prometheus.Labels{"id": article.ID.Hex(), "name": article.Name, "category": article.Category})
+		if err == nil {
+			gauge.Set(float64(article.Amount))
+		} else {
+			logger.WithError(err).Warn("Could not update")
+		}
+	}
 }

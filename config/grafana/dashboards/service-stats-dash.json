@@ -292,7 +292,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
+        "h": 18,
         "w": 12,
         "x": 0,
         "y": 18
@@ -494,6 +494,60 @@
           "color": {
             "mode": "palette-classic"
           },
+          "displayName": "${__series.name}",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 27
+      },
+      "id": 30,
+      "options": {
+        "displayMode": "lcd",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "text": {}
+      },
+      "pluginVersion": "8.2.6",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "avg (articles{}) by (id,name,category)",
+          "interval": "",
+          "legendFormat": "{{name}} - {{category}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Articles over Instances",
+      "type": "bargauge"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -511,7 +565,7 @@
         "h": 11,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 36
       },
       "id": 24,
       "options": {
@@ -569,7 +623,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 47
       },
       "id": 18,
       "options": {
@@ -654,7 +708,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 48
+        "y": 57
       },
       "id": 5,
       "interval": "10s",
@@ -741,7 +795,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 48
+        "y": 57
       },
       "id": 8,
       "options": {
@@ -824,7 +878,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 58
+        "y": 67
       },
       "id": 11,
       "options": {
@@ -906,7 +960,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 58
+        "y": 67
       },
       "id": 15,
       "options": {
@@ -988,7 +1042,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 68
+        "y": 77
       },
       "id": 9,
       "options": {
@@ -1070,7 +1124,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 68
+        "y": 77
       },
       "id": 10,
       "options": {
@@ -1152,7 +1206,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 78
+        "y": 87
       },
       "id": 14,
       "options": {
@@ -1234,7 +1288,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 78
+        "y": 87
       },
       "id": 12,
       "options": {
@@ -1316,7 +1370,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 88
+        "y": 97
       },
       "id": 13,
       "options": {
@@ -1367,7 +1421,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 88
+        "y": 97
       },
       "id": 21,
       "options": {
@@ -1425,7 +1479,7 @@
         "h": 13,
         "w": 24,
         "x": 0,
-        "y": 98
+        "y": 107
       },
       "id": 27,
       "options": {

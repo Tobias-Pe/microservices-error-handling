@@ -203,7 +203,7 @@ func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[str
 	return callback
 }
 
-func (database *DbConnection) rollbackReserveOrder(ctx context.Context, order models.Order) error {
+func (database *DbConnection) rollbackReserveOrder(ctx context.Context, order models.Order) (*[]models.Article, error) {
 	articleQuantityMap := map[string]int{}
 	for _, id := range order.Articles {
 		_, exists := articleQuantityMap[id]
@@ -220,18 +220,19 @@ func (database *DbConnection) rollbackReserveOrder(ctx context.Context, order mo
 	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
 	session, err := database.MongoClient.StartSession()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer session.EndSession(ctx)
 
 	callback := database.newCallbackRollbackReserveOrder(articleQuantityMap, order)
 
-	_, err = session.WithTransaction(ctx, callback, txnOpts)
+	result, err := session.WithTransaction(ctx, callback, txnOpts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	articles := result.([]models.Article)
+	return &articles, nil
 }
 
 func (database *DbConnection) newCallbackRollbackReserveOrder(articleQuantityMap map[string]int, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
@@ -245,6 +246,8 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(articleQuantityMap
 		if deleted.DeletedCount != 1 {
 			return nil, customerrors.ErrNoReservation
 		}
+
+		var articles []models.Article
 
 		for articleID, amount := range articleQuantityMap {
 			// get article
@@ -275,9 +278,10 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(articleQuantityMap
 				logger.WithFields(loggrus.Fields{"request": order}).WithError(err).Error("Could not update article")
 				return nil, err
 			}
+			articles = append(articles, *stockArticle)
 		}
 
-		return nil, nil
+		return articles, nil
 	}
 	return callback
 }
@@ -360,10 +364,10 @@ func (database *DbConnection) newCallbackRollbackDeleteReservation(order *models
 	return callback
 }
 
-func (database *DbConnection) restockArticle(ctx context.Context, paramArticleID string, amount int) error {
+func (database *DbConnection) restockArticle(ctx context.Context, paramArticleID string, amount int) (*models.Article, error) {
 	articleID, err := primitive.ObjectIDFromHex(paramArticleID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// configuration for transaction
 	wc := writeconcern.New(writeconcern.WMajority())
@@ -371,19 +375,19 @@ func (database *DbConnection) restockArticle(ctx context.Context, paramArticleID
 	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
 	session, err := database.MongoClient.StartSession()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer session.EndSession(ctx)
 
 	callback := database.newCallbackRestockArticle(articleID, amount)
 
-	_, err = session.WithTransaction(ctx, callback, txnOpts)
+	result, err := session.WithTransaction(ctx, callback, txnOpts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
-
+	article := result.(models.Article)
+	return &article, nil
 }
 
 func (database *DbConnection) newCallbackRestockArticle(articleID primitive.ObjectID, amount int) func(sessionContext mongo.SessionContext) (interface{}, error) {
@@ -409,7 +413,7 @@ func (database *DbConnection) newCallbackRestockArticle(articleID primitive.Obje
 			logger.WithFields(loggrus.Fields{"request": stockArticle}).WithError(err).Error("Could not update article")
 			return nil, err
 		}
-		return nil, nil
+		return *stockArticle, nil
 	}
 	return callback
 }
