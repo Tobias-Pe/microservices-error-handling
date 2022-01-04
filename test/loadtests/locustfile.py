@@ -25,9 +25,12 @@ class OnlyLookingUser(HttpUser):
     @task(10)
     def exchange(self):
         self.client.request_name = "/exchange/${currency}"
-        with self.client.get("/exchange/" + random.choice(self.exchangeLands), catch_response=True) as response:
-            if not response.ok:
-                response.failure(response.text)
+        try:
+            with self.client.get("/exchange/" + random.choice(self.exchangeLands), catch_response=True) as response:
+                if not response.ok:
+                    response.failure(response.text)
+        except Exception as e:
+            response.failure(e)
         self.client.request_name = None
 
 
@@ -56,6 +59,8 @@ class CartUser(HttpUser):
                     response.failure("Response could not be decoded as JSON")
                 except KeyError:
                     response.failure("Response did not contain expected key 'id'")
+                except Exception as e:
+                    response.failure(e)
             else:
                 response.failure(response.text)
         self.client.request_name = None
@@ -70,6 +75,8 @@ class CartUser(HttpUser):
                     response.failure("Response could not be decoded as JSON")
                 except KeyError:
                     response.failure("Response did not contain expected key 'cartId'")
+                except Exception as e:
+                    response.failure(e)
             else:
                 response.failure(response.text)
         self.client.request_name = None
@@ -84,7 +91,7 @@ class CartUser(HttpUser):
 
 
 class OrderUser(HttpUser):
-    weight = 5
+    weight = 6
     current_order_id = ""
     cart_id = -1
     to_be_bought = ""
@@ -124,6 +131,8 @@ class OrderUser(HttpUser):
                     response.failure("Response could not be decoded as JSON")
                 except KeyError:
                     response.failure("Response did not contain expected key 'orderId'")
+                except Exception as e:
+                    response.failure(e)
             else:
                 response.failure(response.text)
         self.cart_id = -1
@@ -141,6 +150,8 @@ class OrderUser(HttpUser):
                     response.failure("Response could not be decoded as JSON")
                 except KeyError:
                     response.failure("Response did not contain expected key 'status'")
+                except Exception as e:
+                    response.failure(e)
             else:
                 response.failure(response.text)
                 self.current_order_id = ""
@@ -156,6 +167,8 @@ class OrderUser(HttpUser):
                     response.failure("Response could not be decoded as JSON")
                 except KeyError:
                     response.failure("Response did not contain expected key 'id'")
+                except Exception as e:
+                    response.failure(e)
             else:
                 response.failure(response.text)
         self.client.request_name = None
@@ -170,6 +183,8 @@ class OrderUser(HttpUser):
                     response.failure("Response could not be decoded as JSON")
                 except KeyError:
                     response.failure("Response did not contain expected key 'cartId'")
+                except Exception as e:
+                    response.failure(e)
             else:
                 response.failure(response.text)
         self.client.request_name = None
