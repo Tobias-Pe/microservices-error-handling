@@ -27,9 +27,11 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
+	customerrors "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
@@ -295,6 +297,10 @@ func (service *Service) ListenReservationOrders() {
 func (service *Service) handleReservationOrder(order *models.Order, message amqp.Delivery) error {
 	price, err := service.reserveArticlesAndCalcPrice(order)
 	if err != nil { // could not reserve order --> abort order because wrong information
+		if !errors.Is(err, customerrors.ErrNoModification) && !errors.Is(err, customerrors.ErrLowStock) { // it must be a transaction error
+			// return unacknowledged for retry
+			return err
+		}
 		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Aborting order...")
 		status := models.StatusAborted(StockAbortMessage)
 		order.Status = status.Name
@@ -368,31 +374,27 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 
 	// Don't listen for own abortion or abortions from cart service --> there will be no reservation
 	if order.Message == StockAbortMessage || order.Message == models.CartAbortMessage {
-		err = message.Ack(false)
-		return err
+		_ = message.Ack(false)
+		return nil
 	}
 
 	// retry deleting aborted order from reservations
-	for i := 4; i < 6; i++ {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		// aborting reservation == rollback reservation
-		err = service.Database.rollbackReserveOrder(ctx, *order)
-		cancel()
-		if err == nil {
-			logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation undone.")
-			break
-		}
-		logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(err).Info("Could not delete reservation. Retrying...")
-		time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	// aborting reservation == rollback reservation
+	err = service.Database.rollbackReserveOrder(ctx, *order)
+	cancel()
+
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not delete reservation.")
 
-		// there is no rollback needed so ignore the ack error
-		_ = message.Ack(false)
+		if /*errors.Is(err, customerrors.ErrNoReservation) ||*/ errors.Is(err, primitive.ErrInvalidHex) || errors.Is(err, customerrors.ErrNoModification) {
+			// there is no rollback needed so ignore the ack error
+			_ = message.Ack(false)
+		}
 
 		return err
 	}
+	logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation undone.")
 
 	err = message.Ack(false)
 	if err != nil { // ack could not be sent but database transaction was successfully
@@ -444,24 +446,17 @@ func (service *Service) ListenCompletedOrders() {
 func (service *Service) handleCompletedOrder(order *models.Order, message amqp.Delivery) error {
 	var err error
 
-	// retry deleting completed order from reservations
-	for i := 4; i < 7; i++ {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		// remove the reservation
-		err = service.Database.deleteReservation(ctx, order.ID)
-		cancel()
-		if err == nil {
-			logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation deleted.")
-			break
-		}
-		logger.WithFields(loggrus.Fields{"retry": i - 3, "request": *order}).WithError(err).Info("Could not delete reservation. Retrying...")
-		time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Millisecond)
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	// remove the reservation
+	err = service.Database.deleteReservation(ctx, order.ID)
+	cancel()
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not delete reservation.")
 
-		// there is no rollback needed so ignore the ack error
-		_ = message.Ack(false)
+		//if errors.Is(err, customerrors.ErrNoReservation) {
+		//	// there is no rollback needed so ignore the ack error
+		//	_ = message.Ack(false)
+		//}
 
 		return err
 	}
@@ -522,8 +517,10 @@ func (service *Service) handleSupply(supply *requests.StockSupplyMessage, messag
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"request": *supply}).WithError(err).Warn("Could not restock supply.")
 
-		// there is no rollback needed so ignore the ack error
-		_ = message.Ack(false)
+		if errors.Is(err, customerrors.ErrNoModification) {
+			// there is no rollback needed so ignore the ack error
+			_ = message.Ack(false)
+		}
 
 		return err
 	}
