@@ -1,0 +1,24 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="up locust" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
+    <deployment type="docker-compose.yml">
+      <settings>
+        <option name="envFilePath" value="" />
+        <option name="removeVolumesOnComposeDown" value="true" />
+        <option name="commandLineOptions" value="--build" />
+        <option name="services">
+          <list>
+            <option value="locust-master" />
+            <option value="locust-worker" />
+          </list>
+        </option>
+        <option name="sourceFilePath" value="docker-compose.yml" />
+        <option name="upRemoveOrphans" value="true" />
+        <option name="upRenewAnonVolumes" value="true" />
+        <upScaledServices>
+          <entry key="locust-worker" value="5" />
+        </upScaledServices>
+      </settings>
+    </deployment>
+    <method v="2" />
+  </configuration>
+</component>
