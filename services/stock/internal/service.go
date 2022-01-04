@@ -398,6 +398,8 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 		if /*errors.Is(err, customerrors.ErrNoReservation) ||*/ errors.Is(err, primitive.ErrInvalidHex) || errors.Is(err, customerrors.ErrNoModification) {
 			// there is no rollback needed so ignore the ack error
 			_ = message.Ack(false)
+		} else {
+			_ = message.Reject(true) // nack and requeue message
 		}
 
 		return err
@@ -533,6 +535,8 @@ func (service *Service) handleSupply(supply *requests.StockSupplyMessage, messag
 		if errors.Is(err, customerrors.ErrNoModification) {
 			// there is no rollback needed so ignore the ack error
 			_ = message.Ack(false)
+		} else {
+			_ = message.Reject(true) // nack and requeue message
 		}
 
 		return err

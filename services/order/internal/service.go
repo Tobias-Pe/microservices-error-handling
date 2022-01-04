@@ -225,6 +225,8 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 		if errors.Is(err, mongo.ErrNoDocuments) || errors.Is(err, customerrors.ErrStatusProgressionConflict) { // order should not be updated or there was no such order
 			// ack message & ignore error because rollback is not needed
 			_ = message.Ack(false)
+		} else {
+			_ = message.Reject(true) // nack and requeue message
 		}
 
 		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not update order.")
