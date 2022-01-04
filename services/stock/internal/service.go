@@ -190,7 +190,7 @@ func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArtic
 		})
 	}
 
-	logger.WithFields(loggrus.Fields{"response": articles}).Info("Get articles handled")
+	logger.WithFields(loggrus.Fields{"response": *articles}).Info("Get articles handled")
 
 	return &proto.ResponseArticles{Articles: protoArticles}, nil
 }
@@ -258,7 +258,7 @@ func (service *Service) orderArticles(id primitive.ObjectID, amount int) error {
 		return err
 	}
 
-	logger.WithFields(loggrus.Fields{"request": id.Hex(), "response": amount}).Infof("Published Supply Request")
+	logger.WithFields(loggrus.Fields{"request": id.Hex(), "response": fmt.Sprintln(amount)}).Infof("Published Supply Request")
 
 	return nil
 }

@@ -217,34 +217,11 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
 
-	// fetch current order for case of rollback
-	oldOrder, err := service.Database.getOrder(ctx, order.ID)
+	// update order if its status is progressive. also, save old order for case of rollback
+	oldOrder, err := service.Database.getAndUpdateOrder(ctx, *order)
 	if err != nil {
-		// order doesn't exist
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("This order does not exist.")
-
-		// ack message & ignore error because rollback is not needed
-		_ = message.Ack(false)
-
-		return err
-	}
-
-	// check for progressive status
-	if !models.IsProgressive(order.Status, oldOrder.Status) {
-		err = fmt.Errorf("the new order is not progressive")
-		// order doesn't exist
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("This order is not progressive.")
-
-		// ack message & ignore error because rollback is not needed
-		_ = message.Ack(false)
-
-		return err
-	}
-
-	// update order
-	err = service.Database.updateOrder(ctx, *order)
-	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not update the order.")
+		// order should or could not be updated
+		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not update order.")
 
 		// ack message & ignore error because rollback is not needed
 		_ = message.Ack(false)
@@ -266,7 +243,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
-			logger.WithFields(loggrus.Fields{"response": oldOrder}).Info("Rolled transaction back.")
+			logger.WithFields(loggrus.Fields{"response": *oldOrder}).Info("Rolled transaction back.")
 		}
 		return err
 	}

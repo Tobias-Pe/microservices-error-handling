@@ -71,7 +71,7 @@ func (service *Service) GetExchangeRate(_ context.Context, req *proto.RequestExc
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"request": req.CustomerCurrency}).WithError(err).Warn("requested currency not supported")
 	} else {
-		logger.WithFields(loggrus.Fields{"request": req.CustomerCurrency, "response": exchangeRate}).Info("exchange rate served")
+		logger.WithFields(loggrus.Fields{"request": req.CustomerCurrency, "response": fmt.Sprintf("%f", exchangeRate)}).Info("exchange rate served")
 	}
 	service.RequestsMetric.Increment(err, "GetExchangeRate")
 	return &proto.ReplyExchangeRate{ExchangeRate: exchangeRate}, err

@@ -63,14 +63,29 @@ func (h *PrometheusHook) Fire(e *logrus.Entry) error {
 	return nil
 }
 
-type serviceLogger struct {
+type InfluxHook struct {
 	serviceName string
-	formatter   logrus.Formatter
+	influxHook  *logrus_influxdb.InfluxDBHook
 }
 
-func (l serviceLogger) Format(entry *logrus.Entry) ([]byte, error) {
-	entry.Data["service"] = l.serviceName
-	return l.formatter.Format(entry)
+func NewInfluxHook(serviceName string, config *logrus_influxdb.Config) *InfluxHook {
+	hook, err := logrus_influxdb.NewInfluxDB(config)
+	if err != nil {
+		return nil
+	}
+	return &InfluxHook{
+		serviceName: serviceName,
+		influxHook:  hook,
+	}
+}
+
+func (h *InfluxHook) Levels() []logrus.Level {
+	return h.influxHook.Levels()
+}
+
+func (h *InfluxHook) Fire(e *logrus.Entry) error {
+	e.Data["service"] = h.serviceName
+	return h.influxHook.Fire(e)
 }
 
 // logger is a singleton
@@ -94,20 +109,6 @@ func InitLogger() *logrus.Logger {
 			QuoteEmptyFields: true,
 		})
 
-		// logger logs constantly service name field
-		viper.AutomaticEnv()
-		err := viper.ReadInConfig()
-		if err != nil {
-			logger.WithError(err).Error("could not read in envs")
-		}
-		serviceName := viper.GetString("SERVICE_NAME")
-
-		// change formatter to always add service_name field
-		logger.SetFormatter(serviceLogger{
-			serviceName: serviceName,
-			formatter:   logger.Formatter,
-		})
-
 		logger.AddHook(NewPrometheusHook())
 
 		config := &logrus_influxdb.Config{
@@ -122,10 +123,14 @@ func InitLogger() *logrus.Logger {
 			BatchCount:    10, // set to "0" to disable batching
 		}
 
+		// influx hook should log constantly service name field
+		viper.AutomaticEnv()
+		serviceName := viper.GetString("SERVICE_NAME")
+
 		go func() {
 			for {
-				hook, err := logrus_influxdb.NewInfluxDB(config)
-				if err == nil {
+				hook := NewInfluxHook(serviceName, config)
+				if hook != nil {
 					logger.Hooks.Add(hook)
 					break
 				} else {
