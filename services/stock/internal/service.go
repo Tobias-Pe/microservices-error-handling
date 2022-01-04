@@ -304,6 +304,13 @@ func (service *Service) ListenReservationOrders() {
 func (service *Service) handleReservationOrder(order *models.Order, message amqp.Delivery) error {
 	price, err := service.reserveArticlesAndCalcPrice(order)
 	if err != nil { // could not reserve order --> abort order because wrong information
+
+		if errors.Is(err, customerrors.ErrAlreadyPresent) {
+			logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Errorf("Order already reserved.")
+			_ = message.Reject(false) // nack and requeue message
+			return err
+		}
+
 		if !errors.Is(err, primitive.ErrInvalidHex) && !errors.Is(err, customerrors.ErrNoModification) && !errors.Is(err, customerrors.ErrLowStock) { // it must be a transaction error
 			logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Retrying...")
 			_ = message.Reject(true) // nack and requeue message
@@ -480,7 +487,7 @@ func (service *Service) handleCompletedOrder(order *models.Order, message amqp.D
 
 		// rollback transaction. because of the missing ack the current request will be resent
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		rollbackErr := service.Database.rollbackDeleteReservation(ctx, order.ID)
+		rollbackErr := service.Database.rollbackDeleteReservation(ctx, order)
 		cancel()
 		if err != nil {
 			logger.WithError(rollbackErr).Error("Could not rollback.")

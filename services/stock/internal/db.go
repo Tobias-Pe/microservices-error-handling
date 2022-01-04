@@ -144,6 +144,12 @@ func (database *DbConnection) reserveOrder(ctx context.Context, articleQuantityM
 
 func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[string]int, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
+		// check if already exists
+		result := database.reservationCollection.FindOne(sessionContext, bson.M{"_id": order.ID})
+		if result.Err() == nil { // found a match --> bad
+			return nil, customerrors.ErrAlreadyPresent
+		}
+
 		var articles []models.Article
 
 		// get all articles
@@ -181,11 +187,11 @@ func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[str
 		}
 
 		// make reservation
-		result, err := database.reservationCollection.InsertOne(sessionContext, order)
+		result2, err := database.reservationCollection.InsertOne(sessionContext, order)
 		if err != nil {
 			return nil, err
 		}
-		if result.InsertedID == nil {
+		if result2.InsertedID == nil {
 			msg := fmt.Sprintf("insert not worked for order: %v", order)
 			err = errors.Wrap(customerrors.ErrNoModification, msg)
 			logger.WithFields(loggrus.Fields{"request": order}).WithError(err).Error("Could not insert order into reservations")
@@ -314,7 +320,7 @@ func (database *DbConnection) newCallbackDeleteReservation(orderID primitive.Obj
 	return callback
 }
 
-func (database *DbConnection) rollbackDeleteReservation(ctx context.Context, orderID primitive.ObjectID) error {
+func (database *DbConnection) rollbackDeleteReservation(ctx context.Context, order *models.Order) error {
 	// configuration for transaction
 	wc := writeconcern.New(writeconcern.WMajority())
 	rc := readconcern.Snapshot()
@@ -325,7 +331,7 @@ func (database *DbConnection) rollbackDeleteReservation(ctx context.Context, ord
 	}
 	defer session.EndSession(ctx)
 
-	callback := database.newCallbackRollbackDeleteReservation(orderID)
+	callback := database.newCallbackRollbackDeleteReservation(order)
 
 	_, err = session.WithTransaction(ctx, callback, txnOpts)
 	if err != nil {
@@ -336,10 +342,16 @@ func (database *DbConnection) rollbackDeleteReservation(ctx context.Context, ord
 
 }
 
-func (database *DbConnection) newCallbackRollbackDeleteReservation(orderID primitive.ObjectID) func(sessionContext mongo.SessionContext) (interface{}, error) {
+func (database *DbConnection) newCallbackRollbackDeleteReservation(order *models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
-		// undo reservation
-		_, err := database.reservationCollection.InsertOne(sessionContext, bson.M{"_id": orderID})
+		// check if already exists
+		result := database.reservationCollection.FindOne(sessionContext, bson.M{"_id": order.ID})
+		if result.Err() == nil { // found a match --> bad
+			return nil, customerrors.ErrAlreadyPresent
+		}
+
+		// redo reservation
+		_, err := database.reservationCollection.InsertOne(sessionContext, order)
 		if err != nil {
 			return nil, err
 		}
