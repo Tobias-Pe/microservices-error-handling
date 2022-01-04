@@ -218,8 +218,8 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 	}
 	// reserve articles
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-	defer cancel()
 	reservedArticles, err := service.Database.reserveOrder(ctx, articleQuantityMap, *order)
+	cancel()
 	if err != nil {
 		return nil, err
 	}
@@ -343,8 +343,8 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 
 		// rollback transaction. because of the missing ack the current request will be resent
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		defer cancel()
 		rollbackErr := service.Database.rollbackReserveOrder(ctx, *order)
+		cancel()
 		if rollbackErr != nil {
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
@@ -404,7 +404,7 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not delete reservation.")
 
-		if /*errors.Is(err, customerrors.ErrNoReservation) ||*/ errors.Is(err, primitive.ErrInvalidHex) || errors.Is(err, customerrors.ErrNoModification) {
+		if errors.Is(err, customerrors.ErrNoReservation) || errors.Is(err, primitive.ErrInvalidHex) || errors.Is(err, customerrors.ErrNoModification) {
 			// there is no rollback needed so ignore the ack error
 			_ = message.Ack(false)
 		} else {
@@ -474,7 +474,11 @@ func (service *Service) handleCompletedOrder(order *models.Order, message amqp.D
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not delete reservation.")
 
-		_ = message.Reject(true) // nack and requeue message
+		if errors.Is(err, customerrors.ErrNoReservation) {
+			_ = message.Ack(false) // nack and requeue message
+		} else {
+			_ = message.Reject(true) // nack and requeue message
+		}
 
 		return err
 	}
