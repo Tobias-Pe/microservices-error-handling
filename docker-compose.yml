@@ -89,6 +89,13 @@ services:
     image: mongo:4.4
     ports:
       - "27017:27017"
+    environment:
+      - MONGO_REPLICA_SET_NAME=stockDB0
+    healthcheck:
+      test: test $$(echo "rs.initiate().ok || rs.status().ok" | mongo --quiet) -eq 1
+      interval: 10s
+      start_period: 30s
+    command: [ "--replSet", "stockDB0", "--bind_ip_all" ]
 
   mongo_seed:
     image: ghcr.io/tobias-pe/mongo-seed:latest
@@ -159,6 +166,13 @@ services:
     image: mongo:4.4
     ports:
       - "27018:27017"
+    environment:
+      - MONGO_REPLICA_SET_NAME=orderDB0
+    healthcheck:
+      test: test $$(echo "rs.initiate().ok || rs.status().ok" | mongo --quiet) -eq 1
+      interval: 10s
+      start_period: 30s
+    command: [ "--replSet", "orderDB0", "--bind_ip_all" ]
 
   # ------------------------------------------- PAYMENT ----------------------------------------------------------------
 
