@@ -1334,7 +1334,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (job,method,url,error,code) (requests_total{error!=\"\"} or gin_requests_total{code!~\"^(2).+\",code!=\"404\",url!=\"/favicon.ico\"})",
+          "expr": "sum by (job,method,url,error,code) (requests_total{error!=\"\"})",
           "interval": "",
           "legendFormat": "{{job}}-{{method}}{{url}}-{{error}}{{code}}",
           "refId": "A"
@@ -1388,7 +1388,12 @@
         }
       ],
       "title": "Logs - All",
-      "transformations": [],
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {}
+        }
+      ],
       "type": "table"
     }
   ],
@@ -1400,12 +1405,12 @@
     "list": []
   },
   "time": {
-    "from": "now-2m",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Service Stats",
   "uid": "GY4_Bn0nz",
-  "version": 1
+  "version": 2
 }
