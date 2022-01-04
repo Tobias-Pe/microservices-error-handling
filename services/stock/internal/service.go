@@ -303,14 +303,9 @@ func (service *Service) ListenReservationOrders() {
 
 func (service *Service) handleReservationOrder(order *models.Order, message amqp.Delivery) error {
 	price, err := service.reserveArticlesAndCalcPrice(order)
-	if err != nil { // could not reserve order --> abort order because wrong information
-
-		if errors.Is(err, customerrors.ErrAlreadyPresent) {
-			logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Errorf("Order already reserved.")
-			_ = message.Reject(false) // nack and requeue message
-			return err
-		}
-
+	// could not reserve order --> abort order because wrong information
+	// if reservation already present --> also publish order update
+	if err != nil && !errors.Is(err, customerrors.ErrAlreadyPresent) {
 		if !errors.Is(err, primitive.ErrInvalidHex) && !errors.Is(err, customerrors.ErrNoModification) && !errors.Is(err, customerrors.ErrLowStock) { // it must be a transaction error
 			logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Retrying...")
 			_ = message.Reject(true) // nack and requeue message
