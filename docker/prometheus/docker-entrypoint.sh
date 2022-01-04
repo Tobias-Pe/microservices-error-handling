@@ -1,17 +1,16 @@
 #!/bin/sh -e
 
-cat /etc/prometheus/prometheus.yml > /tmp/prometheus.yml
+cat /etc/prometheus/prometheus.yml >/tmp/prometheus.yml
 
 if [ ${JOBS+x} ]; then
 
-for job in $JOBS
-do
-echo "adding job $job"
+  for job in $JOBS; do
+    echo "adding job $job"
 
-SERVICE=$(echo "$job" | cut -d":" -f1)
-PORT=$(echo "$job" | cut -d":" -f2)
+    SERVICE=$(echo "$job" | cut -d":" -f1)
+    PORT=$(echo "$job" | cut -d":" -f2)
 
-cat >>/tmp/prometheus.yml <<EOF
+    cat >>/tmp/prometheus.yml <<EOF
 
 
   - job_name: '${SERVICE}'
@@ -22,7 +21,7 @@ cat >>/tmp/prometheus.yml <<EOF
       port: ${PORT}
 EOF
 
-done
+  done
 
 fi
 
