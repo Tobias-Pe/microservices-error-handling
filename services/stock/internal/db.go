@@ -27,7 +27,9 @@ package internal
 import (
 	"context"
 	"fmt"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
+	"github.com/pkg/errors"
 	loggrus "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -90,9 +92,10 @@ func (database *DbConnection) getArticles(ctx context.Context, category string) 
 
 func (database *DbConnection) newCallbackGetArticles(category string) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
+		var err error
+
 		var articles []models.Article
 		var cursor *mongo.Cursor
-		var err error
 		if len(strings.TrimSpace(category)) == 0 {
 			cursor, err = database.stockCollection.Find(sessionContext, bson.M{})
 		} else {
@@ -101,15 +104,18 @@ func (database *DbConnection) newCallbackGetArticles(category string) func(sessi
 		if err != nil {
 			return nil, err
 		}
+
 		defer func(cursor *mongo.Cursor, ctx context.Context) {
 			err := cursor.Close(ctx)
 			if err != nil {
 				logger.WithError(err).Warn("cursor could not be closed!")
 			}
 		}(cursor, sessionContext)
+
 		if err = cursor.All(sessionContext, &articles); err != nil {
 			return nil, err
 		}
+
 		return articles, nil
 	}
 	return callback
@@ -152,7 +158,7 @@ func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[str
 			}
 			var updatedAmount = stockArticle.Amount - int32(amount)
 			if updatedAmount < 0 {
-				return nil, fmt.Errorf("could not reserve article: %v, %v times. there is not enough on stock", stockArticle, amount)
+				return nil, errors.Wrap(customerrors.ErrLowStock, fmt.Sprintf("article: %v, amount: %v", articleID, amount))
 			}
 			stockArticle.Amount = updatedAmount
 			articles = append(articles, *stockArticle)
@@ -166,7 +172,8 @@ func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[str
 				return nil, err
 			}
 			if result.ModifiedCount != 1 {
-				err = fmt.Errorf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
+				msg := fmt.Sprintf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
+				err = errors.Wrap(customerrors.ErrNoModification, msg)
 				logger.WithFields(loggrus.Fields{"request": order}).WithError(err).Error("Could not update article")
 				return nil, err
 			}
@@ -220,8 +227,9 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(articleQuantityMap
 		if err != nil {
 			return nil, err
 		}
+
 		if deleted.DeletedCount != 1 {
-			return nil, fmt.Errorf("there is no reservation for this order")
+			return nil, customerrors.ErrNoReservation
 		}
 
 		for articleID, amount := range articleQuantityMap {
@@ -231,13 +239,12 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(articleQuantityMap
 			if err != nil {
 				return nil, err
 			}
+
 			if err := database.stockCollection.FindOne(sessionContext, bson.M{"_id": hex}).Decode(stockArticle); err != nil {
 				return nil, err
 			}
+
 			var updatedAmount = stockArticle.Amount + int32(amount)
-			if updatedAmount < 0 {
-				return nil, fmt.Errorf("could not reserve article: %v, %v times. there is not enough on stock", stockArticle, amount)
-			}
 			stockArticle.Amount = updatedAmount
 			// update article
 			result, err := database.stockCollection.ReplaceOne(
@@ -249,7 +256,8 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(articleQuantityMap
 				return nil, err
 			}
 			if result.ModifiedCount != 1 {
-				err = fmt.Errorf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
+				msg := fmt.Sprintf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
+				err = errors.Wrap(customerrors.ErrNoModification, msg)
 				logger.WithFields(loggrus.Fields{"request": order}).WithError(err).Error("Could not update article")
 				return nil, err
 			}
@@ -291,7 +299,7 @@ func (database *DbConnection) newCallbackDeleteReservation(orderID primitive.Obj
 		}
 
 		if deleted.DeletedCount != 1 {
-			return nil, fmt.Errorf("there is no reservation for this order")
+			return nil, customerrors.ErrNoReservation
 		}
 		return nil, nil
 	}
@@ -376,7 +384,8 @@ func (database *DbConnection) newCallbackRestockArticle(articleID primitive.Obje
 			return nil, err
 		}
 		if result.ModifiedCount != 1 {
-			err = fmt.Errorf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
+			msg := fmt.Sprintf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
+			err = errors.Wrap(customerrors.ErrNoModification, msg)
 			logger.WithFields(loggrus.Fields{"request": stockArticle}).WithError(err).Error("Could not update article")
 			return nil, err
 		}
@@ -429,7 +438,8 @@ func (database *DbConnection) newCallbackRollbackRestockArticle(articleID primit
 			return nil, err
 		}
 		if result.ModifiedCount != 1 {
-			err = fmt.Errorf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
+			msg := fmt.Sprintf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
+			err = errors.Wrap(customerrors.ErrNoModification, msg)
 			logger.WithFields(loggrus.Fields{"request": stockArticle}).WithError(err).Error("Could not update article")
 			return nil, err
 		}

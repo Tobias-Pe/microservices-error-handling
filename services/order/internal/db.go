@@ -27,7 +27,9 @@ package internal
 import (
 	"context"
 	"fmt"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
+	"github.com/pkg/errors"
 	loggrus "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -233,7 +235,7 @@ func (database *DbConnection) newCallbackGetAndUpdateOrder(order models.Order) f
 		}
 
 		if !models.IsProgressive(order.Status, oldOrder.Status) {
-			return nil, fmt.Errorf("current status: %v, New requested status: %v", oldOrder.Status, order.Status)
+			return nil, errors.Wrap(customerrors.ErrStatusProgressionConflict, fmt.Sprintf("current status: %v, New requested status: %v", oldOrder.Status, order.Status))
 		}
 
 		// replace order with matching ID
