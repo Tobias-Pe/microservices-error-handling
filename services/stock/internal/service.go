@@ -66,6 +66,7 @@ type Service struct {
 	completedOrderMessages   <-chan amqp.Delivery
 	supplyMessages           <-chan amqp.Delivery
 	requestsMetric           *metrics.RequestsMetric
+	stockMetric              *metrics.StockMetric
 }
 
 func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rabbitPort string) *Service {
@@ -83,24 +84,29 @@ func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rab
 	if err != nil {
 		return nil
 	}
+
 	err = service.createReservationOrderListener()
 	if err != nil {
 		return nil
 	}
+
 	err = service.createAbortedOrderListener()
 	if err != nil {
 		return nil
 	}
+
 	err = service.createCompletedOrderListener()
 	if err != nil {
 		return nil
 	}
+
 	err = service.createSupplierListener()
 	if err != nil {
 		return nil
 	}
 
 	service.requestsMetric = metrics.NewRequestsMetrics()
+	service.stockMetric = metrics.NewStockMetric()
 
 	return service
 }
@@ -217,6 +223,7 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 	if err != nil {
 		return nil, err
 	}
+	service.stockMetric.IncrementReservation()
 	// calculate the price
 	price := 0.0
 	for _, article := range *reservedArticles {
@@ -333,6 +340,7 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
+			service.stockMetric.DecrementReservation()
 			logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
 		}
 	}
@@ -395,6 +403,7 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 		return err
 	}
 	logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation undone.")
+	service.stockMetric.DecrementReservation()
 
 	err = message.Ack(false)
 	if err != nil { // ack could not be sent but database transaction was successfully
@@ -407,6 +416,7 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
+			service.stockMetric.IncrementReservation()
 			logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
 		}
 	}
@@ -460,6 +470,8 @@ func (service *Service) handleCompletedOrder(order *models.Order, message amqp.D
 
 		return err
 	}
+	logger.WithFields(loggrus.Fields{"request": *order}).Info("Reservation deleted.")
+	service.stockMetric.DecrementReservation()
 
 	err = message.Ack(false)
 	if err != nil { // ack could not be sent but database transaction was successfully
@@ -473,6 +485,7 @@ func (service *Service) handleCompletedOrder(order *models.Order, message amqp.D
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
+			service.stockMetric.IncrementReservation()
 			logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
 		}
 	}
