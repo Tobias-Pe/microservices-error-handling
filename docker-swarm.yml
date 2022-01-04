@@ -122,7 +122,7 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 6
+      replicas: 8
       placement:
         max_replicas_per_node: 4
       resources:
