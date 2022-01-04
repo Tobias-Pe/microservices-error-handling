@@ -27,9 +27,11 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
@@ -37,6 +39,7 @@ import (
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"math"
 	"time"
 )
@@ -105,13 +108,12 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 		CustomerEmail:      req.CustomerEmail,
 	}
 	err := service.Database.createOrder(ctx, &order)
+	service.requestsMetric.Increment(err, methodCreateOrder)
 	if err != nil {
-		service.requestsMetric.Increment(err, methodCreateOrder)
 		return nil, err
 	}
 
 	logger.WithFields(loggrus.Fields{"request": req, "response": order}).Info("Order created")
-	service.requestsMetric.Increment(err, methodCreateOrder)
 
 	// broadcast order
 	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
@@ -220,11 +222,12 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	// update order if its status is progressive. also, save old order for case of rollback
 	oldOrder, err := service.Database.getAndUpdateOrder(ctx, *order)
 	if err != nil {
-		// order should or could not be updated
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not update order.")
+		if errors.Is(err, mongo.ErrNoDocuments) || errors.Is(err, customerrors.ErrStatusProgressionConflict) { // order should not be updated or there was no such order
+			// ack message & ignore error because rollback is not needed
+			_ = message.Ack(false)
+		}
 
-		// ack message & ignore error because rollback is not needed
-		_ = message.Ack(false)
+		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not update order.")
 
 		return err
 	}
