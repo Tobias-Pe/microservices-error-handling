@@ -174,6 +174,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	service.requestsMetric.Increment(err, methodPublishOrder)
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("Could not publish order update")
+		_ = message.Reject(true) // nack and requeue message
 		return err
 	}
 

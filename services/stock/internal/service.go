@@ -325,6 +325,7 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 	service.requestsMetric.Increment(err, methodPublishOrder)
 	if err != nil {
 		logger.WithError(err).Error("Could not publish order update")
+		_ = message.Reject(true) // nack and requeue message
 		return err
 	}
 
@@ -465,10 +466,7 @@ func (service *Service) handleCompletedOrder(order *models.Order, message amqp.D
 	if err != nil {
 		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not delete reservation.")
 
-		//if errors.Is(err, customerrors.ErrNoReservation) {
-		//	// there is no rollback needed so ignore the ack error
-		//	_ = message.Ack(false)
-		//}
+		_ = message.Reject(true) // nack and requeue message
 
 		return err
 	}
