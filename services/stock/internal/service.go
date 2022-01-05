@@ -307,7 +307,7 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 	price, err := service.reserveArticlesAndCalcPrice(order)
 	// could not reserve order --> abort order because wrong information
 	// if reservation already present --> also publish order update
-	if err != nil && !errors.Is(err, customerrors.ErrAlreadyPresent) {
+	if err != nil {
 		if !errors.Is(err, primitive.ErrInvalidHex) && !errors.Is(err, customerrors.ErrNoModification) && !errors.Is(err, customerrors.ErrLowStock) { // it must be a transaction error
 			logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Retrying...")
 			_ = message.Reject(true) // nack and requeue message
@@ -316,7 +316,11 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Aborting order...")
 		status := models.StatusAborted(StockAbortMessage)
 		order.Status = status.Name
-		order.Message = status.Message
+		if errors.Is(err, customerrors.ErrAlreadyPresent) {
+			order.Message = "an internal error occurred. please recreate this order"
+		} else {
+			order.Message = status.Message
+		}
 	} else { // next step for the order is paying the articles in payment-service
 		logger.WithFields(loggrus.Fields{"request": *order}).Infof("Articles reserved for this order.")
 		status := models.StatusPaying()
