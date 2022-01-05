@@ -532,7 +532,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "avg (articles{}) by (id,name,category)",
+          "expr": "avg (articles{}) by (name,category)",
           "interval": "",
           "legendFormat": "{{name}} - {{category}}",
           "refId": "A"
@@ -643,7 +643,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (job,method,url,code) (requests_total{error!=\"\"} or gin_requests_total{code!~\"^(2).+\",code!=\"404\",url!=\"/favicon.ico\"})",
+          "expr": "sum by (job,method,url,code) (requests_total{error!=\"\"} or gin_requests_total{code!~\"^(2).+\",code!=\"404\",code!=\"400\",url!=\"/favicon.ico\"})",
           "interval": "",
           "legendFormat": "{{job}}-{{method}}{{url}}-{{error}}{{code}}",
           "refId": "A"
@@ -933,7 +933,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "normal"
+              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -1015,7 +1015,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "normal"
+              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -1097,7 +1097,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "normal"
+              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"

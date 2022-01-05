@@ -44,12 +44,12 @@ import (
 
 const (
 	// expireCartSeconds Seconds until the cart will expire after no updates
-	expireCartSeconds      = 172800
-	methodGetCart          = "GetCart"
-	methodCreateCart       = "CreateCart"
-	methodListenOrders     = "PopulateOrder"
-	methodListenUpdateCart = "AddToCart"
-	methodPublishOrder     = "PublishOrder"
+	expireCartSeconds  = 172800
+	methodGetCart      = "GetCart"
+	methodCreateCart   = "CreateCart"
+	methodListenOrders = "PopulateOrder"
+	methodPutCart      = "AddToCart"
+	methodPublishOrder = "PublishOrder"
 )
 
 var logger = loggingUtil.InitLogger()
@@ -57,10 +57,9 @@ var logger = loggingUtil.InitLogger()
 type Service struct {
 	proto.UnimplementedCartServer
 	rabbitmq.AmqpService
-	database        *DbConnection
-	orderMessages   <-chan amqp.Delivery
-	articleMessages <-chan amqp.Delivery
-	requestsMetric  *metrics.RequestsMetric
+	database       *DbConnection
+	orderMessages  <-chan amqp.Delivery
+	requestsMetric *metrics.RequestsMetric
 }
 
 func NewService(cacheAddress string, cachePort string, rabbitAddress string, rabbitPort string) *Service {
@@ -76,11 +75,6 @@ func NewService(cacheAddress string, cachePort string, rabbitAddress string, rab
 		logger.Infof("Retrying... (%d/%d)", i, 5)
 		time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Second)
 	}
-	if err != nil {
-		return nil
-	}
-
-	err = newService.createArticleListener()
 	if err != nil {
 		return nil
 	}
@@ -113,23 +107,6 @@ func (service *Service) initRedisConnection(cacheAddress string, cachePort strin
 	}
 }
 
-// createArticleListener initialises exchange and queue and binds the queue to a topic and routing key to listen from
-func (service *Service) createArticleListener() error {
-	var err error
-	queueName := fmt.Sprintf("cart_%s_queue", requests.ArticlesTopic)
-	routingKeys := []string{requests.AddToCartRoutingKey}
-
-	service.articleMessages, err = service.CreateListener(requests.ArticlesTopic, queueName, routingKeys)
-	if err != nil {
-		return err
-	}
-
-	// make a coroutine which will listen for article messages
-	go service.ListenUpdateCart()
-
-	return nil
-}
-
 // createOrderListener creates and binds queue to listen for orders in status fetching
 func (service *Service) createOrderListener() error {
 	var err error
@@ -145,63 +122,6 @@ func (service *Service) createOrderListener() error {
 	go service.ListenOrders()
 
 	return nil
-}
-
-// ListenUpdateCart reads out article messages from bound amqp queue
-func (service *Service) ListenUpdateCart() {
-	for message := range service.articleMessages {
-		// unmarshall message into PutArticleInCartRequest
-		request := &requests.PutArticleInCartRequest{}
-		err := json.Unmarshal(message.Body, request)
-		if err != nil {
-			logger.WithError(err).Error("Could not unmarshall message")
-			// ack message despite the error, or else we will get this message repeatedly
-			ackErr := message.Ack(false)
-			if ackErr != nil {
-				logger.WithError(ackErr).Error("Could not ack message.")
-				err = fmt.Errorf("%v ; %v", err.Error(), ackErr.Error())
-			}
-		} else {
-			// unmarshall successfully --> handle the request
-			err = service.handleUpdateCart(request, message)
-		}
-		service.requestsMetric.Increment(err, methodListenUpdateCart)
-	}
-	logger.Warn("Stopped Listening for Articles! Restarting...")
-	err := service.createArticleListener()
-	if err != nil {
-		logger.Warn("Stopped Listening for Articles! Could not restart")
-	}
-}
-
-func (service *Service) handleUpdateCart(request *requests.PutArticleInCartRequest, message amqp.Delivery) error {
-	// add the requested item into the cart
-	index, err := service.database.addToCart(request.CartID, request.ArticleID)
-	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": request}).WithError(err).Warn("Could not add to cart.")
-
-		// ack message & ignore error because rollback is not needed
-		_ = message.Ack(false)
-
-		return err
-	}
-	logger.WithFields(loggrus.Fields{"request": request}).Infof("Inserted item")
-
-	// ack this transaction
-	err = message.Ack(false)
-	if err != nil { // ack could not be sent but database transaction was successfully
-		logger.WithError(err).Error("Could not ack message. Trying to roll back...")
-		// rollback transaction. because of the missing ack the current request will be resent
-		rollbackErr := service.database.removeFromCart(request.CartID, *index)
-		if rollbackErr != nil {
-			logger.WithError(rollbackErr).Error("Could not rollback.")
-			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
-		} else {
-			logger.WithFields(loggrus.Fields{"request": request}).Info("Rolled transaction back.")
-		}
-	}
-
-	return err
 }
 
 // ListenOrders reads out order messages from bound amqp queue
@@ -266,8 +186,9 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 // CreateCart implementation of in the proto file defined interface of cart service
 func (service *Service) CreateCart(_ context.Context, req *proto.RequestNewCart) (*proto.ResponseNewCart, error) {
 	cart, err := service.database.createCart(req.ArticleId)
+	service.requestsMetric.Increment(err, methodCreateCart)
+
 	if err != nil {
-		service.requestsMetric.Increment(err, methodCreateCart)
 		return nil, err
 	}
 
@@ -282,14 +203,27 @@ func (service *Service) CreateCart(_ context.Context, req *proto.RequestNewCart)
 // GetCart implementation of in the proto file defined interface of cart service
 func (service *Service) GetCart(_ context.Context, req *proto.RequestCart) (*proto.ResponseCart, error) {
 	cart, err := service.database.getCart(req.CartId)
+	service.requestsMetric.Increment(err, methodGetCart)
 
 	if err != nil {
-		service.requestsMetric.Increment(err, methodGetCart)
 		return nil, err
 	}
 
 	logger.WithFields(loggrus.Fields{"response": *cart, "request": req.CartId}).Info("Looked up Cart")
-	service.requestsMetric.Increment(err, methodGetCart)
 
 	return &proto.ResponseCart{ArticleIds: cart.ArticleIDs}, nil
+}
+
+// PutCart implementation of in the proto file defined interface of cart service
+func (service *Service) PutCart(_ context.Context, req *proto.RequestPutCart) (*proto.Empty, error) {
+	// add the requested item into the cart
+	_, err := service.database.addToCart(req.CartId, req.ArticleId)
+	service.requestsMetric.Increment(err, methodPutCart)
+	if err != nil {
+		logger.WithFields(loggrus.Fields{"request": req.String()}).WithError(err).Warn("Could not add to cart.")
+		return nil, err
+	}
+	logger.WithFields(loggrus.Fields{"request": req.String()}).Infof("Inserted item")
+
+	return &proto.Empty{}, nil
 }
