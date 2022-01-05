@@ -57,10 +57,9 @@ var logger = loggingUtil.InitLogger()
 type Service struct {
 	proto.UnimplementedCartServer
 	rabbitmq.AmqpService
-	database        *DbConnection
-	orderMessages   <-chan amqp.Delivery
-	articleMessages <-chan amqp.Delivery
-	requestsMetric  *metrics.RequestsMetric
+	database       *DbConnection
+	orderMessages  <-chan amqp.Delivery
+	requestsMetric *metrics.RequestsMetric
 }
 
 func NewService(cacheAddress string, cachePort string, rabbitAddress string, rabbitPort string) *Service {
