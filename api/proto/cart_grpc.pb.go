@@ -20,7 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 type CartClient interface {
 	CreateCart(ctx context.Context, in *RequestNewCart, opts ...grpc.CallOption) (*ResponseNewCart, error)
 	GetCart(ctx context.Context, in *RequestCart, opts ...grpc.CallOption) (*ResponseCart, error)
-	PutCart(ctx context.Context, in *RequestPutCart, opts ...grpc.CallOption) (*ResponseCart, error)
+	PutCart(ctx context.Context, in *RequestPutCart, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type cartClient struct {
@@ -49,8 +49,8 @@ func (c *cartClient) GetCart(ctx context.Context, in *RequestCart, opts ...grpc.
 	return out, nil
 }
 
-func (c *cartClient) PutCart(ctx context.Context, in *RequestPutCart, opts ...grpc.CallOption) (*ResponseCart, error) {
-	out := new(ResponseCart)
+func (c *cartClient) PutCart(ctx context.Context, in *RequestPutCart, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
 	err := c.cc.Invoke(ctx, "/cart.Cart/PutCart", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func (c *cartClient) PutCart(ctx context.Context, in *RequestPutCart, opts ...gr
 type CartServer interface {
 	CreateCart(context.Context, *RequestNewCart) (*ResponseNewCart, error)
 	GetCart(context.Context, *RequestCart) (*ResponseCart, error)
-	PutCart(context.Context, *RequestPutCart) (*ResponseCart, error)
+	PutCart(context.Context, *RequestPutCart) (*Empty, error)
 	mustEmbedUnimplementedCartServer()
 }
 
@@ -78,7 +78,7 @@ func (UnimplementedCartServer) CreateCart(context.Context, *RequestNewCart) (*Re
 func (UnimplementedCartServer) GetCart(context.Context, *RequestCart) (*ResponseCart, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCart not implemented")
 }
-func (UnimplementedCartServer) PutCart(context.Context, *RequestPutCart) (*ResponseCart, error) {
+func (UnimplementedCartServer) PutCart(context.Context, *RequestPutCart) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PutCart not implemented")
 }
 func (UnimplementedCartServer) mustEmbedUnimplementedCartServer() {}

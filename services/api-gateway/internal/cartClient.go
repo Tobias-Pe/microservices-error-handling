@@ -26,15 +26,11 @@ package internal
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/streadway/amqp"
 	"google.golang.org/grpc"
-	"math"
 	"net/http"
 	"time"
 )
@@ -42,10 +38,8 @@ import (
 const ConnectionTimeSecs = 60
 
 type CartClient struct {
-	GrpcConn    *grpc.ClientConn
-	AmqpConn    *amqp.Connection
-	AmqpChannel *amqp.Channel
-	grpcClient  proto.CartClient
+	GrpcConn   *grpc.ClientConn
+	grpcClient proto.CartClient
 }
 
 // restBody is a temporary struct for json binding
@@ -59,18 +53,7 @@ func NewCartClient(cartAddress string, cartPort string, rabbitAddress string, ra
 	if err != nil {
 		return nil
 	}
-	// retry connection to rabbitmq with 2^i sleep
-	for i := 0; i < 6; i++ {
-		err = cc.initAmqpConnection(rabbitAddress, rabbitPort)
-		if err == nil {
-			break
-		}
-		logger.Infof("Retrying... (%d/%d)", i, 5)
-		time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Second)
-	}
-	if err != nil {
-		return nil
-	}
+
 	logger.Infoln("Connection to cart-service successfully!")
 	return cc
 }
@@ -87,34 +70,6 @@ func (cartClient *CartClient) initGrpcConnection(cartAddress string, cartPort st
 		return err
 	}
 	cartClient.grpcClient = proto.NewCartClient(cartClient.GrpcConn)
-	return nil
-}
-
-func (cartClient *CartClient) initAmqpConnection(rabbitAddress string, rabbitPort string) error {
-	url := fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
-	conn, err := amqp.Dial(url)
-	if err != nil {
-		return err
-	}
-	// connection will be closed in main
-	cartClient.AmqpConn = conn
-	// channel will be closed in main
-	cartClient.AmqpChannel, err = cartClient.AmqpConn.Channel()
-	if err != nil {
-		return err
-	}
-	err = cartClient.AmqpChannel.ExchangeDeclare(
-		requests.ArticlesTopic, // name
-		"topic",                // type
-		true,                   // durable
-		false,                  // auto-deleted
-		false,                  // internal
-		false,                  // no-wait
-		nil,                    // arguments
-	)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -165,36 +120,21 @@ func (cartClient CartClient) AddToCart() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("the id parameter is required after /cart/")})
 			return
 		}
+
 		// bind json to restBody struct type
 		objArticleId := restBody{}
 		if err := c.ShouldBindWith(&objArticleId, binding.JSON); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		request := requests.PutArticleInCartRequest{
-			ArticleID: objArticleId.ArticleId,
-			CartID:    cartID,
-		}
-		bytes, err := json.Marshal(request)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		_, err := cartClient.grpcClient.PutCart(ctx, &proto.RequestPutCart{CartId: cartID, ArticleId: objArticleId.ArticleId})
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
+		} else {
+			c.JSON(http.StatusCreated, nil)
 		}
-		err = cartClient.AmqpChannel.Publish(
-			requests.ArticlesTopic,       // exchange
-			requests.AddToCartRoutingKey, // routing key
-			true,                         // mandatory
-			false,                        // immediate
-			amqp.Publishing{
-				DeliveryMode: amqp.Persistent,
-				ContentType:  "application/json",
-				Body:         bytes,
-			})
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		// it's an async message, so we can only acknowledge that the request was sent
-		c.JSON(http.StatusAccepted, gin.H{})
 	}
 }
