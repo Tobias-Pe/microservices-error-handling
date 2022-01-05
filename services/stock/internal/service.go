@@ -189,6 +189,7 @@ func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArtic
 
 	var protoArticles []*proto.Article
 	for _, a := range *articles {
+		service.stockMetric.UpdateArticle(a)
 		protoArticles = append(protoArticles, &proto.Article{
 			Id:        a.ID.Hex(),
 			Name:      a.Name,
