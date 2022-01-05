@@ -66,8 +66,6 @@ Returns the new carts ID.
 |:-------------|:---------|:-----------------------------------------------------------------|
 | `article_id` | `string` | **Required**. The ID of the article you want to add to the cart. |
 
-Returns the new carts ID.
-
 #### Get a cart's content 🛒
 
 ```http
@@ -120,7 +118,15 @@ Look at the current status of your order.
 
 **Load Balancing:** NGINX with Docker DNS
 
-**Monitoring:** Prometheus, Grafana, cAdvisor, Node Exporter _(To make these docker swarm compatible are some configurations orientated on https://github.com/stefanprodan/swarmprom)_
+**Load Testing:** Locust
+
+**TSDB Metrics** Prometheus
+
+**TSDB Logs** InfluxDB
+
+**Monitoring Dashboard** Grafana
+
+**Metrics-Exporter:** cAdvisor (Containers), Node Exporter (Hardware) _(To make these docker swarm compatible are some configurations orientated on https://github.com/stefanprodan/swarmprom)_
 
 ## Run Locally 🏃
 
@@ -139,10 +145,10 @@ Go to the project directory
 Start all containers with compose
 
 ```bash
-  docker-compose up --force-recreate --build -V --remove-orphans
+  docker-compose up
 ```
 
-_PS: there are some run configurations in the .run folder_
+_PS: there are some run configurations (generated with GoLand) in the .run folder_
 
 ## Deployment 🚀
 
