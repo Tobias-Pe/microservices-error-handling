@@ -291,14 +291,4 @@ func (service *service) CloseConnections() {
 	if err != nil {
 		logger.WithError(err).Error("Error on closing grpc-connection to stock-service")
 	}
-
-	err = service.cartClient.AmqpChannel.Close()
-	if err != nil {
-		logger.WithError(err).Error("Error on closing amqp-channel to cart-service")
-	}
-
-	err = service.cartClient.AmqpConn.Close()
-	if err != nil {
-		logger.WithError(err).Error("Error on closing amqp-connection to cart-service")
-	}
 }
