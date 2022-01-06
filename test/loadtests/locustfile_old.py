@@ -1,8 +1,7 @@
 import random
-import time
 from json import JSONDecodeError
 
-from locust import HttpUser, between, task
+from locust import HttpUser, task, between
 
 
 def decision(probability):
@@ -65,15 +64,60 @@ def failure_data(cart_id):
     return random.choice(failure_datas)
 
 
-class OrderHttpUser:
+class OrderUser(HttpUser):
+    weight = 6
+    current_waiting_order_id = ""
+    cart_id = -1
+    to_be_bought = ""
 
-    def create_order(self, order_data) -> str:
-        order_id = ""
+    wait_time = between(0.5, 5)
+
+    @task(1)
+    def exchange(self):
+        self.get_exchange()
+
+    @task(9)
+    def shop_and_wait_with_success_order_data(self):
+        if self.current_waiting_order_id == "":
+            self.get_article()
+            if self.cart_id == -1:
+                self.create_cart()
+            else:
+                self.add_to_cart()
+            if self.cart_id != -1 and self.current_waiting_order_id == "" and decision(0.1):
+                self.create_success_order()
+        else:
+            self.check_order()
+
+    @task(6)
+    def shop_with_random_order_data(self):
+        self.get_article()
+        if self.cart_id == -1:
+            self.create_cart()
+        else:
+            self.add_to_cart()
+        if self.cart_id != -1 and decision(0.4):
+            self.create_random_order()
+
+    def create_random_order(self):
         self.client.request_name = "/order/"
-        with self.client.post("/order/", json=order_data, catch_response=True) as response:
+        customer_data = get_customer_data(cart_id=self.cart_id)
+        with self.client.post("/order/", json=customer_data, catch_response=True) as response:
+            if not response.ok:
+                if customer_data["email"] != "noemailaddress":
+                    response.failure(response.text + customer_data["email"])
+                else:
+                    response.success()
+        self.cart_id = -1
+        self.client.request_name = None
+
+    def create_success_order(self):
+        self.client.request_name = "/order/"
+        customer_data = get_customer_data(cart_id=self.cart_id)
+        with self.client.post("/order/", json=customer_data, catch_response=True) as response:
             if response.ok:
                 try:
-                    order_id = response.json()["order"]["orderId"]
+                    self.current_waiting_order_id = response.json()["order"]["orderId"]
                 except JSONDecodeError:
                     response.failure("Response could not be decoded as JSON")
                 except KeyError:
@@ -81,20 +125,21 @@ class OrderHttpUser:
                 except Exception as e:
                     response.failure(e)
             else:
-                if order_data["email"] == "noemailaddress":
-                    response.success()
+                if customer_data["email"] != "noemailaddress":
+                    response.failure(response.text + customer_data["email"])
                 else:
-                    response.failure(response.text)
+                    response.success()
+        self.cart_id = -1
         self.client.request_name = None
-        return order_id
 
-    def check_order(self, order_id: str) -> str:
-        order_status = ""
+    def check_order(self):
         self.client.request_name = "/order/${id}"
-        with self.client.get("/order/" + order_id, catch_response=True) as response:
+        with self.client.get("/order/" + self.current_waiting_order_id, catch_response=True) as response:
             if response.ok:
                 try:
                     order_status = response.json()["order"]["status"]
+                    if order_status == "COMPLETE" or order_status == "ABORTED":
+                        self.current_waiting_order_id = ""
                 except JSONDecodeError:
                     response.failure("Response could not be decoded as JSON")
                 except KeyError:
@@ -103,8 +148,8 @@ class OrderHttpUser:
                     response.failure(e)
             else:
                 response.failure(response.text)
+                self.current_waiting_order_id = ""
         self.client.request_name = None
-        return order_status
 
     def get_exchange(self):
         self.client.request_name = "/exchange/${currency}"
@@ -116,15 +161,12 @@ class OrderHttpUser:
             response.failure(e)
         self.client.request_name = None
 
-    def get_article(self) -> str:
-        article_id = ""
+    def get_article(self):
         self.client.request_name = "/articles/"
         with self.client.get("/articles/", catch_response=True) as response:
             if response.ok:
                 try:
-                    article_id = random.choice(response.json()["articles"])["id"]
-                    if len(article_id) == 0:
-                        response.failure("empty article id")
+                    self.to_be_bought = random.choice(response.json()["articles"])["id"]
                 except JSONDecodeError:
                     response.failure("Response could not be decoded as JSON")
                 except KeyError:
@@ -134,15 +176,13 @@ class OrderHttpUser:
             else:
                 response.failure(response.text)
         self.client.request_name = None
-        return article_id
 
-    def create_cart(self, article_id: str) -> str:
-        cart_id = ""
+    def create_cart(self):
         self.client.request_name = "/cart"
-        with self.client.post("/cart", json={"article_id": article_id}, catch_response=True) as response:
+        with self.client.post("/cart", json={"article_id": self.to_be_bought}, catch_response=True) as response:
             if response.ok:
                 try:
-                    cart_id = response.json()["cart"]["cartId"]
+                    self.cart_id = int(response.json()["cart"]["cartId"])
                 except JSONDecodeError:
                     response.failure("Response could not be decoded as JSON")
                 except KeyError:
@@ -152,93 +192,11 @@ class OrderHttpUser:
             else:
                 response.failure(response.text)
         self.client.request_name = None
-        return cart_id
 
-    def add_to_cart(self, cart_id: str, article_id: str):
+    def add_to_cart(self):
         self.client.request_name = "/cart/${id}"
-        with self.client.put("/cart/" + cart_id, json={"article_id": article_id},
+        with self.client.put("/cart/" + str(self.cart_id), json={"article_id": self.to_be_bought},
                              catch_response=True) as response:
             if not response.ok:
                 response.failure(response.text)
         self.client.request_name = None
-
-    def get_cart(self, cart_id: str):
-        self.client.request_name = "/cart/${id}"
-        with self.client.get("/cart/" + cart_id, catch_response=True) as response:
-            if not response.ok:
-                response.failure(response.text)
-        self.client.request_name = None
-
-
-class NoWaitOrderUser(OrderHttpUser, HttpUser):
-    weight = 5
-    wait_time = between(0.5, 5)
-
-    @task()
-    def shopping(self):
-        self.exchange()
-
-    def exchange(self):
-        if decision(0.4):
-            self.get_exchange()
-        self.populate_cart()
-
-    def populate_cart(self):
-        cart_id = ""
-        while cart_id == "" or decision(0.9):
-            article = self.get_article()
-            if len(article) > 0:
-                if cart_id == "":
-                    cart_id = self.create_cart(article)
-                else:
-                    self.add_to_cart(cart_id=cart_id, article_id=article)
-            if cart_id != "" and decision(0.5):
-                self.get_cart(cart_id)
-            time.sleep(random.uniform(0.5, 5))
-
-        self.create_nowait_order(cart_id)
-
-    def create_nowait_order(self, cart_id):
-        customer_data = get_customer_data(cart_id)
-        self.create_order(customer_data)
-
-
-class WaitingOrderUser(OrderHttpUser, HttpUser):
-    weight = 5
-    wait_time = between(0.5, 5)
-
-    @task()
-    def shopping(self):
-        self.exchange()
-
-    def exchange(self):
-        if decision(0.4):
-            self.get_exchange()
-        self.populate_cart()
-
-    def populate_cart(self):
-        cart_id = ""
-        while cart_id == "" or decision(0.9):
-            article = self.get_article()
-            if len(article) > 0:
-                if cart_id == "":
-                    cart_id = self.create_cart(article)
-                else:
-                    self.add_to_cart(cart_id=cart_id, article_id=article)
-            if cart_id != "" and decision(0.5):
-                self.get_cart(cart_id)
-            time.sleep(random.uniform(0.5, 5))
-
-        self.create_wait_order(cart_id)
-
-    def create_wait_order(self, cart_id):
-        order_id = ""
-        order_status = ""
-        while not (order_status == "COMPLETE" or order_status == "ABORTED"):
-            if order_id == "":
-                customer_data = get_customer_data(cart_id)
-                order_id = self.create_order(customer_data)
-            else:
-                order_status = self.check_order(order_id)
-                print(order_status)
-            time.sleep(random.uniform(0.5, 5))
