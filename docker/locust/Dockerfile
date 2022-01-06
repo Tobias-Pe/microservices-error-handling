@@ -1,2 +1,2 @@
 FROM locustio/locust
-COPY test/loadtests .
+COPY test/loadtests/locustfile.py .
