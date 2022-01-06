@@ -31,7 +31,7 @@ import (
 	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
+	customerrors "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
@@ -222,14 +222,19 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	// update order if its status is progressive. also, save old order for case of rollback
 	oldOrder, err := service.Database.getAndUpdateOrder(ctx, *order)
 	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) || errors.Is(err, customerrors.ErrStatusProgressionConflict) { // order should not be updated or there was no such order
+		if errors.Is(err, mongo.ErrNoDocuments) { //there was no such order or the order should not be updated
 			// ack message & ignore error because rollback is not needed
 			_ = message.Ack(false)
-		} else {
-			_ = message.Reject(true) // nack and requeue message
+			logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not update order.")
+			return err
+		} else if errors.Is(err, customerrors.ErrStatusProgressionConflict) { // the order should not be updated
+			// ack message & ignore error because rollback is not needed
+			_ = message.Ack(false)
+			return nil // do not treat this is as an error because of asynchronous communication
 		}
+		_ = message.Reject(true) // nack and requeue message
 
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not update order.")
+		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not update order. Retrying...")
 
 		return err
 	}
