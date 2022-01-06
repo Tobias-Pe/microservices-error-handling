@@ -144,10 +144,10 @@ func (database *DbConnection) reserveOrder(ctx context.Context, articleQuantityM
 
 func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[string]int, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
-		// check if already exists
-		result := database.reservationCollection.FindOne(sessionContext, bson.M{"_id": order.ID})
-		if result.Err() == nil { // found a match --> bad
-			return nil, customerrors.ErrAlreadyPresent
+		// if reservation already exists this means that a reserving transaction context timeouted --> delete the current and retry
+		_, err := database.reservationCollection.DeleteOne(sessionContext, bson.M{"_id": order.ID})
+		if err != nil { // this means transaction error, not that nothing was found!
+			return nil, err
 		}
 
 		var articles []models.Article
