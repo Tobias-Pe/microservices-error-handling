@@ -251,13 +251,13 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 4
+      replicas: 3
       placement:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.5'
-          memory: 75M
+          cpus: '0.4'
+          memory: 100M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -310,7 +310,7 @@ services:
       resources:
         limits:
           cpus: '0.75'
-          memory: 100M
+          memory: 200M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -353,7 +353,7 @@ services:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.50'
+          cpus: '0.40'
           memory: 50M
         reservations:
           cpus: '0.25'
@@ -379,7 +379,7 @@ services:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.50'
+          cpus: '0.40'
           memory: 50M
         reservations:
           cpus: '0.25'
@@ -405,7 +405,7 @@ services:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.50'
+          cpus: '0.40'
           memory: 50M
         reservations:
           cpus: '0.25'
