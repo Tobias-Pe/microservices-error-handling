@@ -1,0 +1,8 @@
+syntax = "proto3";
+package catalogue;
+import "stock.proto";
+option go_package = "./;proto";
+
+service Catalogue {
+  rpc GetArticles(stock.RequestArticles) returns (stock.ResponseArticles);
+}
