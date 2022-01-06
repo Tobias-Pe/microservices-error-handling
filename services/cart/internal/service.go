@@ -34,7 +34,6 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
-	"github.com/gomodule/redigo/redis"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"math"
@@ -64,7 +63,7 @@ type Service struct {
 
 func NewService(cacheAddress string, cachePort string, rabbitAddress string, rabbitPort string) *Service {
 	newService := Service{}
-	newService.initRedisConnection(cacheAddress, cachePort)
+	newService.database = NewDbConnection(cacheAddress, cachePort)
 	newService.RabbitURL = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
 	for i := 0; i < 6; i++ {
@@ -87,24 +86,6 @@ func NewService(cacheAddress string, cachePort string, rabbitAddress string, rab
 	newService.requestsMetric = metrics.NewRequestsMetrics()
 
 	return &newService
-}
-
-// initRedisConnection creates a connection to redis and makes an object (DbConnection) to interact with redis
-func (service *Service) initRedisConnection(cacheAddress string, cachePort string) {
-	connectionUri := cacheAddress + ":" + cachePort
-	service.database = &DbConnection{}
-	// connection pool to redis
-	service.database.connPool = &redis.Pool{
-		MaxIdle:   80,
-		MaxActive: 12000,
-		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", connectionUri)
-			if err != nil {
-				logger.WithError(err).Error("Error appeared on dialing redis!")
-			}
-			return c, err
-		},
-	}
 }
 
 // createOrderListener creates and binds queue to listen for orders in status fetching

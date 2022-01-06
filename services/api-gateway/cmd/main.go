@@ -36,18 +36,18 @@ import (
 )
 
 type configuration struct {
-	port            string
-	address         string
-	currencyAddress string
-	currencyPort    string
-	stockAddress    string
-	stockPort       string
-	cartAddress     string
-	cartPort        string
-	orderAddress    string
-	orderPort       string
-	rabbitAddress   string
-	rabbitPort      string
+	port             string
+	address          string
+	currencyAddress  string
+	currencyPort     string
+	catalogueAddress string
+	cataloguePort    string
+	cartAddress      string
+	cartPort         string
+	orderAddress     string
+	orderPort        string
+	rabbitAddress    string
+	rabbitPort       string
 }
 
 var logger = loggingUtil.InitLogger()
@@ -62,11 +62,11 @@ func main() {
 
 func newService(configuration configuration) *service {
 	service := &service{
-		currencyClient: createCurrencyClient(configuration),
-		stockClient:    createStockClient(configuration),
-		cartClient:     createCartClient(configuration),
-		orderClient:    createOrderClient(configuration),
-		config:         configuration,
+		currencyClient:  createCurrencyClient(configuration),
+		cartClient:      createCartClient(configuration),
+		orderClient:     createOrderClient(configuration),
+		catalogueClient: createCatalogueClient(configuration),
+		config:          configuration,
 	}
 	return service
 }
@@ -87,8 +87,8 @@ func readConfig() configuration {
 	serverPort := viper.GetString("API_GATEWAY_PORT")
 	currencyAddress := viper.GetString("CURRENCY_NGINX_ADDRESS")
 	currencyPort := viper.GetString("CURRENCY_PORT")
-	stockAddress := viper.GetString("STOCK_NGINX_ADDRESS")
-	stockPort := viper.GetString("STOCK_PORT")
+	catalogueAddress := viper.GetString("CATALOGUE_NGINX_ADDRESS")
+	cataloguePort := viper.GetString("CATALOGUE_PORT")
 	cartAddress := viper.GetString("CART_NGINX_ADDRESS")
 	cartPort := viper.GetString("CART_PORT")
 	orderAddress := viper.GetString("ORDER_NGINX_ADDRESS")
@@ -97,18 +97,18 @@ func readConfig() configuration {
 	rabbitPort := viper.GetString("RABBIT_MQ_PORT")
 
 	config := configuration{
-		address:         serverAddress,
-		port:            serverPort,
-		currencyAddress: currencyAddress,
-		currencyPort:    currencyPort,
-		stockAddress:    stockAddress,
-		stockPort:       stockPort,
-		cartAddress:     cartAddress,
-		cartPort:        cartPort,
-		orderPort:       orderPort,
-		orderAddress:    orderAddress,
-		rabbitAddress:   rabbitAddress,
-		rabbitPort:      rabbitPort,
+		address:          serverAddress,
+		port:             serverPort,
+		currencyAddress:  currencyAddress,
+		currencyPort:     currencyPort,
+		catalogueAddress: catalogueAddress,
+		cataloguePort:    cataloguePort,
+		cartAddress:      cartAddress,
+		cartPort:         cartPort,
+		orderPort:        orderPort,
+		orderAddress:     orderAddress,
+		rabbitAddress:    rabbitAddress,
+		rabbitPort:       rabbitPort,
 	}
 
 	logger.WithFields(loggrus.Fields{
@@ -124,10 +124,10 @@ func createCurrencyClient(configuration configuration) *internal.CurrencyClient 
 	return currencyClient
 }
 
-func createStockClient(configuration configuration) *internal.StockClient {
-	stockClient := internal.NewStockClient(configuration.stockAddress, configuration.stockPort)
+func createCatalogueClient(configuration configuration) *internal.CatalogueClient {
+	catalogueClient := internal.NewCatalogueClient(configuration.catalogueAddress, configuration.cataloguePort)
 
-	return stockClient
+	return catalogueClient
 }
 
 func createCartClient(configuration configuration) *internal.CartClient {
@@ -194,11 +194,11 @@ func createRouter(service *service, configuration configuration) {
 }
 
 type service struct {
-	currencyClient *internal.CurrencyClient
-	stockClient    *internal.StockClient
-	cartClient     *internal.CartClient
-	orderClient    *internal.OrderClient
-	config         configuration
+	currencyClient  *internal.CurrencyClient
+	catalogueClient *internal.CatalogueClient
+	cartClient      *internal.CartClient
+	orderClient     *internal.OrderClient
+	config          configuration
 }
 
 func (service *service) GetExchangeRateHandler() gin.HandlerFunc {
@@ -212,11 +212,11 @@ func (service *service) GetExchangeRateHandler() gin.HandlerFunc {
 }
 
 func (service *service) GetArticles() gin.HandlerFunc {
-	if service.stockClient != nil {
-		return service.stockClient.GetArticles()
+	if service.catalogueClient != nil {
+		return service.catalogueClient.GetArticles()
 	} else {
 		return func(c *gin.Context) {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "stock service not available"})
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "catalogue service not available"})
 		}
 	}
 }
@@ -272,9 +272,9 @@ func (service *service) CreateOrder() gin.HandlerFunc {
 }
 
 func (service *service) CloseConnections() {
-	err := service.stockClient.Conn.Close()
+	err := service.catalogueClient.Conn.Close()
 	if err != nil {
-		logger.WithError(err).Error("Error on closing connection to stock-service")
+		logger.WithError(err).Error("Error on closing connection to catalogue-service")
 	}
 
 	err = service.orderClient.Conn.Close()
@@ -289,6 +289,6 @@ func (service *service) CloseConnections() {
 
 	err = service.cartClient.GrpcConn.Close()
 	if err != nil {
-		logger.WithError(err).Error("Error on closing grpc-connection to stock-service")
+		logger.WithError(err).Error("Error on closing grpc-connection to cart-service")
 	}
 }

@@ -34,28 +34,28 @@ import (
 	"time"
 )
 
-type StockClient struct {
+type CatalogueClient struct {
 	Conn   *grpc.ClientConn
-	client proto.StockClient
+	client proto.CatalogueClient
 }
 
-func NewStockClient(stockAddress string, stockPort string) *StockClient {
+func NewCatalogueClient(catalogueAddress string, cataloguePort string) *CatalogueClient {
 	// Set up a connection to the server.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ConnectionTimeSecs)
 	defer cancel()
-	conn, err := grpc.DialContext(ctx, stockAddress+":"+stockPort, grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.DialContext(ctx, catalogueAddress+":"+cataloguePort, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		logger.WithError(err).Error("did not connect to stock-service")
+		logger.WithError(err).Error("did not connect to catalogue-service")
 		return nil
 	}
-	logger.Infoln("Connection to stock-service successfully!")
+	logger.Infoln("Connection to catalogue-service successfully!")
 
-	client := proto.NewStockClient(conn)
-	return &StockClient{Conn: conn, client: client}
+	client := proto.NewCatalogueClient(conn)
+	return &CatalogueClient{Conn: conn, client: client}
 }
 
-// GetArticles creates a grpc request to fetch all articles from the stock service
-func (stockClient StockClient) GetArticles() gin.HandlerFunc {
+// GetArticles creates a grpc request to fetch all articles from the catalogue service
+func (catalogueClient CatalogueClient) GetArticles() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// get the optional category parameter --> articles/${category}
 		queryCategory := strings.Trim(c.Param("category"), "/")
@@ -64,7 +64,7 @@ func (stockClient StockClient) GetArticles() gin.HandlerFunc {
 		request := &proto.RequestArticles{
 			CategoryQuery: queryCategory,
 		}
-		response, err := stockClient.client.GetArticles(ctx, request)
+		response, err := catalogueClient.client.GetArticles(ctx, request)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		} else {

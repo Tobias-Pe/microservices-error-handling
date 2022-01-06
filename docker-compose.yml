@@ -32,7 +32,7 @@ services:
       - SERVICE_NAME=api-gateway
     depends_on:
       - currency-nginx
-      - stock-nginx
+      - catalogue-nginx
       - cart-nginx
       - order-nginx
       - rabbit-mq
@@ -134,8 +134,41 @@ services:
     image: "redis:6"
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
+  #    ports:
+  #      - "6379:6379"
+
+  # -------------------------------------------- CATALOGUE -------------------------------------------------------------
+
+  catalogue-nginx:
+    image: ghcr.io/tobias-pe/catalogue-nginx:latest
+    build:
+      context: .
+      dockerfile: docker/nginx/catalogue/Dockerfile
+    env_file:
+      - ./config/docker.env
+    depends_on:
+      - catalogue
+
+  catalogue:
+    image: ghcr.io/tobias-pe/catalogue:latest
+    build:
+      context: .
+      dockerfile: ./services/catalogue/Dockerfile
+    env_file:
+      - ./config/docker.env
+    environment:
+      - SERVICE_NAME=catalogue
+    depends_on:
+      - catalogue-redis
+      - stock-nginx
+      - rabbit-mq
+
+  catalogue-redis:
+    image: "redis:6"
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
 #    ports:
-#      - "6379:6379"
+#      - "6378:6379"
 
   # ------------------------------------------- ORDER ------------------------------------------------------------------
 
@@ -246,7 +279,7 @@ services:
     volumes:
       - prometheus_data:/prometheus
     environment:
-      - JOBS=api-gateway:50000 cart:9216 currency:9216 e-mail:9216 order:9216 payment:9216 shipment:9216 stock:9216 supplier:9216
+      - JOBS=api-gateway:50000 cart:9216 currency:9216 e-mail:9216 order:9216 payment:9216 shipment:9216 stock:9216 supplier:9216 catalogue:9216
 
   node-exporter:
     image: ghcr.io/tobias-pe/node-exporter:latest

@@ -1,8 +1,8 @@
 package requests
 
 const (
-	AddToCartRoutingKey    = "api.add.article.cart"
 	StockRequestRoutingKey = "stock.article.request"
+	StockUpdateRoutingKey  = "stock.update"
 	SupplyRoutingKey       = "supplier.article.response"
 	ArticlesTopic          = "articles"
 )

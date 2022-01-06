@@ -32,6 +32,10 @@ jobs:
             path: ./services/cart/Dockerfile
           - image: cart-nginx
             path: ./docker/nginx/cart/Dockerfile
+          - image: catalogue
+            path: ./services/catalogue/Dockerfile
+          - image: catalogue-nginx
+            path: ./docker/nginx/catalogue/Dockerfile
           - image: order
             path: ./services/order/Dockerfile
           - image: order-nginx

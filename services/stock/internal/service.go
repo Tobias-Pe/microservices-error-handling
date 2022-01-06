@@ -55,6 +55,7 @@ const (
 	methodListenAbortedOrders     = "AbortReservation"
 	methodListenCompletedOrders   = "CompleteReservation"
 	methodPublishOrder            = "PublishOrder"
+	methodPublishArticle          = "PublishStockUpdate"
 )
 
 type Service struct {
@@ -229,6 +230,10 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 	price := 0.0
 	for _, article := range *reservedArticles {
 		service.stockMetric.UpdateArticle(article)
+		err := service.publishArticle(article)
+		if err != nil {
+			logger.WithError(err).Error("Could not publish article update")
+		}
 		// price of the reserved article times the ordered quantity
 		price += article.Price * float64(articleQuantityMap[article.ID.Hex()])
 		// check the article
@@ -270,6 +275,43 @@ func (service *Service) orderArticles(id primitive.ObjectID, amount int) error {
 	}
 
 	logger.WithFields(loggrus.Fields{"request": id.Hex(), "response": fmt.Sprintln(amount)}).Infof("Published Supply Request")
+
+	return nil
+}
+
+func (service *Service) publishArticles(articles []models.Article) error {
+	for _, article := range articles {
+		err := service.publishArticle(article)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (service *Service) publishArticle(article models.Article) error {
+	bytes, err := json.Marshal(article)
+	if err != nil {
+		service.requestsMetric.Increment(err, methodPublishArticle)
+		return err
+	}
+
+	err = service.AmqpChannel.Publish(
+		requests.ArticlesTopic,         // exchange
+		requests.StockUpdateRoutingKey, // routing key
+		true,                           // mandatory
+		false,                          // immediate
+		amqp.Publishing{
+			DeliveryMode: amqp.Persistent,
+			ContentType:  "application/json",
+			Body:         bytes,
+		})
+	service.requestsMetric.Increment(err, methodPublishArticle)
+	if err != nil {
+		return err
+	}
+
+	logger.WithFields(loggrus.Fields{"response": article}).Infof("Sent Article Update.")
 
 	return nil
 }
@@ -414,6 +456,10 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 	logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation undone.")
 	service.stockMetric.DecrementReservation()
 	service.stockMetric.UpdateArticles(*articles)
+	err = service.publishArticles(*articles)
+	if err != nil {
+		logger.WithFields(loggrus.Fields{"request": *order, "response": *articles}).WithError(err).Error("Could not publish stock update.")
+	}
 
 	err = message.Ack(false)
 	if err != nil { // ack could not be sent but database transaction was successfully
@@ -552,6 +598,10 @@ func (service *Service) handleSupply(supply *requests.StockSupplyMessage, messag
 	}
 	logger.WithFields(loggrus.Fields{"request": *supply}).Info("Supply restocked.")
 	service.stockMetric.UpdateArticle(*article)
+	err = service.publishArticle(*article)
+	if err != nil {
+		logger.WithFields(loggrus.Fields{"request": *supply}).WithError(err).Warn("Could not publish stock update.")
+	}
 
 	err = message.Ack(false)
 	if err != nil {

@@ -25,10 +25,9 @@
 package internal
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/gomodule/redigo/redis"
-	"strconv"
 )
 
 // DbConnection handles all database operation
@@ -55,17 +54,8 @@ func NewDbConnection(cacheAddress string, cachePort string) *DbConnection {
 	return database
 }
 
-func (database DbConnection) getCart(strCartId string) (*models.Cart, error) {
-	tmpId, err := strconv.Atoi(strCartId)
-	if err != nil {
-		return nil, err
-	}
-	id := int64(tmpId)
-	fetchedCart := models.Cart{
-		ID:         id,
-		ArticleIDs: nil,
-	}
-
+// updateArticle saves the article data under its id and indexes the id under all articles and its category
+func (database DbConnection) updateArticle(article *models.Article) error {
 	// get a client out of the connection pool
 	client := database.connPool.Get()
 	defer func(client redis.Conn) {
@@ -75,32 +65,35 @@ func (database DbConnection) getCart(strCartId string) (*models.Cart, error) {
 		}
 	}(client)
 
-	// article ids are stored as list behind the cartID key
-	jsonArticles, err := redis.ByteSlices(client.Do("LRANGE", id, 0, -1))
+	// add to all
+	_, err := client.Do("SADD", "articles", article.ID.Hex())
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if len(jsonArticles) == 0 { // check empty slice
-		return nil, fmt.Errorf("there is no cart for this id")
-	}
-	// populate return value
-	var articles []string
-	for _, jsonArticle := range jsonArticles {
-		articles = append(articles, string(jsonArticle))
-	}
+
+	// add to category
+	_, err = client.Do("SADD", article.Category, article.ID.Hex())
 	if err != nil {
-		return nil, err
+		return err
 	}
-	fetchedCart.ArticleIDs = articles
-	return &fetchedCart, nil
+
+	// marshall object data
+	jsonArticle, err := json.Marshal(*article)
+	if err != nil {
+		return err
+	}
+
+	// save object data under article id
+	_, err = client.Do("SET", article.ID.Hex(), string(jsonArticle))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (database DbConnection) createCart(strArticleId string) (*models.Cart, error) {
-	newCart := models.Cart{
-		ID:         -1,
-		ArticleIDs: []string{strArticleId},
-	}
-
+// getArticles gets all articles if category is empty or the requested categories articles
+func (database DbConnection) getArticles(category string) (*[]models.Article, error) {
 	// get a client out of the connection pool
 	client := database.connPool.Get()
 	defer func(client redis.Conn) {
@@ -109,55 +102,39 @@ func (database DbConnection) createCart(strArticleId string) (*models.Cart, erro
 			logger.WithError(err).Warn("connection to redis could not be successfully closed")
 		}
 	}(client)
+	var articleIDs []interface{}
 
-	// fetch and increment id counter --> this will be the new cart's id
-	cartID, err := client.Do("INCR", "cartID")
-	if err != nil {
-		return nil, err
-	}
-	newCart.ID = cartID.(int64)
-
-	// RPUSH in this scenario will init a list of values behind the cartID
-	_, err = client.Do("RPUSH", cartID, newCart.ArticleIDs[0])
-	if err != nil {
-		return nil, err
-	}
-	// set expiration for the cart
-	_, err = client.Do("EXPIRE", cartID, expireCartSeconds)
-	if err != nil {
-		return nil, err
-	}
-
-	return &newCart, nil
-}
-
-func (database DbConnection) addToCart(strCartId string, strArticleId string) (*int64, error) {
-	iCartID, err := strconv.Atoi(strCartId)
-	if err != nil {
-		return nil, err
-	}
-	cartID := int64(iCartID)
-
-	// get a client out of the connection pool
-	client := database.connPool.Get()
-	defer func(client redis.Conn) {
-		err := client.Close()
+	if len(category) == 0 { // get all articles
+		response, err := client.Do("SMEMBERS", "articles")
 		if err != nil {
-			logger.WithError(err).Warn("connection to redis could not be successfully closed")
+			return nil, err
 		}
-	}(client)
-
-	// Push article to end of the list of values behind key cartID
-	length, err := client.Do("RPUSH", cartID, strArticleId)
-	if err != nil {
-		return nil, err
-	}
-	// reset expiration timer, because the cart is still in use
-	_, err = client.Do("EXPIRE", cartID, expireCartSeconds)
-	if err != nil {
-		return nil, err
+		articleIDs = response.([]interface{})
+	} else { // get categories articles
+		response, err := client.Do("SMEMBERS", category)
+		if err != nil {
+			return nil, err
+		}
+		articleIDs = response.([]interface{})
 	}
 
-	index := length.(int64) - 1
-	return &index, nil
+	var articles []models.Article
+	// populate articles array
+	for _, interfaceArticleID := range articleIDs {
+		articleID := string(interfaceArticleID.([]byte))
+		response, err := client.Do("GET", articleID)
+		if err != nil {
+			return nil, err
+		}
+		jsonArticle := response.([]byte)
+		var article models.Article
+		err = json.Unmarshal(jsonArticle, &article)
+		if err != nil {
+			return nil, err
+		}
+
+		articles = append(articles, article)
+	}
+
+	return &articles, nil
 }

@@ -44,13 +44,13 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 8
+      replicas: 6
       placement:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.50'
-          memory: 50M
+          cpus: '0.75'
+          memory: 300M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -81,13 +81,13 @@ services:
       - SERVICE_NAME=currency
     deploy:
       mode: replicated
-      replicas: 4
+      replicas: 2
       placement:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.50'
-          memory: 50M
+          cpus: '0.4'
+          memory: 100M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -122,13 +122,13 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 8
+      replicas: 4
       placement:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.50'
-          memory: 50M
+          cpus: '0.75'
+          memory: 250M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -196,8 +196,8 @@ services:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.50'
-          memory: 50M
+          cpus: '0.4'
+          memory: 75M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -211,6 +211,66 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
 #    ports:
 #      - "6379:6379"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 10
+        delay: 5s
+        window: 30s
+
+  # -------------------------------------------- CATALOGUE -------------------------------------------------------------
+
+  catalogue-nginx:
+    image: ghcr.io/tobias-pe/catalogue-nginx:latest
+    build:
+      context: .
+      dockerfile: docker/nginx/catalogue/Dockerfile
+    env_file:
+      - ./config/docker.env
+    depends_on:
+      - catalogue
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 10
+        delay: 5s
+        window: 30s
+
+  catalogue:
+    image: ghcr.io/tobias-pe/catalogue:latest
+    build:
+      context: .
+      dockerfile: ./services/catalogue/Dockerfile
+    env_file:
+      - ./config/docker.env
+    environment:
+      - SERVICE_NAME=catalogue
+    depends_on:
+      - catalogue-redis
+      - stock
+      - rabbit-mq
+    deploy:
+      mode: replicated
+      replicas: 4
+      placement:
+        max_replicas_per_node: 4
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 75M
+        reservations:
+          cpus: '0.25'
+          memory: 20M
+      restart_policy:
+        delay: 5s
+        window: 30s
+
+  catalogue-redis:
+    image: "redis:6"
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+#    ports:
+#      - "6378:6379"
     deploy:
       restart_policy:
         condition: on-failure
@@ -249,8 +309,8 @@ services:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.50'
-          memory: 50M
+          cpus: '0.75'
+          memory: 100M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -288,7 +348,7 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 4
+      replicas: 2
       placement:
         max_replicas_per_node: 4
       resources:
@@ -314,7 +374,7 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 4
+      replicas: 2
       placement:
         max_replicas_per_node: 4
       resources:
@@ -340,7 +400,7 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 4
+      replicas: 2
       placement:
         max_replicas_per_node: 4
       resources:
@@ -366,7 +426,7 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 4
+      replicas: 2
       placement:
         max_replicas_per_node: 4
       resources:

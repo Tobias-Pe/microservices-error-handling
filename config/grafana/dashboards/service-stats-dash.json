@@ -880,7 +880,7 @@
         "x": 0,
         "y": 67
       },
-      "id": 11,
+      "id": 9,
       "options": {
         "legend": {
           "calcs": [],
@@ -888,20 +888,20 @@
           "placement": "right"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "multi"
         }
       },
       "pluginVersion": "8.2.6",
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (method,error) (increase(requests_total{job=\"currency\"}[$__interval]))",
+          "expr": "sum by (method) (increase(requests_total{job=\"order\"}[$__interval]))",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Currency Requests",
+      "title": "Order Requests",
       "type": "timeseries"
     },
     {
@@ -1044,7 +1044,7 @@
         "x": 0,
         "y": 77
       },
-      "id": 9,
+      "id": 14,
       "options": {
         "legend": {
           "calcs": [],
@@ -1059,13 +1059,13 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (method,error) (increase(requests_total{job=\"order\"}[$__interval]))",
+          "expr": "sum by (method,error) (increase(requests_total{job=\"shipment\"}[$__interval]))",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Order Requests",
+      "title": "Shipment Requests",
       "type": "timeseries"
     },
     {
@@ -1126,7 +1126,7 @@
         "x": 12,
         "y": 77
       },
-      "id": 10,
+      "id": 31,
       "options": {
         "legend": {
           "calcs": [],
@@ -1141,13 +1141,13 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (method,error) (increase(requests_total{job=\"supplier\"}[$__interval]))",
+          "expr": "sum by (method,error) (increase(requests_total{job=\"catalogue\"}[$__interval]))",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Supplier Requests",
+      "title": "Catalogue Requests",
       "type": "timeseries"
     },
     {
@@ -1208,7 +1208,7 @@
         "x": 0,
         "y": 87
       },
-      "id": 14,
+      "id": 13,
       "options": {
         "legend": {
           "calcs": [],
@@ -1223,13 +1223,13 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (method,error) (increase(requests_total{job=\"shipment\"}[$__interval]))",
+          "expr": "sum by (method,error) (increase(requests_total{job=\"e-mail\"}[$__interval]))",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Shipment Requests",
+      "title": "Email Requests",
       "type": "timeseries"
     },
     {
@@ -1372,7 +1372,89 @@
         "x": 0,
         "y": 97
       },
-      "id": 13,
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.2.6",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum by (method,error) (increase(requests_total{job=\"currency\"}[$__interval]))",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Currency Requests",
+      "type": "timeseries"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 11,
+            "gradientMode": "hue",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 97
+      },
+      "id": 10,
       "options": {
         "legend": {
           "calcs": [],
@@ -1387,13 +1469,13 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (method,error) (increase(requests_total{job=\"e-mail\"}[$__interval]))",
+          "expr": "sum by (method,error) (increase(requests_total{job=\"supplier\"}[$__interval]))",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Email Requests",
+      "title": "Supplier Requests",
       "type": "timeseries"
     },
     {
@@ -1418,10 +1500,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 12,
-        "y": 97
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 107
       },
       "id": 21,
       "options": {
@@ -1447,7 +1529,7 @@
           "refId": "A"
         }
       ],
-      "title": "Requests Total - Errors",
+      "title": "Requests Total - Errors - Detail",
       "type": "bargauge"
     },
     {
@@ -1479,7 +1561,7 @@
         "h": 13,
         "w": 24,
         "x": 0,
-        "y": 107
+        "y": 116
       },
       "id": 27,
       "options": {
@@ -1516,7 +1598,7 @@
       "type": "table"
     }
   ],
-  "refresh": "",
+  "refresh": false,
   "schemaVersion": 32,
   "style": "dark",
   "tags": [],
@@ -1524,12 +1606,12 @@
     "list": []
   },
   "time": {
-    "from": "2022-01-06T18:22:43.668Z",
-    "to": "2022-01-06T18:28:45.932Z"
+    "from": "2022-01-06T21:12:16.903Z",
+    "to": "2022-01-06T21:16:51.092Z"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Service Stats",
   "uid": "GY4_Bn0nz",
-  "version": 5
+  "version": 1
 }
