@@ -977,7 +977,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum by (method,error) (increase(requests_total{job=\"stock\"}[$__interval]))",
+          "expr": "sum by (method) (increase(requests_total{job=\"stock\"}[$__interval]))",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -1498,13 +1498,25 @@
       "transformations": [
         {
           "id": "filterByValue",
-          "options": {}
+          "options": {
+            "filters": [
+              {
+                "config": {
+                  "id": "isNotNull",
+                  "options": {}
+                },
+                "fieldName": "error"
+              }
+            ],
+            "match": "any",
+            "type": "include"
+          }
         }
       ],
       "type": "table"
     }
   ],
-  "refresh": "5s",
+  "refresh": "",
   "schemaVersion": 32,
   "style": "dark",
   "tags": [],
@@ -1512,12 +1524,12 @@
     "list": []
   },
   "time": {
-    "from": "now-5m",
-    "to": "now"
+    "from": "2022-01-06T18:22:43.668Z",
+    "to": "2022-01-06T18:28:45.932Z"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Service Stats",
   "uid": "GY4_Bn0nz",
-  "version": 1
+  "version": 5
 }
