@@ -44,13 +44,13 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 6
+      replicas: 8
       placement:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.75'
-          memory: 300M
+          cpus: '1.5'
+          memory: 400M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -122,13 +122,13 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 4
+      replicas: 3
       placement:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.75'
-          memory: 250M
+          cpus: '0.5'
+          memory: 200M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -191,13 +191,13 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 4
+      replicas: 9
       placement:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.4'
-          memory: 75M
+          cpus: '1.0'
+          memory: 175M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -247,17 +247,17 @@ services:
       - SERVICE_NAME=catalogue
     depends_on:
       - catalogue-redis
-      - stock
+      - stock-nginx
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 3
+      replicas: 8
       placement:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.4'
-          memory: 100M
+          cpus: '1.0'
+          memory: 250M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -309,7 +309,7 @@ services:
         max_replicas_per_node: 4
       resources:
         limits:
-          cpus: '0.75'
+          cpus: '1.0'
           memory: 200M
         reservations:
           cpus: '0.25'
@@ -453,7 +453,7 @@ services:
     volumes:
       - prometheus_data:/prometheus
     environment:
-      - JOBS=api-gateway:50000 cart:9216 currency:9216 e-mail:9216 order:9216 payment:9216 shipment:9216 stock:9216 supplier:9216
+      - JOBS=api-gateway:50000 cart:9216 currency:9216 e-mail:9216 order:9216 payment:9216 shipment:9216 stock:9216 supplier:9216 catalogue:9216
     deploy:
       mode: replicated
       replicas: 1
