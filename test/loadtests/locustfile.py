@@ -41,25 +41,32 @@ def failure_data(cart_id):
             "email": "max.mustermann@web.de"
         },
         {
-            "cartId": str(cart_id),
+            "cartId": cart_id,
             "address": "-",  # no address
             "name": "Max Mustermann",
             "creditCard": "123456789-123",
             "email": "max.mustermann@web.de"
         },
         {
-            "cartId": str(cart_id),
+            "cartId": cart_id,
             "address": "Muster-Allee 42",
             "name": "Max Mustermann",
             "creditCard": "nocreditcard",
             "email": "max.mustermann@web.de"
         },
         {
-            "cartId": str(cart_id),
+            "cartId": cart_id,
             "address": "Muster-Allee 42",
             "name": "Max Mustermann",
             "creditCard": "123456789-123",
             "email": "noemailaddress"
+        },
+        {
+            "cartId": "cartWithUnknownArticlesToBeFetched",
+            "address": "Muster-Allee 42",
+            "name": "Max Mustermann",
+            "creditCard": "123456789-123",
+            "email": "max.mustermann@web.de"
         },
     ]
     return random.choice(failure_datas)
@@ -200,6 +207,8 @@ class NoWaitOrderUser(OrderHttpUser, HttpUser):
 
     def create_nowait_order(self, cart_id):
         customer_data = get_customer_data(cart_id)
+        if customer_data["cartId"] == "cartWithUnknownArticlesToBeFetched":
+            customer_data["cartId"] = self.create_cart("iDoNotExist")
         self.create_order(customer_data)
 
 
@@ -237,6 +246,8 @@ class WaitingOrderUser(OrderHttpUser, HttpUser):
         while not (order_status == "COMPLETE" or order_status == "ABORTED"):
             if order_id == "":
                 customer_data = get_customer_data(cart_id)
+                if customer_data["cartId"] == "cartWithUnknownArticlesToBeFetched":
+                    customer_data["cartId"] = self.create_cart("iDoNotExist")
                 order_id = self.create_order(customer_data)
             else:
                 order_status = self.check_order(order_id)
