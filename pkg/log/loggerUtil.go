@@ -120,7 +120,7 @@ func InitLogger() *logrus.Logger {
 			AppName:       "Microservices-Errorhandling",
 			Tags:          []string{"logrus-logs"},
 			BatchInterval: 5 * time.Second,
-			BatchCount:    10, // set to "0" to disable batching
+			BatchCount:    100, // set to "0" to disable batching
 		}
 
 		// influx hook should log constantly service name field
