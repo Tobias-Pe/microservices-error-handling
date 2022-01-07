@@ -90,28 +90,22 @@ func NewService(cacheAddress string, cachePort string, stockAddress string, stoc
 }
 
 func (service *Service) initCache(stockAddress string, stockPort string) {
-	// Set up a connection to the server.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*connectionTimeSecs)
-
-	conn, err := grpc.DialContext(ctx, stockAddress+":"+stockPort, grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		logger.WithError(err).Panicln("did not connect to stock-service")
+	// retry connect to stock
+	var conn *grpc.ClientConn
+	for conn == nil {
+		// Set up a connection to the server.
+		conn = getConnectionToStock(stockAddress, stockPort)
+		time.Sleep(time.Millisecond * 500)
 	}
-	cancel()
 	logger.Infoln("Connection to stock-service successfully!")
-
+	// retry get articles from stock
 	var response *proto.ResponseArticles
 	for response == nil {
-		client := proto.NewStockClient(conn)
-		ctx, cancel = context.WithTimeout(context.Background(), connectionTimeSecs*time.Second)
-		request := &proto.RequestArticles{}
-		response, err = client.GetArticles(ctx, request)
-		cancel()
-		if err != nil {
-			logger.WithError(err).Panicln("did not get articles from stock-service")
-		}
+		response = getArticlesFromStock(conn)
+		time.Sleep(time.Millisecond * 500)
 	}
-
+	logger.WithFields(logrus.Fields{"response": response.Articles}).Infoln("fetched articles from stock-service successfully!")
+	// init cache
 	for _, articleProto := range response.Articles {
 		hex, err := primitive.ObjectIDFromHex(articleProto.Id)
 		if err != nil {
@@ -132,6 +126,36 @@ func (service *Service) initCache(stockAddress string, stockPort string) {
 		service.requestsMetric.Increment(err, methodUpdateArticle)
 	}
 	logger.WithFields(logrus.Fields{"request": response.String()}).Info("Initialised Cache.")
+}
+
+// getArticlesFromStock extracted method. tries to fetch articles from the conn parameter.
+// returns nil if 0 articles were found.
+func getArticlesFromStock(conn *grpc.ClientConn) *proto.ResponseArticles {
+	client := proto.NewStockClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), connectionTimeSecs*time.Second)
+	request := &proto.RequestArticles{}
+	response, err := client.GetArticles(ctx, request)
+	cancel()
+	if err != nil {
+		logger.WithError(err).Error("did not get articles from stock-service. retrying..")
+		return nil
+	} else if len(response.Articles) == 0 {
+		logger.Warn("got 0 articles from stock-service. retrying..")
+		return nil
+	}
+	return response
+}
+
+// getConnectionToStock extracted method. tries to connect to stock service
+func getConnectionToStock(stockAddress string, stockPort string) *grpc.ClientConn {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*connectionTimeSecs)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, stockAddress+":"+stockPort, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		logger.WithError(err).Error("did not connect to stock-service. retrying..")
+		return nil
+	}
+	return conn
 }
 
 // GetArticles implementation of in the proto file defined interface of catalogue service

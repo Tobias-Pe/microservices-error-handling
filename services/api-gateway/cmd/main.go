@@ -33,6 +33,7 @@ import (
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type configuration struct {
@@ -68,6 +69,21 @@ func newService(configuration configuration) *service {
 		catalogueClient: createCatalogueClient(configuration),
 		config:          configuration,
 	}
+
+	// if client is nil --> client connection did not work --> reconnect in background
+	if service.cartClient == nil {
+		go func() { service.reconnectCartClient() }()
+	}
+	if service.currencyClient == nil {
+		go func() { service.reconnectCurrencyClient() }()
+	}
+	if service.orderClient == nil {
+		go func() { service.reconnectOrderClient() }()
+	}
+	if service.catalogueClient == nil {
+		go func() { service.reconnectCatalogueClient() }()
+	}
+
 	return service
 }
 
@@ -124,10 +140,28 @@ func createCurrencyClient(configuration configuration) *internal.CurrencyClient 
 	return currencyClient
 }
 
+func (service *service) reconnectCurrencyClient() {
+	var connection *internal.CurrencyClient
+	for connection == nil {
+		connection = createCurrencyClient(service.config)
+		time.Sleep(time.Millisecond * 500)
+	}
+	service.currencyClient = connection
+}
+
 func createCatalogueClient(configuration configuration) *internal.CatalogueClient {
 	catalogueClient := internal.NewCatalogueClient(configuration.catalogueAddress, configuration.cataloguePort)
 
 	return catalogueClient
+}
+
+func (service *service) reconnectCatalogueClient() {
+	var connection *internal.CatalogueClient
+	for connection == nil {
+		connection = createCatalogueClient(service.config)
+		time.Sleep(time.Millisecond * 500)
+	}
+	service.catalogueClient = connection
 }
 
 func createCartClient(configuration configuration) *internal.CartClient {
@@ -141,10 +175,28 @@ func createCartClient(configuration configuration) *internal.CartClient {
 	return cartClient
 }
 
+func (service *service) reconnectCartClient() {
+	var connection *internal.CartClient
+	for connection == nil {
+		connection = createCartClient(service.config)
+		time.Sleep(time.Millisecond * 500)
+	}
+	service.cartClient = connection
+}
+
 func createOrderClient(configuration configuration) *internal.OrderClient {
 	orderClient := internal.NewOrderClient(configuration.orderAddress, configuration.orderPort)
 
 	return orderClient
+}
+
+func (service *service) reconnectOrderClient() {
+	var connection *internal.OrderClient
+	for connection == nil {
+		connection = createOrderClient(service.config)
+		time.Sleep(time.Millisecond * 500)
+	}
+	service.orderClient = connection
 }
 
 func createRouter(service *service, configuration configuration) {
