@@ -1,5 +1,7 @@
 version: "3.8"
 
+# The current config of replicas is for a 5 RaspberryPi 4B Cluster, feel free to tweak the values for your scenario
+
 services:
 
   # ----------------------------------------- RABBIT-MQ ----------------------------------------------------------------
@@ -46,7 +48,7 @@ services:
       mode: replicated
       replicas: 8
       placement:
-        max_replicas_per_node: 4
+        max_replicas_per_node: 2
       resources:
         limits:
           cpus: '1.5'
@@ -83,7 +85,7 @@ services:
       mode: replicated
       replicas: 2
       placement:
-        max_replicas_per_node: 4
+        max_replicas_per_node: 1
       resources:
         limits:
           cpus: '0.4'
@@ -124,7 +126,7 @@ services:
       mode: replicated
       replicas: 3
       placement:
-        max_replicas_per_node: 4
+        max_replicas_per_node: 1
       resources:
         limits:
           cpus: '0.5'
@@ -191,9 +193,9 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 9
+      replicas: 8
       placement:
-        max_replicas_per_node: 4
+        max_replicas_per_node: 2
       resources:
         limits:
           cpus: '1.0'
@@ -253,7 +255,7 @@ services:
       mode: replicated
       replicas: 8
       placement:
-        max_replicas_per_node: 4
+        max_replicas_per_node: 2
       resources:
         limits:
           cpus: '1.0'
@@ -306,7 +308,7 @@ services:
       mode: replicated
       replicas: 6
       placement:
-        max_replicas_per_node: 4
+        max_replicas_per_node: 2
       resources:
         limits:
           cpus: '1.0'
@@ -350,7 +352,7 @@ services:
       mode: replicated
       replicas: 2
       placement:
-        max_replicas_per_node: 4
+        max_replicas_per_node: 1
       resources:
         limits:
           cpus: '0.40'
@@ -376,7 +378,7 @@ services:
       mode: replicated
       replicas: 2
       placement:
-        max_replicas_per_node: 4
+        max_replicas_per_node: 1
       resources:
         limits:
           cpus: '0.40'
@@ -402,7 +404,7 @@ services:
       mode: replicated
       replicas: 2
       placement:
-        max_replicas_per_node: 4
+        max_replicas_per_node: 1
       resources:
         limits:
           cpus: '0.40'
@@ -428,7 +430,7 @@ services:
       mode: replicated
       replicas: 2
       placement:
-        max_replicas_per_node: 4
+        max_replicas_per_node: 1
       resources:
         limits:
           cpus: '0.50'
