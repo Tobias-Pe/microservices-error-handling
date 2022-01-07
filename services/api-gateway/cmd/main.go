@@ -124,7 +124,7 @@ func readConfig() configuration {
 }
 
 func createRouter(service *service, configuration configuration) {
-	gin.SetMode(gin.DebugMode)
+	gin.SetMode(gin.ReleaseMode)
 	// Creates a gin router with default middleware:
 	// logger and recovery (crash-free) middleware
 	router := gin.New()
