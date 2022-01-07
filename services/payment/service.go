@@ -32,7 +32,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"math"
 	"math/rand"
@@ -155,12 +155,12 @@ func (service *Service) ListenOrders() {
 func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) error {
 	isAllowed, err := service.mockPayment(order.CustomerCreditCard)
 	if !isAllowed { // abort order because of invalid payment data
-		logger.WithFields(loggrus.Fields{"payment_status": isAllowed, "request": *order}).WithError(err).Warn("Payment unsuccessfully. Aborting order...")
+		logger.WithFields(logrus.Fields{"payment_status": isAllowed, "request": *order}).WithError(err).Warn("Payment unsuccessfully. Aborting order...")
 		status := models.StatusAborted("We could not get the needed amount from your credit card. Please check your account.")
 		order.Status = status.Name
 		order.Message = status.Message
 	} else {
-		logger.WithFields(loggrus.Fields{"request": *order}).Infof("Order payed.")
+		logger.WithFields(logrus.Fields{"request": *order}).Infof("Order payed.")
 		status := models.StatusShipping()
 		order.Status = status.Name
 		order.Message = status.Message
@@ -170,7 +170,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
 	service.requestsMetric.Increment(err, methodPublishOrder)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("Could not publish order update")
+		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Error("Could not publish order update")
 		_ = message.Reject(true) // nack and requeue message
 		return err
 	}
@@ -179,10 +179,10 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	if err != nil { // ack could not be sent but transaction was successfully
 		logger.WithError(err).Error("Could not ack message. Trying to roll back...")
 
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
+		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
 		// rollback transaction. because of the missing ack the current request will be resent
 		service.mockPaymentRollback(order.CustomerCreditCard)
-		logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+		logger.WithFields(logrus.Fields{"request": *order}).Info("Rolling back successfully")
 	}
 
 	return err

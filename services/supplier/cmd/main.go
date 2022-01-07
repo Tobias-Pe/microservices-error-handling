@@ -28,7 +28,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/http-router"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/services/supplier"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -90,7 +90,7 @@ func readConfig() configuration {
 		rabbitPort:    rabbitPort,
 	}
 
-	logger.WithFields(loggrus.Fields{
+	logger.WithFields(logrus.Fields{
 		"response": config,
 	}).Info("config variables read")
 

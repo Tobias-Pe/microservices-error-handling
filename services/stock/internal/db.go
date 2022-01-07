@@ -30,7 +30,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/pkg/errors"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -53,15 +53,15 @@ func NewDbConnection(mongoAddress string, mongoPort string) *DbConnection {
 	mongoUri := "mongodb://" + mongoAddress + ":" + mongoPort
 	db.MongoClient, err = mongo.NewClient(options.Client().ApplyURI(mongoUri))
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
+		logger.WithFields(logrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	err = db.MongoClient.Connect(ctx)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
+		logger.WithFields(logrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
 	} else {
-		logger.WithFields(loggrus.Fields{"request": mongoUri}).Info("Connection to DB successfully!")
+		logger.WithFields(logrus.Fields{"request": mongoUri}).Info("Connection to DB successfully!")
 	}
 	db.stockCollection = db.MongoClient.Database("mongo_db").Collection("stock")
 	db.reservationCollection = db.MongoClient.Database("mongo_db").Collection("reservation")
@@ -181,7 +181,7 @@ func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[str
 			if result.ModifiedCount != 1 {
 				msg := fmt.Sprintf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
 				err = errors.Wrap(customerrors.ErrNoModification, msg)
-				logger.WithFields(loggrus.Fields{"request": order}).WithError(err).Error("Could not update article")
+				logger.WithFields(logrus.Fields{"request": order}).WithError(err).Error("Could not update article")
 				return nil, err
 			}
 		}
@@ -194,7 +194,7 @@ func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[str
 		if result2.InsertedID == nil {
 			msg := fmt.Sprintf("insert not worked for order: %v", order)
 			err = errors.Wrap(customerrors.ErrNoModification, msg)
-			logger.WithFields(loggrus.Fields{"request": order}).WithError(err).Error("Could not insert order into reservations")
+			logger.WithFields(logrus.Fields{"request": order}).WithError(err).Error("Could not insert order into reservations")
 			return nil, err
 		}
 
@@ -275,7 +275,7 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(articleQuantityMap
 			if result.ModifiedCount != 1 {
 				msg := fmt.Sprintf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
 				err = errors.Wrap(customerrors.ErrNoModification, msg)
-				logger.WithFields(loggrus.Fields{"request": order}).WithError(err).Error("Could not update article")
+				logger.WithFields(logrus.Fields{"request": order}).WithError(err).Error("Could not update article")
 				return nil, err
 			}
 			articles = append(articles, *stockArticle)
@@ -410,7 +410,7 @@ func (database *DbConnection) newCallbackRestockArticle(articleID primitive.Obje
 		if result.ModifiedCount != 1 {
 			msg := fmt.Sprintf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
 			err = errors.Wrap(customerrors.ErrNoModification, msg)
-			logger.WithFields(loggrus.Fields{"request": stockArticle}).WithError(err).Error("Could not update article")
+			logger.WithFields(logrus.Fields{"request": stockArticle}).WithError(err).Error("Could not update article")
 			return nil, err
 		}
 		return *stockArticle, nil
@@ -464,7 +464,7 @@ func (database *DbConnection) newCallbackRollbackRestockArticle(articleID primit
 		if result.ModifiedCount != 1 {
 			msg := fmt.Sprintf("modified count %v != 1 for article: %v", result.ModifiedCount, stockArticle)
 			err = errors.Wrap(customerrors.ErrNoModification, msg)
-			logger.WithFields(loggrus.Fields{"request": stockArticle}).WithError(err).Error("Could not update article")
+			logger.WithFields(logrus.Fields{"request": stockArticle}).WithError(err).Error("Could not update article")
 			return nil, err
 		}
 		return nil, nil

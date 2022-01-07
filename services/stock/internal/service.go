@@ -36,7 +36,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"math"
@@ -200,7 +200,7 @@ func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArtic
 		})
 	}
 
-	logger.WithFields(loggrus.Fields{"response": *articles}).Info("Get articles handled")
+	logger.WithFields(logrus.Fields{"response": *articles}).Info("Get articles handled")
 
 	return &proto.ResponseArticles{Articles: protoArticles}, nil
 }
@@ -274,7 +274,7 @@ func (service *Service) orderArticles(id primitive.ObjectID, amount int) error {
 		return err
 	}
 
-	logger.WithFields(loggrus.Fields{"request": id.Hex(), "response": fmt.Sprintln(amount)}).Infof("Published Supply Request")
+	logger.WithFields(logrus.Fields{"request": id.Hex(), "response": fmt.Sprintln(amount)}).Infof("Published Supply Request")
 
 	return nil
 }
@@ -311,7 +311,7 @@ func (service *Service) publishArticle(article models.Article) error {
 		return err
 	}
 
-	logger.WithFields(loggrus.Fields{"response": article}).Infof("Sent Article Update.")
+	logger.WithFields(logrus.Fields{"response": article}).Infof("Sent Article Update.")
 
 	return nil
 }
@@ -351,16 +351,16 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 	// if reservation already present --> also publish order update
 	if err != nil {
 		if !errors.Is(err, primitive.ErrInvalidHex) && !errors.Is(err, customerrors.ErrNoModification) && !errors.Is(err, customerrors.ErrLowStock) { // it must be a transaction error
-			logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Retrying...")
+			logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Retrying...")
 			_ = message.Reject(true) // nack and requeue message
 			return err
 		}
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Aborting order...")
+		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Aborting order...")
 		status := models.StatusAborted(StockAbortMessage)
 		order.Status = status.Name
 		order.Message = status.Message
 	} else { // next step for the order is paying the articles in payment-service
-		logger.WithFields(loggrus.Fields{"request": *order}).Infof("Articles reserved for this order.")
+		logger.WithFields(logrus.Fields{"request": *order}).Infof("Articles reserved for this order.")
 		status := models.StatusPaying()
 		order.Status = status.Name
 		order.Message = status.Message
@@ -390,7 +390,7 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 		} else {
 			service.stockMetric.DecrementReservation()
 			service.stockMetric.UpdateArticles(*articles)
-			logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+			logger.WithFields(logrus.Fields{"request": *order}).Info("Rolling back successfully")
 		}
 	}
 
@@ -442,7 +442,7 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 	cancel()
 
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not delete reservation.")
+		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not delete reservation.")
 
 		if errors.Is(err, customerrors.ErrNoReservation) || errors.Is(err, primitive.ErrInvalidHex) || errors.Is(err, customerrors.ErrNoModification) {
 			// there is no rollback needed so ignore the ack error
@@ -453,12 +453,12 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 
 		return err
 	}
-	logger.WithFields(loggrus.Fields{"request": *order}).Infof("Reservation undone.")
+	logger.WithFields(logrus.Fields{"request": *order}).Infof("Reservation undone.")
 	service.stockMetric.DecrementReservation()
 	service.stockMetric.UpdateArticles(*articles)
 	err = service.publishArticles(*articles)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": *order, "response": *articles}).WithError(err).Error("Could not publish stock update.")
+		logger.WithFields(logrus.Fields{"request": *order, "response": *articles}).WithError(err).Error("Could not publish stock update.")
 	}
 
 	err = message.Ack(false)
@@ -466,14 +466,14 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 		logger.WithError(err).Error("Could not ack message. Trying to roll back...")
 
 		// rollback transaction. because of the missing ack the current request will be resent
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
+		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
 		_, rollbackErr := service.reserveArticlesAndCalcPrice(order)
 		if rollbackErr != nil {
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
 			service.stockMetric.IncrementReservation()
-			logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+			logger.WithFields(logrus.Fields{"request": *order}).Info("Rolling back successfully")
 		}
 	}
 
@@ -517,7 +517,7 @@ func (service *Service) handleCompletedOrder(order *models.Order, message amqp.D
 	err = service.Database.deleteReservation(ctx, order.ID)
 	cancel()
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not delete reservation.")
+		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not delete reservation.")
 
 		if errors.Is(err, customerrors.ErrNoReservation) {
 			_ = message.Ack(false) // nack and requeue message
@@ -527,7 +527,7 @@ func (service *Service) handleCompletedOrder(order *models.Order, message amqp.D
 
 		return err
 	}
-	logger.WithFields(loggrus.Fields{"request": *order}).Info("Reservation deleted.")
+	logger.WithFields(logrus.Fields{"request": *order}).Info("Reservation deleted.")
 	service.stockMetric.DecrementReservation()
 
 	err = message.Ack(false)
@@ -543,7 +543,7 @@ func (service *Service) handleCompletedOrder(order *models.Order, message amqp.D
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
 			service.stockMetric.IncrementReservation()
-			logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+			logger.WithFields(logrus.Fields{"request": *order}).Info("Rolling back successfully")
 		}
 	}
 
@@ -585,7 +585,7 @@ func (service *Service) handleSupply(supply *requests.StockSupplyMessage, messag
 
 	article, err := service.Database.restockArticle(ctx, supply.ArticleID, supply.Amount)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": *supply}).WithError(err).Warn("Could not restock supply.")
+		logger.WithFields(logrus.Fields{"request": *supply}).WithError(err).Warn("Could not restock supply.")
 
 		if errors.Is(err, customerrors.ErrNoModification) {
 			// there is no rollback needed so ignore the ack error
@@ -596,24 +596,24 @@ func (service *Service) handleSupply(supply *requests.StockSupplyMessage, messag
 
 		return err
 	}
-	logger.WithFields(loggrus.Fields{"request": *supply}).Info("Supply restocked.")
+	logger.WithFields(logrus.Fields{"request": *supply}).Info("Supply restocked.")
 	service.stockMetric.UpdateArticle(*article)
 	err = service.publishArticle(*article)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": *supply}).WithError(err).Warn("Could not publish stock update.")
+		logger.WithFields(logrus.Fields{"request": *supply}).WithError(err).Warn("Could not publish stock update.")
 	}
 
 	err = message.Ack(false)
 	if err != nil {
 		logger.WithError(err).Error("Could not ack message.")
 
-		logger.WithFields(loggrus.Fields{"request": *supply}).WithError(err).Info("Rolling back transaction...")
+		logger.WithFields(logrus.Fields{"request": *supply}).WithError(err).Info("Rolling back transaction...")
 		rollbackErr := service.Database.rollbackRestockArticle(ctx, supply.ArticleID, supply.Amount)
 		if err != nil {
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
-			logger.WithFields(loggrus.Fields{"request": *supply}).Info("Rolling back successfully")
+			logger.WithFields(logrus.Fields{"request": *supply}).Info("Rolling back successfully")
 		}
 	}
 	return err

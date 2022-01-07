@@ -29,7 +29,7 @@ import (
 	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
 	loggingUtils "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -151,7 +151,7 @@ func (order Order) PublishOrderStatusUpdate(channel *amqp.Channel) error {
 	if err != nil {
 		return err
 	}
-	logger.WithFields(loggrus.Fields{"request": order}).Infof("Published Order update")
+	logger.WithFields(logrus.Fields{"request": order}).Infof("Published Order update")
 	return nil
 }
 

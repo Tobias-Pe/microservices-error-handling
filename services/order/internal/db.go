@@ -30,7 +30,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/pkg/errors"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -53,16 +53,16 @@ func NewDbConnection(mongoAddress string, mongoPort string) *DbConnection {
 	mongoUri := "mongodb://" + mongoAddress + ":" + mongoPort
 	db.MongoClient, err = mongo.NewClient(options.Client().ApplyURI(mongoUri))
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
+		logger.WithFields(logrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
 	}
 	// connect to mongodb
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	err = db.MongoClient.Connect(ctx)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
+		logger.WithFields(logrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
 	} else {
-		logger.WithFields(loggrus.Fields{"request": mongoUri}).Info("Connection to DB successfully!")
+		logger.WithFields(logrus.Fields{"request": mongoUri}).Info("Connection to DB successfully!")
 	}
 	// fetch the collection for all order operations
 	db.orderCollection = db.MongoClient.Database("mongo_db").Collection("order")

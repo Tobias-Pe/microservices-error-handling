@@ -30,7 +30,7 @@ import (
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/services/currency"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"log"
@@ -89,7 +89,7 @@ func readConfig() configuration {
 
 	config := configuration{address: serverAddress, port: serverPort}
 
-	logger.WithFields(loggrus.Fields{"response": config}).Info("config variables read")
+	logger.WithFields(logrus.Fields{"response": config}).Info("config variables read")
 
 	return config
 }

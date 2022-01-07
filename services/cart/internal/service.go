@@ -34,7 +34,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"math"
 	"strconv"
@@ -137,12 +137,12 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	// fetch the cart
 	cart, err := service.database.getCart(order.CartID)
 	if err != nil { // there was no such cart in this order --> abort order because wrong information
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not get cart from this order. Aborting order...")
+		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not get cart from this order. Aborting order...")
 		status := models.StatusAborted(models.CartAbortMessage)
 		order.Status = status.Name
 		order.Message = status.Message
 	} else { // next step for the order is reserving the articles from the cart in stock
-		logger.WithFields(loggrus.Fields{"response": *cart, "request": *order}).Infof("Got cart for this order.")
+		logger.WithFields(logrus.Fields{"response": *cart, "request": *order}).Infof("Got cart for this order.")
 		status := models.StatusReserving()
 		order.Status = status.Name
 		order.Message = status.Message
@@ -153,7 +153,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
 	service.requestsMetric.Increment(err, methodPublishOrder)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"response": *order}).WithError(err).Error("Could not publish order update")
+		logger.WithFields(logrus.Fields{"response": *order}).WithError(err).Error("Could not publish order update")
 		_ = message.Reject(true) // nack and requeue message
 		return err
 	}
@@ -175,7 +175,7 @@ func (service *Service) CreateCart(_ context.Context, req *proto.RequestNewCart)
 
 	strId := strconv.Itoa(int(cart.ID))
 
-	logger.WithFields(loggrus.Fields{"response": *cart, "request": req.ArticleId}).Info("Created new Cart")
+	logger.WithFields(logrus.Fields{"response": *cart, "request": req.ArticleId}).Info("Created new Cart")
 	service.requestsMetric.Increment(err, methodCreateCart)
 
 	return &proto.ResponseNewCart{CartId: strId}, nil
@@ -190,7 +190,7 @@ func (service *Service) GetCart(_ context.Context, req *proto.RequestCart) (*pro
 		return nil, err
 	}
 
-	logger.WithFields(loggrus.Fields{"response": *cart, "request": req.CartId}).Info("Looked up Cart")
+	logger.WithFields(logrus.Fields{"response": *cart, "request": req.CartId}).Info("Looked up Cart")
 
 	return &proto.ResponseCart{ArticleIds: cart.ArticleIDs}, nil
 }
@@ -201,10 +201,10 @@ func (service *Service) PutCart(_ context.Context, req *proto.RequestPutCart) (*
 	_, err := service.database.addToCart(req.CartId, req.ArticleId)
 	service.requestsMetric.Increment(err, methodPutCart)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": req.String()}).WithError(err).Warn("Could not add to cart.")
+		logger.WithFields(logrus.Fields{"request": req.String()}).WithError(err).Warn("Could not add to cart.")
 		return nil, err
 	}
-	logger.WithFields(loggrus.Fields{"request": req.String()}).Infof("Inserted item")
+	logger.WithFields(logrus.Fields{"request": req.String()}).Infof("Inserted item")
 
 	return &proto.Empty{}, nil
 }

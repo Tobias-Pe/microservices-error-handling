@@ -32,7 +32,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"math"
 	"math/rand"
@@ -153,7 +153,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	emailErr := service.mockEmail(order.CustomerEmail)
 
 	if emailErr != nil {
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(emailErr).Warn("Email not sent.")
+		logger.WithFields(logrus.Fields{"request": *order}).WithError(emailErr).Warn("Email not sent.")
 
 		// ack message & ignore error because rollback is not needed
 		_ = message.Ack(false)
@@ -161,15 +161,15 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 		return emailErr
 	}
 
-	logger.WithFields(loggrus.Fields{"request": *order}).Infof("E-Mail sent.")
+	logger.WithFields(logrus.Fields{"request": *order}).Infof("E-Mail sent.")
 
 	ackErr := message.Ack(false)
 	if ackErr != nil {
 		// ack could not be sent but email transaction was successfully
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(ackErr).Info("Rolling back transaction...")
+		logger.WithFields(logrus.Fields{"request": *order}).WithError(ackErr).Info("Rolling back transaction...")
 		// rollback transaction. because of the missing ack the current request will be resent
 		service.mockEmailRollback()
-		logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+		logger.WithFields(logrus.Fields{"request": *order}).Info("Rolling back successfully")
 	}
 
 	return ackErr

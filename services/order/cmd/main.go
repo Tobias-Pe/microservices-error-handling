@@ -30,7 +30,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/http-router"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/services/order/internal"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/mongo"
 	"google.golang.org/grpc"
@@ -131,7 +131,7 @@ func readConfig() configuration {
 		rabbitPort:    rabbitPort,
 	}
 
-	logger.WithFields(loggrus.Fields{
+	logger.WithFields(logrus.Fields{
 		"response": config,
 	}).Info("config variables read")
 

@@ -28,7 +28,7 @@ import (
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/services/api-gateway/internal"
 	"github.com/gin-gonic/gin"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	ginlogrus "github.com/toorop/gin-logrus"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
@@ -116,7 +116,7 @@ func readConfig() configuration {
 		rabbitPort:       rabbitPort,
 	}
 
-	logger.WithFields(loggrus.Fields{
+	logger.WithFields(logrus.Fields{
 		"response": config,
 	}).Info("config variables read")
 

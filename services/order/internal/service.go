@@ -36,7 +36,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -113,7 +113,7 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 		return nil, err
 	}
 
-	logger.WithFields(loggrus.Fields{"request": req, "response": order}).Info("Order created")
+	logger.WithFields(logrus.Fields{"request": req, "response": order}).Info("Order created")
 
 	// broadcast order
 	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
@@ -151,7 +151,7 @@ func (service *Service) GetOrder(ctx context.Context, req *proto.RequestOrder) (
 		return nil, err
 	}
 
-	logger.WithFields(loggrus.Fields{"request": req, "response": order}).Info("Order request handled")
+	logger.WithFields(logrus.Fields{"request": req, "response": order}).Info("Order request handled")
 	service.requestsMetric.Increment(err, methodGetOrder)
 
 	return &proto.OrderObject{
@@ -225,7 +225,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 		if errors.Is(err, mongo.ErrNoDocuments) { //there was no such order or the order should not be updated
 			// ack message & ignore error because rollback is not needed
 			_ = message.Ack(false)
-			logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not update order.")
+			logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not update order.")
 			return err
 		} else if errors.Is(err, customerrors.ErrStatusProgressionConflict) { // the order should not be updated
 			// ack message & ignore error because rollback is not needed
@@ -234,11 +234,11 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 		}
 		_ = message.Reject(true) // nack and requeue message
 
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Warn("Could not update order. Retrying...")
+		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not update order. Retrying...")
 
 		return err
 	}
-	logger.WithFields(loggrus.Fields{"request": *order}).Infof("Updated order.")
+	logger.WithFields(logrus.Fields{"request": *order}).Infof("Updated order.")
 
 	// ack this transaction
 	err = message.Ack(false)
@@ -253,7 +253,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 			logger.WithError(rollbackErr).Error("Could not rollback.")
 			err = fmt.Errorf("%v ; %v", err.Error(), rollbackErr.Error())
 		} else {
-			logger.WithFields(loggrus.Fields{"response": *oldOrder}).Info("Rolled transaction back.")
+			logger.WithFields(logrus.Fields{"response": *oldOrder}).Info("Rolled transaction back.")
 		}
 		return err
 	}

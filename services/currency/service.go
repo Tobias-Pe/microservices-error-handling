@@ -30,7 +30,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"strings"
 )
 
@@ -69,9 +69,9 @@ func getMockExchangeRate(targetCurrency string) (float32, error) {
 func (service *Service) GetExchangeRate(_ context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
 	exchangeRate, err := getMockExchangeRate(req.CustomerCurrency)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": req.CustomerCurrency}).WithError(err).Warn("requested currency not supported")
+		logger.WithFields(logrus.Fields{"request": req.CustomerCurrency}).WithError(err).Warn("requested currency not supported")
 	} else {
-		logger.WithFields(loggrus.Fields{"request": req.CustomerCurrency, "response": fmt.Sprintf("%f", exchangeRate)}).Info("exchange rate served")
+		logger.WithFields(logrus.Fields{"request": req.CustomerCurrency, "response": fmt.Sprintf("%f", exchangeRate)}).Info("exchange rate served")
 	}
 	service.RequestsMetric.Increment(err, "GetExchangeRate")
 	return &proto.ReplyExchangeRate{ExchangeRate: exchangeRate}, err

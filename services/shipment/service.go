@@ -32,7 +32,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"math"
 	"math/rand"
@@ -158,12 +158,12 @@ func (service *Service) ListenOrders() {
 func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) error {
 	isAllowed, err := service.mockShipment(order.CustomerAddress, order.Articles)
 	if !isAllowed { // abort order because of invalid shipment data
-		logger.WithFields(loggrus.Fields{"shipment_status": isAllowed, "request": *order}).WithError(err).Warn("Shipment unsuccessfully. Aborting order...")
+		logger.WithFields(logrus.Fields{"shipment_status": isAllowed, "request": *order}).WithError(err).Warn("Shipment unsuccessfully. Aborting order...")
 		status := models.StatusAborted("We could not ship the articles to your address. Please check your address.")
 		order.Status = status.Name
 		order.Message = status.Message
 	} else {
-		logger.WithFields(loggrus.Fields{"request": *order}).Infof("Order shipped.")
+		logger.WithFields(logrus.Fields{"request": *order}).Infof("Order shipped.")
 		status := models.StatusComplete()
 		order.Status = status.Name
 		order.Message = status.Message
@@ -173,7 +173,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
 	service.requestsMetric.Increment(err, methodPublishOrder)
 	if err != nil {
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Error("Could not publish order update")
+		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Error("Could not publish order update")
 		_ = message.Reject(true) // nack and requeue message
 		return err
 	}
@@ -182,10 +182,10 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	if err != nil {
 		logger.WithError(err).Error("Could not ack message.")
 
-		logger.WithFields(loggrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
+		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Info("Rolling back transaction...")
 		// rollback transaction. because of the missing ack the current request will be resent
 		service.mockShipmentRollback(order.CustomerAddress, order.Articles)
-		logger.WithFields(loggrus.Fields{"request": *order}).Info("Rolling back successfully")
+		logger.WithFields(logrus.Fields{"request": *order}).Info("Rolling back successfully")
 	}
 
 	return err

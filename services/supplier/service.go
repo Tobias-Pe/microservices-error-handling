@@ -31,7 +31,7 @@ import (
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
-	loggrus "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"math"
 	"time"
@@ -117,7 +117,7 @@ func (service *Service) supplyArticles(articleID string, amount int) error {
 		return err
 	}
 
-	logger.WithFields(loggrus.Fields{"request": articleID, "response": fmt.Sprint(amount)}).Infof("Sent Supply.")
+	logger.WithFields(logrus.Fields{"request": articleID, "response": fmt.Sprint(amount)}).Infof("Sent Supply.")
 
 	return nil
 }
@@ -131,7 +131,7 @@ func (service *Service) ListenSupplyRequests() {
 		if err == nil {
 			err = service.supplyArticles(request.ArticleID, request.Amount)
 			if err != nil {
-				logger.WithFields(loggrus.Fields{"request": *request}).WithError(err).Error("Could not supply articles.")
+				logger.WithFields(logrus.Fields{"request": *request}).WithError(err).Error("Could not supply articles.")
 			}
 
 			ackErr := message.Ack(false)
