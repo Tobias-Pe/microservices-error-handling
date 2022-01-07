@@ -1570,10 +1570,25 @@
       "pluginVersion": "8.2.6",
       "targets": [
         {
-          "query": "SELECT * FROM \"logrus\"",
-          "rawQuery": true,
+          "groupBy": [],
+          "measurement": "logrus",
+          "orderByTime": "ASC",
+          "policy": "default",
+          "query": "SELECT * FROM \"logrus\" ",
+          "rawQuery": false,
           "refId": "A",
-          "resultFormat": "table"
+          "resultFormat": "table",
+          "select": [
+            [
+              {
+                "params": [
+                  "*"
+                ],
+                "type": "field"
+              }
+            ]
+          ],
+          "tags": []
         }
       ],
       "title": "Logs - All",
@@ -1583,7 +1598,7 @@
           "options": {
             "filters": [],
             "match": "any",
-            "type": "include"
+            "type": "exclude"
           }
         }
       ],
@@ -1605,5 +1620,5 @@
   "timezone": "",
   "title": "Service Stats",
   "uid": "GY4_Bn0nz",
-  "version": 6
+  "version": 1
 }
