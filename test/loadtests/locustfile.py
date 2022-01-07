@@ -192,7 +192,7 @@ class NoWaitOrderUser(OrderHttpUser, HttpUser):
 
     def populate_cart(self):
         cart_id = ""
-        while cart_id == "" or decision(0.9):
+        while cart_id == "" or decision(0.6):
             article = self.get_article()
             if len(article) > 0:
                 if cart_id == "":
@@ -207,8 +207,9 @@ class NoWaitOrderUser(OrderHttpUser, HttpUser):
 
     def create_nowait_order(self, cart_id):
         customer_data = get_customer_data(cart_id)
-        if customer_data["cartId"] == "cartWithUnknownArticlesToBeFetched":
+        while customer_data["cartId"] == "cartWithUnknownArticlesToBeFetched" or customer_data["cartId"] == "":
             customer_data["cartId"] = self.create_cart("iDoNotExist")
+            time.sleep(random.uniform(0.5, 5))
         self.create_order(customer_data)
 
 
@@ -227,7 +228,7 @@ class WaitingOrderUser(OrderHttpUser, HttpUser):
 
     def populate_cart(self):
         cart_id = ""
-        while cart_id == "" or decision(0.9):
+        while cart_id == "" or decision(0.6):
             article = self.get_article()
             if len(article) > 0:
                 if cart_id == "":
