@@ -47,7 +47,7 @@ type restBody struct {
 	ArticleId string `json:"article_id"`
 }
 
-func NewCartClient(cartAddress string, cartPort string, rabbitAddress string, rabbitPort string) *CartClient {
+func NewCartClient(cartAddress string, cartPort string) *CartClient {
 	cc := &CartClient{}
 	err := cc.initGrpcConnection(cartAddress, cartPort)
 	if err != nil {
@@ -74,67 +74,61 @@ func (cartClient *CartClient) initGrpcConnection(cartAddress string, cartPort st
 }
 
 // CreateCart sends grpc request to create a cart to the cart service
-func (cartClient CartClient) CreateCart() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// bind json to restBody struct type
-		objArticleId := restBody{}
-		if err := c.ShouldBindWith(&objArticleId, binding.JSON); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		request := proto.RequestNewCart{}
-		request.ArticleId = objArticleId.ArticleId
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		response, err := cartClient.grpcClient.CreateCart(ctx, &request)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		} else {
-			c.JSON(http.StatusCreated, gin.H{"cart": response})
-		}
+func (cartClient CartClient) CreateCart(c *gin.Context) {
+	// bind json to restBody struct type
+	objArticleId := restBody{}
+	if err := c.ShouldBindWith(&objArticleId, binding.JSON); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	request := proto.RequestNewCart{}
+	request.ArticleId = objArticleId.ArticleId
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	response, err := cartClient.grpcClient.CreateCart(ctx, &request)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	} else {
+		c.JSON(http.StatusCreated, gin.H{"cart": response})
 	}
 }
 
 // GetCart sends grpc request to get all articleID's inside the requested cartID
-func (cartClient CartClient) GetCart() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// fetch cartID from url parameter --> cart/${id}
-		cartID := c.Param("id")
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		response, err := cartClient.grpcClient.GetCart(ctx, &proto.RequestCart{CartId: cartID})
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		} else {
-			c.JSON(http.StatusOK, gin.H{"article_ids": response.ArticleIds})
-		}
+func (cartClient CartClient) GetCart(c *gin.Context) {
+	// fetch cartID from url parameter --> cart/${id}
+	cartID := c.Param("id")
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	response, err := cartClient.grpcClient.GetCart(ctx, &proto.RequestCart{CartId: cartID})
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	} else {
+		c.JSON(http.StatusOK, gin.H{"article_ids": response.ArticleIds})
 	}
 }
 
 // AddToCart sends amqp message to insert an articleID into an existing cart
-func (cartClient CartClient) AddToCart() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// fetch cartID from url parameter --> cart/${id}
-		cartID := c.Param("id")
-		if len(cartID) == 0 {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("the id parameter is required after /cart/")})
-			return
-		}
+func (cartClient CartClient) AddToCart(c *gin.Context) {
+	// fetch cartID from url parameter --> cart/${id}
+	cartID := c.Param("id")
+	if len(cartID) == 0 {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("the id parameter is required after /cart/")})
+		return
+	}
 
-		// bind json to restBody struct type
-		objArticleId := restBody{}
-		if err := c.ShouldBindWith(&objArticleId, binding.JSON); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
+	// bind json to restBody struct type
+	objArticleId := restBody{}
+	if err := c.ShouldBindWith(&objArticleId, binding.JSON); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		_, err := cartClient.grpcClient.PutCart(ctx, &proto.RequestPutCart{CartId: cartID, ArticleId: objArticleId.ArticleId})
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		} else {
-			c.JSON(http.StatusCreated, nil)
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_, err := cartClient.grpcClient.PutCart(ctx, &proto.RequestPutCart{CartId: cartID, ArticleId: objArticleId.ArticleId})
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	} else {
+		c.JSON(http.StatusCreated, nil)
 	}
 }

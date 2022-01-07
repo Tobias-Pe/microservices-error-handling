@@ -59,25 +59,23 @@ func NewCurrencyClient(currencyAddress string, currencyPort string) *CurrencyCli
 }
 
 // GetExchangeRate validates client request and creates grpc request to the service
-func (currencyClient CurrencyClient) GetExchangeRate() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// get parameter --> exchange/${currency}
-		currency := c.Param("currency")
-		// validate the currency parameter for only letters
-		isOnlyLetters := regexp.MustCompile("^[a-zA-Z]+$").MatchString(currency)
-		if len(currency) == 0 || !isOnlyLetters {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("only letters in param allowed, your param: %s", currency)})
-			return
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		targetCurrency := &proto.RequestExchangeRate{CustomerCurrency: currency}
-		response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		} else {
-			c.JSON(http.StatusOK, gin.H{"exchangeRate": response.ExchangeRate})
-		}
+func (currencyClient CurrencyClient) GetExchangeRate(c *gin.Context) {
+	// get parameter --> exchange/${currency}
+	currency := c.Param("currency")
+	// validate the currency parameter for only letters
+	isOnlyLetters := regexp.MustCompile("^[a-zA-Z]+$").MatchString(currency)
+	if len(currency) == 0 || !isOnlyLetters {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("only letters in param allowed, your param: %s", currency)})
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	targetCurrency := &proto.RequestExchangeRate{CustomerCurrency: currency}
+	response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	} else {
+		c.JSON(http.StatusOK, gin.H{"exchangeRate": response.ExchangeRate})
 	}
 }

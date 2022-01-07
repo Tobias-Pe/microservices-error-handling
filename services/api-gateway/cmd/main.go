@@ -30,6 +30,7 @@ import (
 	"github.com/gin-gonic/gin"
 	loggrus "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	ginlogrus "github.com/toorop/gin-logrus"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 	"net/http"
 	"strings"
@@ -63,26 +64,14 @@ func main() {
 
 func newService(configuration configuration) *service {
 	service := &service{
-		currencyClient:  createCurrencyClient(configuration),
-		cartClient:      createCartClient(configuration),
-		orderClient:     createOrderClient(configuration),
-		catalogueClient: createCatalogueClient(configuration),
-		config:          configuration,
+		config: configuration,
 	}
 
-	// if client is nil --> client connection did not work --> reconnect in background
-	if service.cartClient == nil {
-		go func() { service.reconnectCartClient() }()
-	}
-	if service.currencyClient == nil {
-		go func() { service.reconnectCurrencyClient() }()
-	}
-	if service.orderClient == nil {
-		go func() { service.reconnectOrderClient() }()
-	}
-	if service.catalogueClient == nil {
-		go func() { service.reconnectCatalogueClient() }()
-	}
+	// retry connect to all clients repeatedly
+	go func() { service.connectCartClient() }()
+	go func() { service.connectCurrencyClient() }()
+	go func() { service.connectOrderClient() }()
+	go func() { service.connectCatalogueClient() }()
 
 	return service
 }
@@ -134,76 +123,12 @@ func readConfig() configuration {
 	return config
 }
 
-func createCurrencyClient(configuration configuration) *internal.CurrencyClient {
-	currencyClient := internal.NewCurrencyClient(configuration.currencyAddress, configuration.currencyPort)
-
-	return currencyClient
-}
-
-func (service *service) reconnectCurrencyClient() {
-	var connection *internal.CurrencyClient
-	for connection == nil {
-		connection = createCurrencyClient(service.config)
-		time.Sleep(time.Millisecond * 500)
-	}
-	service.currencyClient = connection
-}
-
-func createCatalogueClient(configuration configuration) *internal.CatalogueClient {
-	catalogueClient := internal.NewCatalogueClient(configuration.catalogueAddress, configuration.cataloguePort)
-
-	return catalogueClient
-}
-
-func (service *service) reconnectCatalogueClient() {
-	var connection *internal.CatalogueClient
-	for connection == nil {
-		connection = createCatalogueClient(service.config)
-		time.Sleep(time.Millisecond * 500)
-	}
-	service.catalogueClient = connection
-}
-
-func createCartClient(configuration configuration) *internal.CartClient {
-	cartClient := internal.NewCartClient(
-		configuration.cartAddress,
-		configuration.cartPort,
-		configuration.rabbitAddress,
-		configuration.rabbitPort,
-	)
-
-	return cartClient
-}
-
-func (service *service) reconnectCartClient() {
-	var connection *internal.CartClient
-	for connection == nil {
-		connection = createCartClient(service.config)
-		time.Sleep(time.Millisecond * 500)
-	}
-	service.cartClient = connection
-}
-
-func createOrderClient(configuration configuration) *internal.OrderClient {
-	orderClient := internal.NewOrderClient(configuration.orderAddress, configuration.orderPort)
-
-	return orderClient
-}
-
-func (service *service) reconnectOrderClient() {
-	var connection *internal.OrderClient
-	for connection == nil {
-		connection = createOrderClient(service.config)
-		time.Sleep(time.Millisecond * 500)
-	}
-	service.orderClient = connection
-}
-
 func createRouter(service *service, configuration configuration) {
-	gin.SetMode(gin.ReleaseMode)
+	gin.SetMode(gin.DebugMode)
 	// Creates a gin router with default middleware:
 	// logger and recovery (crash-free) middleware
-	router := gin.Default()
+	router := gin.New()
+	router.Use(ginlogrus.Logger(logger), gin.Recovery())
 
 	// prometheus metrics exporter
 	promRouter := ginprometheus.NewPrometheus("gin")
@@ -253,72 +178,112 @@ type service struct {
 	config          configuration
 }
 
+func (service *service) connectCurrencyClient() {
+	var connection *internal.CurrencyClient
+	for connection == nil {
+		connection = internal.NewCurrencyClient(service.config.currencyAddress, service.config.currencyPort)
+		time.Sleep(time.Millisecond * 500)
+	}
+	service.currencyClient = connection
+}
+
+func (service *service) connectCatalogueClient() {
+	var connection *internal.CatalogueClient
+	for connection == nil {
+		connection = internal.NewCatalogueClient(service.config.catalogueAddress, service.config.cataloguePort)
+		time.Sleep(time.Millisecond * 500)
+	}
+	service.catalogueClient = connection
+}
+
+func (service *service) connectCartClient() {
+	var connection *internal.CartClient
+	for connection == nil {
+		connection = internal.NewCartClient(
+			service.config.cartAddress,
+			service.config.cartPort,
+		)
+		time.Sleep(time.Millisecond * 500)
+	}
+	service.cartClient = connection
+}
+
+func (service *service) connectOrderClient() {
+	var connection *internal.OrderClient
+	for connection == nil {
+		connection = internal.NewOrderClient(service.config.orderAddress, service.config.orderPort)
+		time.Sleep(time.Millisecond * 500)
+	}
+	service.orderClient = connection
+}
+
 func (service *service) GetExchangeRateHandler() gin.HandlerFunc {
-	if service.currencyClient != nil {
-		return service.currencyClient.GetExchangeRate()
-	} else {
-		return func(c *gin.Context) {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "currency service not available"})
+	return func(context *gin.Context) {
+		if service.currencyClient != nil {
+			service.currencyClient.GetExchangeRate(context)
+		} else {
+			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "currency service not available"})
 		}
 	}
 }
 
 func (service *service) GetArticles() gin.HandlerFunc {
-	if service.catalogueClient != nil {
-		return service.catalogueClient.GetArticles()
-	} else {
-		return func(c *gin.Context) {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "catalogue service not available"})
+	return func(context *gin.Context) {
+		if service.catalogueClient != nil {
+			service.catalogueClient.GetArticles(context)
+		} else {
+			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "catalogue service not available"})
 		}
 	}
 }
 
 func (service *service) CreateCart() gin.HandlerFunc {
-	if service.cartClient != nil {
-		return service.cartClient.CreateCart()
-	} else {
-		return func(c *gin.Context) {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "cart service not available"})
+	return func(context *gin.Context) {
+		if service.cartClient != nil {
+			service.cartClient.CreateCart(context)
+		} else {
+			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "cart service not available"})
 		}
 	}
 }
 
 func (service *service) GetCart() gin.HandlerFunc {
-	if service.cartClient != nil {
-		return service.cartClient.GetCart()
-	} else {
-		return func(c *gin.Context) {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "cart service not available"})
+	return func(context *gin.Context) {
+		logger.Infof("%v", service)
+		if service.cartClient != nil {
+			service.cartClient.GetCart(context)
+		} else {
+			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "cart service not available"})
 		}
 	}
 }
 
 func (service *service) AddToCart() gin.HandlerFunc {
-	if service.cartClient != nil {
-		return service.cartClient.AddToCart()
-	} else {
-		return func(c *gin.Context) {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "cart service not available"})
+	return func(context *gin.Context) {
+		if service.cartClient != nil {
+			service.cartClient.AddToCart(context)
+		} else {
+			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "cart service not available"})
 		}
 	}
 }
 
 func (service *service) GetOrder() gin.HandlerFunc {
-	if service.orderClient != nil {
-		return service.orderClient.GetOrder()
-	} else {
-		return func(c *gin.Context) {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "order service not available"})
+	return func(context *gin.Context) {
+		if service.orderClient != nil {
+			service.orderClient.GetOrder(context)
+		} else {
+			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "order service not available"})
 		}
 	}
 }
 
 func (service *service) CreateOrder() gin.HandlerFunc {
-	if service.orderClient != nil {
-		return service.orderClient.CreateOrder()
-	} else {
-		return func(c *gin.Context) {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error:": "order service not available"})
+	return func(context *gin.Context) {
+		if service.orderClient != nil {
+			service.orderClient.CreateOrder(context)
+		} else {
+			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "order service not available"})
 		}
 	}
 }

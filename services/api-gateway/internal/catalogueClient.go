@@ -55,20 +55,18 @@ func NewCatalogueClient(catalogueAddress string, cataloguePort string) *Catalogu
 }
 
 // GetArticles creates a grpc request to fetch all articles from the catalogue service
-func (catalogueClient CatalogueClient) GetArticles() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// get the optional category parameter --> articles/${category}
-		queryCategory := strings.Trim(c.Param("category"), "/")
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		request := &proto.RequestArticles{
-			CategoryQuery: queryCategory,
-		}
-		response, err := catalogueClient.client.GetArticles(ctx, request)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		} else {
-			c.JSON(http.StatusOK, gin.H{"articles": response.Articles})
-		}
+func (catalogueClient CatalogueClient) GetArticles(c *gin.Context) {
+	// get the optional category parameter --> articles/${category}
+	queryCategory := strings.Trim(c.Param("category"), "/")
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	request := &proto.RequestArticles{
+		CategoryQuery: queryCategory,
+	}
+	response, err := catalogueClient.client.GetArticles(ctx, request)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	} else {
+		c.JSON(http.StatusOK, gin.H{"articles": response.Articles})
 	}
 }
