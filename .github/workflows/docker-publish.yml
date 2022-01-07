@@ -4,7 +4,11 @@ on:
   schedule:
     - cron: '0 8 * * *' # every day at 8am UTC
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
 
 jobs:
   dockerfiles:
