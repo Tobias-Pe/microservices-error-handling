@@ -5,7 +5,7 @@
 ![Go-Version](https://img.shields.io/github/go-mod/go-version/Tobias-Pe/Microservices-Errorhandling)
 ![Development-state](https://img.shields.io/badge/state-under%20development-orange)
 
-The application is a Demo-Webshop, where 9 Services communicate using synchronous and asynchronous communication.
+The application is a Demo-Webshop, where 10 Services communicate using synchronous and asynchronous communication.
 
 The aim of the application is to implement various error handling methods, try them out and measure their effectiveness
 under pressure of load tests.
@@ -126,7 +126,7 @@ Look at the current status of your order.
 
 **Monitoring Dashboard** Grafana
 
-**Metrics-Exporter:** cAdvisor (Containers), Node Exporter (Hardware) _(To make these docker swarm compatible are some configurations orientated on https://github.com/stefanprodan/swarmprom)_
+**Metrics-Exporter:** cAdvisor (Containers), Node Exporter (Hardware) _(To make these docker swarm compatible, some configurations were orientated on https://github.com/stefanprodan/swarmprom)_
 
 ## Run Locally 🏃
 
