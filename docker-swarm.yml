@@ -16,7 +16,7 @@ services:
   # --------------------------------------- API-GATEWAY ----------------------------------------------------------------
 
   api-gateway-nginx:
-    image: ghcr.io/tobias-pe/api-gateway-nginx:latest
+    image: ghcr.io/tobias-pe/api-gateway-nginx:1664278946
     ports:
       - "80:50000"
     env_file:
@@ -31,7 +31,7 @@ services:
         window: 30s
 
   api-gateway:
-    image: ghcr.io/tobias-pe/api-gateway:latest
+    image: ghcr.io/tobias-pe/api-gateway:1664278946
     env_file:
       - ./config/docker.env
     environment:
@@ -61,7 +61,7 @@ services:
   # ---------------------------------------- CURRENCY ------------------------------------------------------------------
 
   currency-nginx:
-    image: ghcr.io/tobias-pe/currency-nginx:latest
+    image: ghcr.io/tobias-pe/currency-nginx:1664278946
     env_file:
       - ./config/docker.env
     depends_on:
@@ -74,7 +74,7 @@ services:
         window: 30s
 
   currency:
-    image: ghcr.io/tobias-pe/currency:latest
+    image: ghcr.io/tobias-pe/currency:1664278946
     env_file:
       - ./config/docker.env
     environment:
@@ -98,7 +98,7 @@ services:
   # ------------------------------------------- STOCK ------------------------------------------------------------------
 
   stock-nginx:
-    image: ghcr.io/tobias-pe/stock-nginx:latest
+    image: ghcr.io/tobias-pe/stock-nginx:1664278946
     env_file:
       - ./config/docker.env
     depends_on:
@@ -111,7 +111,7 @@ services:
         window: 30s
 
   stock:
-    image: ghcr.io/tobias-pe/stock:latest
+    image: ghcr.io/tobias-pe/stock:1664278946
     env_file:
       - ./config/docker.env
     environment:
@@ -155,7 +155,7 @@ services:
         window: 30s
 
   mongo_seed:
-    image: ghcr.io/tobias-pe/mongo-seed:latest
+    image: ghcr.io/tobias-pe/mongo-seed:1664278946
     depends_on:
       - stock-mongodb
     deploy:
@@ -168,7 +168,7 @@ services:
   # -------------------------------------------- CART ------------------------------------------------------------------
 
   cart-nginx:
-    image: ghcr.io/tobias-pe/cart-nginx:latest
+    image: ghcr.io/tobias-pe/cart-nginx:1664278946
     env_file:
       - ./config/docker.env
     depends_on:
@@ -181,7 +181,7 @@ services:
         window: 30s
 
   cart:
-    image: ghcr.io/tobias-pe/cart:latest
+    image: ghcr.io/tobias-pe/cart:1664278946
     env_file:
       - ./config/docker.env
     environment:
@@ -221,7 +221,7 @@ services:
   # ------------------------------------------- ORDER ------------------------------------------------------------------
 
   order-nginx:
-    image: ghcr.io/tobias-pe/order-nginx:latest
+    image: ghcr.io/tobias-pe/order-nginx:1664278946
     env_file:
       - ./config/docker.env
     depends_on:
@@ -234,7 +234,7 @@ services:
         window: 30s
 
   order:
-    image: ghcr.io/tobias-pe/order:latest
+    image: ghcr.io/tobias-pe/order:1664278946
     env_file:
       - ./config/docker.env
     environment:
@@ -279,7 +279,7 @@ services:
   # ------------------------------------------- PAYMENT ----------------------------------------------------------------
 
   payment:
-    image: ghcr.io/tobias-pe/payment:latest
+    image: ghcr.io/tobias-pe/payment:1664278946
     env_file:
       - ./config/docker.env
     environment:
@@ -305,7 +305,7 @@ services:
   # ------------------------------------------- SHIPMENT ---------------------------------------------------------------
 
   shipment:
-    image: ghcr.io/tobias-pe/shipment:latest
+    image: ghcr.io/tobias-pe/shipment:1664278946
     env_file:
       - ./config/docker.env
     environment:
@@ -331,7 +331,7 @@ services:
   # --------------------------------------------- E-Mail ---------------------------------------------------------------
 
   e-mail:
-    image: ghcr.io/tobias-pe/email:latest
+    image: ghcr.io/tobias-pe/email:1664278946
     env_file:
       - ./config/docker.env
     environment:
@@ -357,7 +357,7 @@ services:
   # --------------------------------------------- SUPPLIER -------------------------------------------------------------
 
   supplier:
-    image: ghcr.io/tobias-pe/supplier:latest
+    image: ghcr.io/tobias-pe/supplier:1664278946
     env_file:
       - ./config/docker.env
     environment:
@@ -383,7 +383,7 @@ services:
 
     # ------------------------------------------- MONITORING -----------------------------------------------------------
   prometheus:
-    image: ghcr.io/tobias-pe/prometheus-swarm:latest
+    image: ghcr.io/tobias-pe/prometheus-swarm:1664278946
     ports:
       - "9000:9090"
     command:
@@ -412,7 +412,7 @@ services:
           memory: 128M
 
   node-exporter:
-    image: ghcr.io/tobias-pe/node-exporter:latest
+    image: ghcr.io/tobias-pe/node-exporter:1664278946
     command:
       - '--path.sysfs=/host/sys'
       - '--path.procfs=/host/proc'
@@ -440,7 +440,7 @@ services:
           memory: 64M
 
   dockerd-exporter:
-    image: ghcr.io/tobias-pe/dockerd-nginx:latest
+    image: ghcr.io/tobias-pe/dockerd-nginx:1664278946
     environment:
       # linux: 172.17.0.1 ; windows: host.docker.internal
       - DOCKER_GWBRIDGE_IP=172.17.0.1

@@ -108,7 +108,7 @@ services:
   # -------------------------------------------- CART ------------------------------------------------------------------
 
   cart-nginx:
-    image: ghcr.io/tobias-pe/cart-nginx:latest
+    image: ghcr.io/tobias-pe/cart-nginx:1664278946
     build:
       context: .
       dockerfile: docker/nginx/cart/Dockerfile
@@ -118,7 +118,7 @@ services:
       - cart
 
   cart:
-    image: ghcr.io/tobias-pe/cart:latest
+    image: ghcr.io/tobias-pe/cart:1664278946
     build:
       context: .
       dockerfile: ./services/cart/Dockerfile
@@ -140,7 +140,7 @@ services:
   # ------------------------------------------- ORDER ------------------------------------------------------------------
 
   order-nginx:
-    image: ghcr.io/tobias-pe/order-nginx:latest
+    image: ghcr.io/tobias-pe/order-nginx:1664278946
     build:
       context: .
       dockerfile: docker/nginx/order/Dockerfile
@@ -150,7 +150,7 @@ services:
       - order
 
   order:
-    image: ghcr.io/tobias-pe/order:latest
+    image: ghcr.io/tobias-pe/order:1664278946
     build:
       context: .
       dockerfile: ./services/order/Dockerfile
@@ -177,7 +177,7 @@ services:
   # ------------------------------------------- PAYMENT ----------------------------------------------------------------
 
   payment:
-    image: ghcr.io/tobias-pe/payment:latest
+    image: ghcr.io/tobias-pe/payment:1664278946
     build:
       context: .
       dockerfile: ./services/payment/Dockerfile
@@ -191,7 +191,7 @@ services:
   # ------------------------------------------- SHIPMENT ---------------------------------------------------------------
 
   shipment:
-    image: ghcr.io/tobias-pe/shipment:latest
+    image: ghcr.io/tobias-pe/shipment:1664278946
     build:
       context: .
       dockerfile: ./services/shipment/Dockerfile
@@ -205,7 +205,7 @@ services:
   # --------------------------------------------- E-Mail ---------------------------------------------------------------
 
   e-mail:
-    image: ghcr.io/tobias-pe/email:latest
+    image: ghcr.io/tobias-pe/email:1664278946
     build:
       context: .
       dockerfile: ./services/email/Dockerfile
@@ -219,7 +219,7 @@ services:
   # --------------------------------------------- SUPPLIER -------------------------------------------------------------
 
   supplier:
-    image: ghcr.io/tobias-pe/supplier:latest
+    image: ghcr.io/tobias-pe/supplier:1664278946
     build:
       context: .
       dockerfile: ./services/supplier/Dockerfile
@@ -233,7 +233,7 @@ services:
 
     # ------------------------------------------- MONITORING -----------------------------------------------------------
   prometheus:
-    image: ghcr.io/tobias-pe/prometheus:latest
+    image: ghcr.io/tobias-pe/prometheus:1664278946
     build:
       context: .
       dockerfile: ./docker/prometheus/Dockerfile
@@ -249,7 +249,7 @@ services:
       - JOBS=api-gateway:50000 cart:9216 currency:9216 e-mail:9216 order:9216 payment:9216 shipment:9216 stock:9216 supplier:9216
 
   node-exporter:
-    image: ghcr.io/tobias-pe/node-exporter:latest
+    image: ghcr.io/tobias-pe/node-exporter:1664278946
     build:
       context: .
       dockerfile: ./docker/node-exporter/Dockerfile
@@ -268,7 +268,7 @@ services:
       - NODE_ID={{.Node.ID}}
 
   dockerd-exporter:
-    image: ghcr.io/tobias-pe/dockerd-nginx:latest
+    image: ghcr.io/tobias-pe/dockerd-nginx:1664278946
     build:
       context: .
       dockerfile: ./docker/nginx/dockerd/Dockerfile
@@ -301,7 +301,7 @@ services:
 
     # ------------------------------------------- LOAD-TESTING ---------------------------------------------------------
   locust-master:
-    image: ghcr.io/tobias-pe/locust:latest
+    image: ghcr.io/tobias-pe/locust:1664278946
     build:
       context: .
       dockerfile: ./docker/locust/Dockerfile
@@ -310,7 +310,7 @@ services:
     command: --master -H http://api-gateway-nginx:50000
 
   locust-worker:
-    image: ghcr.io/tobias-pe/locust:latest
+    image: ghcr.io/tobias-pe/locust:1664278946
     build:
       context: .
       dockerfile: ./docker/locust/Dockerfile
