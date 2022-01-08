@@ -140,21 +140,17 @@ func (database *DbConnection) reserveOrder(ctx context.Context, articleQuantityM
 	callback := database.newCallbackReserveOrder(articleQuantityMap, order)
 
 	result, err := session.WithTransaction(ctx, callback, txnOpts)
-	if err != nil {
-		return nil, err
+	if result != nil {
+		articles, ok := result.([]models.Article)
+		if ok {
+			return &articles, nil
+		}
 	}
-	articles := result.([]models.Article)
-	return &articles, nil
+	return nil, err
 }
 
 func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[string]int, order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
-		// if reservation already exists this means that a reserving transaction context timeouted --> delete the current and retry
-		deletion, err := database.reservationCollection.DeleteOne(sessionContext, bson.M{"_id": order.ID})
-		if err != nil && deletion == nil { // this means transaction error, not that nothing was found!
-			return nil, err
-		}
-
 		var articles []models.Article
 
 		// get all articles
@@ -193,17 +189,16 @@ func (database *DbConnection) newCallbackReserveOrder(articleQuantityMap map[str
 
 		// make reservation
 		result2, err := database.reservationCollection.InsertOne(sessionContext, order)
-		if err != nil && result2 == nil {
-			return nil, err
+		if result2 != nil {
+			if result2.InsertedID == nil {
+				msg := fmt.Sprintf("insert not worked for order: %v", order)
+				err = errors.Wrap(customerrors.ErrNoModification, msg)
+				logger.WithFields(logrus.Fields{"request": order}).WithError(err).Error("Could not insert order into reservations")
+				return nil, err
+			}
+			return articles, err
 		}
-		if result2.InsertedID == nil {
-			msg := fmt.Sprintf("insert not worked for order: %v", order)
-			err = errors.Wrap(customerrors.ErrNoModification, msg)
-			logger.WithFields(logrus.Fields{"request": order}).WithError(err).Error("Could not insert order into reservations")
-			return nil, err
-		}
-
-		return articles, nil
+		return nil, err
 	}
 	return callback
 }

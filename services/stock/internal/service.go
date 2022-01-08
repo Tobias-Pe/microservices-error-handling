@@ -38,8 +38,10 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -230,6 +232,13 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 	reservedArticles, err := service.Database.reserveOrder(ctx, articleQuantityMap, *order)
 	cancel()
 	if err != nil {
+		logger.WithError(err).WithFields(logrus.Fields{"request": *order}).Warn("Reservation not created.")
+		// rollback because: https://stackoverflow.com/a/68946337/12786354
+		if strings.Contains(err.Error(), "context") && (strings.Contains(err.Error(), " canceled") || strings.Contains(err.Error(), " deadline exceeded")) {
+			ctx, cancel = context.WithTimeout(context.Background(), time.Second*1)
+			_, err = service.Database.reservationCollection.DeleteOne(ctx, bson.M{"_id": order.ID})
+			cancel()
+		}
 		return nil, err
 	}
 	service.stockMetric.IncrementReservation()
