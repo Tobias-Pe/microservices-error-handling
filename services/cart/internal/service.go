@@ -30,10 +30,12 @@ import (
 	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
+	customerrors "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"math"
@@ -137,6 +139,11 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	// fetch the cart
 	cart, err := service.database.getCart(order.CartID)
 	if err != nil { // there was no such cart in this order --> abort order because wrong information
+		if !errors.Is(err, customerrors.ErrNoCartFound) { // transaction error
+			_ = message.Reject(true) // nack and requeue message
+			return err
+		}
+
 		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not get cart from this order. Aborting order...")
 		status := models.StatusAborted(models.CartAbortMessage)
 		order.Status = status.Name

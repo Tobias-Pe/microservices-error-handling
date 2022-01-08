@@ -25,7 +25,7 @@
 package internal
 
 import (
-	"fmt"
+	customerrors "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/gomodule/redigo/redis"
 	"strconv"
@@ -81,15 +81,13 @@ func (database DbConnection) getCart(strCartId string) (*models.Cart, error) {
 		return nil, err
 	}
 	if len(jsonArticles) == 0 { // check empty slice
-		return nil, fmt.Errorf("there is no cart for this id")
+		return nil, customerrors.ErrNoCartFound
 	}
+
 	// populate return value
 	var articles []string
 	for _, jsonArticle := range jsonArticles {
 		articles = append(articles, string(jsonArticle))
-	}
-	if err != nil {
-		return nil, err
 	}
 	fetchedCart.ArticleIDs = articles
 	return &fetchedCart, nil
