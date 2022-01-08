@@ -66,7 +66,10 @@ func NewDbConnection(mongoAddress string, mongoPort string) *DbConnection {
 	}
 	logger.WithFields(logrus.Fields{"request": mongoUri}).Info("Connection to DB successfully!")
 	// fetch the collection for all order operations
-	db.orderCollection = db.MongoClient.Database("mongo_db").Collection("order")
+	wc := writeconcern.New(writeconcern.WMajority())
+	rc := readconcern.Snapshot()
+	collectionOpts := options.Collection().SetWriteConcern(wc).SetReadConcern(rc)
+	db.orderCollection = db.MongoClient.Database("mongo_db").Collection("order", collectionOpts)
 	return db
 }
 

@@ -65,8 +65,11 @@ func NewDbConnection(mongoAddress string, mongoPort string) *DbConnection {
 	}
 	logger.WithFields(logrus.Fields{"request": mongoUri}).Info("Connection to DB successfully!")
 
-	db.stockCollection = db.MongoClient.Database("mongo_db").Collection("stock")
-	db.reservationCollection = db.MongoClient.Database("mongo_db").Collection("reservation")
+	wc := writeconcern.New(writeconcern.WMajority())
+	rc := readconcern.Snapshot()
+	collectionOpts := options.Collection().SetWriteConcern(wc).SetReadConcern(rc)
+	db.stockCollection = db.MongoClient.Database("mongo_db").Collection("stock", collectionOpts)
+	db.reservationCollection = db.MongoClient.Database("mongo_db").Collection("reservation", collectionOpts)
 	return db
 }
 
