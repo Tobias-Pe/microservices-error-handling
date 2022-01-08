@@ -86,7 +86,7 @@ func (database *DbConnection) createOrder(ctx context.Context, order *models.Ord
 	callback := database.newCallbackCreateOrder(*order)
 	// do the transaction
 	result, err := session.WithTransaction(ctx, callback, txnOpts)
-	if err != nil && result == nil {
+	if err != nil {
 		return err
 	}
 	logger.WithError(err).Warn("Error appeared but db returned also a result")
@@ -100,10 +100,7 @@ func (database *DbConnection) newCallbackCreateOrder(order models.Order) func(se
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// insert order into order collection
 		orderResult, err := database.orderCollection.InsertOne(sessionContext, order)
-		if err != nil {
-			if orderResult != nil {
-				return orderResult.InsertedID, err
-			}
+		if err != nil && orderResult == nil {
 			return nil, err
 		}
 		return orderResult.InsertedID, nil
