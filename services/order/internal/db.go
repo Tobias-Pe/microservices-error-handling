@@ -89,7 +89,6 @@ func (database *DbConnection) createOrder(ctx context.Context, order *models.Ord
 	if err != nil {
 		return err
 	}
-	logger.WithError(err).Warn("Error appeared but db returned also a result")
 	orderId := result.(primitive.ObjectID)
 	order.ID = orderId
 	return nil
