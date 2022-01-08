@@ -36,6 +36,7 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"os"
 	"time"
 )
 
@@ -67,6 +68,9 @@ func createServer(configuration configuration) {
 		configuration.rabbitAddress,
 		configuration.rabbitPort,
 	)
+	if service == nil {
+		os.Exit(1)
+	}
 
 	proto.RegisterOrderServer(s, service)
 

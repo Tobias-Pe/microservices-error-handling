@@ -62,10 +62,14 @@ type Service struct {
 
 func NewService(cacheAddress string, cachePort string, stockAddress string, stockPort string, rabbitAddress string, rabbitPort string) *Service {
 	service := &Service{}
+	dbConnection := NewDbConnection(cacheAddress, cachePort)
+	if dbConnection == nil {
+		return nil
+	}
 
+	service.database = dbConnection
 	service.requestsMetric = metrics.NewRequestsMetrics()
 
-	service.database = NewDbConnection(cacheAddress, cachePort)
 	go service.initCache(stockAddress, stockPort)
 
 	service.RabbitURL = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)

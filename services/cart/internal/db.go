@@ -42,7 +42,7 @@ func NewDbConnection(cacheAddress string, cachePort string) *DbConnection {
 	connectionUri := cacheAddress + ":" + cachePort
 	database := &DbConnection{}
 	// connection pool to redis
-	database.connPool = &redis.Pool{
+	pool := redis.Pool{
 		MaxIdle:   80,
 		MaxActive: 12000,
 		Dial: func() (redis.Conn, error) {
@@ -53,6 +53,18 @@ func NewDbConnection(cacheAddress string, cachePort string) *DbConnection {
 			return c, err
 		},
 	}
+	conn := pool.Get()
+	defer func(conn redis.Conn) {
+		err := conn.Close()
+		if err != nil {
+			logger.WithError(err).Error("connection to redis could not be successfully closed")
+		}
+	}(conn)
+	_, err := conn.Do("PING")
+	if err != nil {
+		return nil
+	}
+	database.connPool = &pool
 	return database
 }
 

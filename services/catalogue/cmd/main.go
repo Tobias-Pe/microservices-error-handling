@@ -34,6 +34,7 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"os"
 )
 
 type configuration struct {
@@ -68,6 +69,9 @@ func createServer(configuration configuration) {
 		configuration.rabbitAddress,
 		configuration.rabbitPort,
 	)
+	if service == nil {
+		os.Exit(1)
+	}
 
 	proto.RegisterCatalogueServer(s, service)
 

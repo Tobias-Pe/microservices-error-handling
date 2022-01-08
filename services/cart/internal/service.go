@@ -64,8 +64,11 @@ type Service struct {
 }
 
 func NewService(cacheAddress string, cachePort string, rabbitAddress string, rabbitPort string) *Service {
-	newService := Service{}
-	newService.database = NewDbConnection(cacheAddress, cachePort)
+	dbConnection := NewDbConnection(cacheAddress, cachePort)
+	if dbConnection == nil {
+		return nil
+	}
+	newService := Service{database: dbConnection}
 	newService.RabbitURL = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
 	for i := 0; i < 6; i++ {

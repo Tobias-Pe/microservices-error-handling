@@ -54,6 +54,7 @@ func NewDbConnection(mongoAddress string, mongoPort string) *DbConnection {
 	db.MongoClient, err = mongo.NewClient(options.Client().ApplyURI(mongoUri))
 	if err != nil {
 		logger.WithFields(logrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
+		return nil
 	}
 	// connect to mongodb
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -61,9 +62,9 @@ func NewDbConnection(mongoAddress string, mongoPort string) *DbConnection {
 	err = db.MongoClient.Connect(ctx)
 	if err != nil {
 		logger.WithFields(logrus.Fields{"request": mongoUri}).WithError(err).Error("Could not connect to DB")
-	} else {
-		logger.WithFields(logrus.Fields{"request": mongoUri}).Info("Connection to DB successfully!")
+		return nil
 	}
+	logger.WithFields(logrus.Fields{"request": mongoUri}).Info("Connection to DB successfully!")
 	// fetch the collection for all order operations
 	db.orderCollection = db.MongoClient.Database("mongo_db").Collection("order")
 	return db

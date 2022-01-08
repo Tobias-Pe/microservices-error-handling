@@ -71,7 +71,11 @@ type Service struct {
 }
 
 func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rabbitPort string) *Service {
-	service := &Service{Database: NewDbConnection(mongoAddress, mongoPort)}
+	dbConnection := NewDbConnection(mongoAddress, mongoPort)
+	if dbConnection == nil {
+		return nil
+	}
+	service := &Service{Database: dbConnection}
 	service.RabbitURL = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
 	for i := 0; i < 6; i++ {

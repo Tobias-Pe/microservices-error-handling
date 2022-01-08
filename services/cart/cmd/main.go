@@ -34,6 +34,7 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"net"
+	"os"
 )
 
 type configuration struct {
@@ -93,6 +94,10 @@ func createServer(config configuration) {
 	s := grpc.NewServer()
 	// create service with grpc, amqp and cache connection
 	service := internal.NewService(config.cacheAddress, config.cachePort, config.rabbitAddress, config.rabbitPort)
+	if service == nil {
+		os.Exit(1)
+	}
+
 	proto.RegisterCartServer(s, service)
 
 	// start metrics exposer
