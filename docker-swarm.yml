@@ -54,8 +54,8 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '1.5'
-          memory: 400M
+          cpus: '0.5'
+          memory: 500M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -91,10 +91,10 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '0.4'
+          cpus: '0.25'
           memory: 100M
         reservations:
-          cpus: '0.25'
+          cpus: '0.1'
           memory: 20M
       restart_policy:
         delay: 5s
@@ -133,7 +133,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 200M
+          memory: 400M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -204,8 +204,8 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '1.0'
-          memory: 175M
+          cpus: '0.5'
+          memory: 200M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -264,8 +264,8 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '1.0'
-          memory: 250M
+          cpus: '0.5'
+          memory: 200M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -317,8 +317,8 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '1.0'
-          memory: 200M
+          cpus: '0.5'
+          memory: 400M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -364,10 +364,10 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '0.40'
+          cpus: '0.25'
           memory: 50M
         reservations:
-          cpus: '0.25'
+          cpus: '0.1'
           memory: 20M
       restart_policy:
         delay: 5s
@@ -390,10 +390,10 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '0.40'
+          cpus: '0.25'
           memory: 50M
         reservations:
-          cpus: '0.25'
+          cpus: '0.1'
           memory: 20M
       restart_policy:
         delay: 5s
@@ -416,10 +416,10 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '0.40'
+          cpus: '0.25'
           memory: 50M
         reservations:
-          cpus: '0.25'
+          cpus: '0.1'
           memory: 20M
       restart_policy:
         delay: 5s
@@ -442,10 +442,10 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '0.50'
+          cpus: '0.25'
           memory: 50M
         reservations:
-          cpus: '0.25'
+          cpus: '0.1'
           memory: 20M
       restart_policy:
         delay: 5s
