@@ -78,6 +78,10 @@ func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rab
 		return nil
 	}
 	service := &Service{Database: dbConnection}
+
+	service.requestsMetric = metrics.NewRequestsMetrics()
+	service.stockMetric = metrics.NewStockMetric()
+
 	service.RabbitURL = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
 	for i := 0; i < 6; i++ {
@@ -111,9 +115,6 @@ func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rab
 	if err != nil {
 		return nil
 	}
-
-	service.requestsMetric = metrics.NewRequestsMetrics()
-	service.stockMetric = metrics.NewStockMetric()
 
 	return service
 }
