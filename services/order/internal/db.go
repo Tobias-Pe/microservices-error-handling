@@ -100,7 +100,13 @@ func (database *DbConnection) newCallbackCreateOrder(order models.Order) func(se
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// insert order into order collection
 		orderResult, err := database.orderCollection.InsertOne(sessionContext, order)
-		if err != nil && orderResult == nil {
+		if err != nil {
+			if orderResult != nil && orderResult.InsertedID != nil {
+				_, ok := orderResult.InsertedID.(primitive.ObjectID)
+				if ok {
+					return orderResult.InsertedID, nil
+				}
+			}
 			return nil, err
 		}
 		return orderResult.InsertedID, nil
