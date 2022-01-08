@@ -40,6 +40,7 @@ import (
 	"github.com/streadway/amqp"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"math"
 	"strings"
 	"time"
@@ -236,10 +237,7 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 		logger.WithError(err).WithFields(logrus.Fields{"request": *order}).Warn("Reservation not created.")
 		// rollback because: https://stackoverflow.com/a/68946337/12786354
 		if strings.Contains(err.Error(), "context") && (strings.Contains(err.Error(), " canceled") || strings.Contains(err.Error(), " deadline exceeded")) {
-			ctx, cancel = context.WithTimeout(context.Background(), time.Second*1)
-			_, err2 := service.Database.reservationCollection.DeleteOne(ctx, bson.M{"_id": order.ID})
-			cancel()
-			logger.WithError(err2).WithFields(logrus.Fields{"request": *order}).Warn("Reservation not created. Deleted left overs.")
+			go service.retryDeleteOrder(order, 3)
 		}
 		return nil, err
 	}
@@ -264,6 +262,30 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 		}
 	}
 	return &price, nil
+}
+
+// retryDeleteOrder tries to delete the order repeatedly. 2^i retry rate until maxRetries is reached
+func (service *Service) retryDeleteOrder(order *models.Order, maxRetries int) {
+	var err error
+	var deletion *mongo.DeleteResult
+	i := 0
+	isDeleted := false
+	for !isDeleted && maxRetries <= i {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+		deletion, err = service.Database.reservationCollection.DeleteOne(ctx, bson.M{"_id": order.ID})
+		cancel()
+		if deletion != nil && deletion.DeletedCount == 1 {
+			isDeleted = true
+		} else {
+			maxRetries--
+			time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Second)
+		}
+	}
+	if err != nil {
+		logger.WithError(err).WithFields(logrus.Fields{"request": *order}).Errorf("Reservation not created. Left overs not deleted.")
+		return
+	}
+	logger.WithFields(logrus.Fields{"request": *order}).Info("Reservation not created. Left overs deleted.")
 }
 
 // orderArticles broadcasts a supply request
