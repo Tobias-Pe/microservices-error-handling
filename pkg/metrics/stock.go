@@ -51,12 +51,12 @@ func NewStockMetric() *StockMetric {
 		[]string{"id", "name", "category"},
 	)
 
-	orderMetric := StockMetric{
+	stockMetric := StockMetric{
 		reservationsGauge: reservationsGauge,
 		articlesGaugeVec:  articlesGaugeVec,
 	}
 
-	return &orderMetric
+	return &stockMetric
 }
 
 func (stockMetric *StockMetric) IncrementReservation() {
