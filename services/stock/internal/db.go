@@ -239,7 +239,7 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(articleQuantityMap
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// undo reservation
 		deleted, err := database.reservationCollection.DeleteOne(sessionContext, bson.M{"_id": order.ID})
-		if err != nil {
+		if err != nil && deleted == nil {
 			return nil, err
 		}
 
