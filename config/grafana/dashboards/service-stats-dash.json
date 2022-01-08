@@ -287,7 +287,7 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 10,
+        "w": 9,
         "x": 12,
         "y": 11
       },
@@ -315,7 +315,7 @@
           "refId": "A"
         }
       ],
-      "title": "Order Status",
+      "title": "Approximate Order Status",
       "type": "bargauge"
     },
     {
@@ -340,8 +340,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 2,
-        "x": 22,
+        "w": 3,
+        "x": 21,
         "y": 11
       },
       "id": 28,
@@ -368,7 +368,7 @@
           "refId": "A"
         }
       ],
-      "title": "Stock Reservations",
+      "title": "Approximate Stock Reservations",
       "type": "bargauge"
     },
     {
@@ -450,8 +450,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 2,
-        "x": 22,
+        "w": 3,
+        "x": 21,
         "y": 15
       },
       "id": 25,
@@ -1590,9 +1590,28 @@
         {
           "id": "filterByValue",
           "options": {
-            "filters": [],
+            "filters": [
+              {
+                "config": {
+                  "id": "regex",
+                  "options": {
+                    "value": ".*"
+                  }
+                },
+                "fieldName": "request"
+              },
+              {
+                "config": {
+                  "id": "regex",
+                  "options": {
+                    "value": ".*"
+                  }
+                },
+                "fieldName": "response"
+              }
+            ],
             "match": "any",
-            "type": "exclude"
+            "type": "include"
           }
         }
       ],
@@ -1614,5 +1633,5 @@
   "timezone": "",
   "title": "Service Stats",
   "uid": "GY4_Bn0nz",
-  "version": 9
+  "version": 2
 }
