@@ -232,7 +232,7 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	reservedArticles, err := service.Database.reserveOrder(ctx, articleQuantityMap, *order)
 	cancel()
-	if err != nil {
+	if reservedArticles == nil {
 		logger.WithError(err).WithFields(logrus.Fields{"request": *order}).Warn("Reservation not created.")
 		// rollback because: https://stackoverflow.com/a/68946337/12786354
 		if strings.Contains(err.Error(), "context") && (strings.Contains(err.Error(), " canceled") || strings.Contains(err.Error(), " deadline exceeded")) {
