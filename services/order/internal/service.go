@@ -95,7 +95,7 @@ func NewService(mongoAddress string, mongoPort string, rabbitAddress string, rab
 
 // CreateOrder implementation of in the proto file defined interface of cart service
 func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOrder) (*proto.OrderObject, error) {
-	if req != nil {
+	if req == nil {
 		return nil, customerrors.ErrRequestNil
 	}
 
@@ -142,7 +142,7 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 
 // GetOrder implementation of in the proto file defined interface of cart service
 func (service *Service) GetOrder(ctx context.Context, req *proto.RequestOrder) (*proto.OrderObject, error) {
-	if req != nil {
+	if req == nil {
 		return nil, customerrors.ErrRequestNil
 	}
 	// primitive.ObjectID type needed for mongodb

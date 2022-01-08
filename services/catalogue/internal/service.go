@@ -161,7 +161,7 @@ func getConnectionToStock(stockAddress string, stockPort string) *grpc.ClientCon
 
 // GetArticles implementation of in the proto file defined interface of catalogue service
 func (service *Service) GetArticles(_ context.Context, req *proto.RequestArticles) (*proto.ResponseArticles, error) {
-	if req != nil {
+	if req == nil {
 		return nil, customerrors.ErrRequestNil
 	}
 

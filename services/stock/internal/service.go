@@ -182,7 +182,7 @@ func (service *Service) createSupplierListener() error {
 
 // GetArticles implementation of in the proto file defined interface of stock service
 func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArticles) (*proto.ResponseArticles, error) {
-	if req != nil {
+	if req == nil {
 		return nil, customerrors.ErrRequestNil
 	}
 	articles, err := service.Database.getArticles(ctx, req.CategoryQuery)
