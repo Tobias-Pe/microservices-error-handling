@@ -28,6 +28,7 @@ import (
 	customerrors "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/gomodule/redigo/redis"
+	"github.com/pkg/errors"
 	"strconv"
 )
 
@@ -58,7 +59,7 @@ func NewDbConnection(cacheAddress string, cachePort string) *DbConnection {
 func (database DbConnection) getCart(strCartId string) (*models.Cart, error) {
 	tmpId, err := strconv.Atoi(strCartId)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(customerrors.ErrCartIdInvalid, err.Error())
 	}
 	id := int64(tmpId)
 	fetchedCart := models.Cart{

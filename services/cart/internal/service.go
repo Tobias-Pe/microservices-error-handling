@@ -139,7 +139,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	// fetch the cart
 	cart, err := service.database.getCart(order.CartID)
 	if err != nil { // there was no such cart in this order --> abort order because wrong information
-		if !errors.Is(err, customerrors.ErrNoCartFound) { // transaction error
+		if !errors.Is(err, customerrors.ErrNoCartFound) && !errors.Is(err, customerrors.ErrCartIdInvalid) { // transaction error
 			_ = message.Reject(true) // nack and requeue message
 			return err
 		}
