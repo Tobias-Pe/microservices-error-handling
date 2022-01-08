@@ -117,7 +117,8 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 	}
 	err := service.Database.createOrder(ctx, &order)
 	service.requestsMetric.Increment(err, methodCreateOrder)
-	if err != nil {
+	if err != nil && order.ID.IsZero() {
+		logger.WithError(err).WithFields(logrus.Fields{"request": req, "response": order}).Warn("Order not created.")
 		return nil, err
 	}
 
