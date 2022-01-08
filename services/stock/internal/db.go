@@ -269,7 +269,7 @@ func (database *DbConnection) newCallbackRollbackReserveOrder(articleQuantityMap
 				bson.M{"_id": stockArticle.ID},
 				stockArticle,
 			)
-			if err != nil {
+			if err != nil && result == nil {
 				return nil, err
 			}
 			if result.ModifiedCount != 1 {
@@ -312,7 +312,7 @@ func (database *DbConnection) newCallbackDeleteReservation(orderID primitive.Obj
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// undo reservation
 		deleted, err := database.reservationCollection.DeleteOne(sessionContext, bson.M{"_id": orderID})
-		if err != nil {
+		if err != nil && deleted == nil {
 			return nil, err
 		}
 

@@ -186,7 +186,7 @@ func (database *DbConnection) newCallbackUpdateOrder(order models.Order) func(se
 			bson.M{"_id": order.ID},
 			order,
 		)
-		if err != nil {
+		if err != nil && result == nil {
 			return nil, err
 		}
 
@@ -247,7 +247,7 @@ func (database *DbConnection) newCallbackGetAndUpdateOrder(order models.Order) f
 			bson.M{"_id": order.ID},
 			order,
 		)
-		if err != nil {
+		if err != nil && result2 == nil {
 			return nil, err
 		}
 
