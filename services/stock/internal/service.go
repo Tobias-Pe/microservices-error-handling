@@ -237,8 +237,9 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 		// rollback because: https://stackoverflow.com/a/68946337/12786354
 		if strings.Contains(err.Error(), "context") && (strings.Contains(err.Error(), " canceled") || strings.Contains(err.Error(), " deadline exceeded")) {
 			ctx, cancel = context.WithTimeout(context.Background(), time.Second*1)
-			_, err = service.Database.reservationCollection.DeleteOne(ctx, bson.M{"_id": order.ID})
+			_, err2 := service.Database.reservationCollection.DeleteOne(ctx, bson.M{"_id": order.ID})
 			cancel()
+			logger.WithError(err2).WithFields(logrus.Fields{"request": *order}).Warn("Reservation not created. Deleted left overs.")
 		}
 		return nil, err
 	}
@@ -366,8 +367,8 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 	price, err := service.reserveArticlesAndCalcPrice(order)
 	// could not reserve order --> abort order because wrong information
 	// if reservation already present --> also publish order update
-	if err != nil {
-		if !errors.Is(err, primitive.ErrInvalidHex) && !errors.Is(err, customerrors.ErrNoModification) && !errors.Is(err, customerrors.ErrLowStock) { // it must be a transaction error
+	if err != nil || price == nil {
+		if err != nil && !errors.Is(err, primitive.ErrInvalidHex) && !errors.Is(err, customerrors.ErrNoModification) && !errors.Is(err, customerrors.ErrLowStock) { // it must be a transaction error
 			logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Retrying...")
 			_ = message.Reject(true) // nack and requeue message
 			return err
