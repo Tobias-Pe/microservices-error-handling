@@ -10,6 +10,9 @@ services:
     ports:
       - "15672:15672"
     deploy:
+      placement:
+        constraints:
+          - "node.hostname==ubuntu2"
       restart_policy:
         condition: on-failure
         max_attempts: 10
@@ -46,9 +49,9 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 8
+      replicas: 5
       placement:
-        max_replicas_per_node: 2
+        max_replicas_per_node: 1
       resources:
         limits:
           cpus: '1.5'
@@ -150,6 +153,9 @@ services:
       start_period: 30s
     command: [ "--replSet", "stockDB0", "--bind_ip_all" ]
     deploy:
+      placement:
+        constraints:
+          - "node.hostname==ubuntu3"
       restart_policy:
         condition: on-failure
         max_attempts: 10
@@ -193,9 +199,9 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 8
+      replicas: 5
       placement:
-        max_replicas_per_node: 2
+        max_replicas_per_node: 1
       resources:
         limits:
           cpus: '1.0'
@@ -246,9 +252,9 @@ services:
       - rabbit-mq
     deploy:
       mode: replicated
-      replicas: 6
+      replicas: 5
       placement:
-        max_replicas_per_node: 2
+        max_replicas_per_node: 1
       resources:
         limits:
           cpus: '1.0'
@@ -272,6 +278,9 @@ services:
       start_period: 30s
     command: [ "--replSet", "orderDB0", "--bind_ip_all" ]
     deploy:
+      placement:
+        constraints:
+          - "node.hostname==ubuntu4"
       restart_policy:
         condition: on-failure
         max_attempts: 10
