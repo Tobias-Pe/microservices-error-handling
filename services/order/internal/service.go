@@ -41,6 +41,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -104,7 +105,7 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 	}
 
 	status := models.StatusFetching() // initial status of order
-	order := models.Order{
+	order := &models.Order{
 		Status:             status.Name,
 		Message:            status.Message,
 		Articles:           nil,
@@ -115,14 +116,23 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 		CustomerCreditCard: req.CustomerCreditCard,
 		CustomerEmail:      req.CustomerEmail,
 	}
-	err := service.Database.createOrder(ctx, &order)
+	err := service.Database.createOrder(ctx, order)
 	service.requestsMetric.Increment(err, methodCreateOrder)
-	if err != nil && order.ID.IsZero() {
-		logger.WithError(err).WithFields(logrus.Fields{"request": req, "response": order}).Warn("Order not created.")
+	if order.ID.IsZero() {
+		logger.WithError(err).WithFields(logrus.Fields{"request": req, "response": *order}).Warn("Order not created.")
+		// rollback because: https://stackoverflow.com/a/68946337/12786354
+		if strings.Contains(err.Error(), "context") && (strings.Contains(err.Error(), " canceled") || strings.Contains(err.Error(), " deadline exceeded")) {
+			timeout, cancelFunc := context.WithTimeout(context.Background(), 1*time.Second)
+			err2 := service.Database.rollbackCreateOrder(timeout, order)
+			if err != nil {
+				err = fmt.Errorf("%v; %v", err, err2)
+			}
+			cancelFunc()
+		}
 		return nil, err
 	}
 
-	logger.WithFields(logrus.Fields{"request": req, "response": order}).Info("Order created")
+	logger.WithFields(logrus.Fields{"request": req, "response": *order}).Info("Order created")
 
 	// broadcast order
 	err = order.PublishOrderStatusUpdate(service.AmqpChannel)
@@ -131,7 +141,7 @@ func (service *Service) CreateOrder(ctx context.Context, req *proto.RequestNewOr
 		return nil, err
 	}
 
-	service.orderMetric.Increment(order)
+	service.orderMetric.Increment(*order)
 	return &proto.OrderObject{
 		OrderId:            order.ID.Hex(),
 		Status:             order.Status,

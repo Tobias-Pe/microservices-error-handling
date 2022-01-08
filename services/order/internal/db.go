@@ -90,12 +90,14 @@ func (database *DbConnection) createOrder(ctx context.Context, order *models.Ord
 	callback := database.newCallbackCreateOrder(*order)
 	// do the transaction
 	result, err := session.WithTransaction(ctx, callback, txnOpts)
-	if err != nil {
-		return err
+	if result != nil {
+		orderId, ok := result.(primitive.ObjectID)
+		if ok {
+			order.ID = orderId
+			return nil
+		}
 	}
-	orderId := result.(primitive.ObjectID)
-	order.ID = orderId
-	return nil
+	return err
 }
 
 // newCallbackCreateOrder callback for acid transaction in createOrder
@@ -103,16 +105,40 @@ func (database *DbConnection) newCallbackCreateOrder(order models.Order) func(se
 	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
 		// insert order into order collection
 		orderResult, err := database.orderCollection.InsertOne(sessionContext, order)
-		if err != nil {
-			if orderResult != nil && orderResult.InsertedID != nil {
-				_, ok := orderResult.InsertedID.(primitive.ObjectID)
-				if ok {
-					return orderResult.InsertedID, nil
-				}
-			}
-			return nil, err
+		if orderResult != nil {
+			return orderResult.InsertedID, err
 		}
-		return orderResult.InsertedID, nil
+		return nil, err
+	}
+	return callback
+}
+
+// createOrder acid compliant transaction to create an order
+func (database *DbConnection) rollbackCreateOrder(ctx context.Context, order *models.Order) error {
+	// configuration for transaction
+	wc := writeconcern.New(writeconcern.WMajority())
+	rc := readconcern.Snapshot()
+	txnOpts := options.Transaction().SetWriteConcern(wc).SetReadConcern(rc)
+	// open up session to mongodb
+	session, err := database.MongoClient.StartSession()
+	if err != nil {
+		return err
+	}
+	// close session on return of this method
+	defer session.EndSession(ctx)
+	// get the callback function for the transaction
+	callback := database.newCallbackRollbackCreateOrder(*order)
+	// do the transaction
+	_, err = session.WithTransaction(ctx, callback, txnOpts)
+	return err
+}
+
+// newCallbackCreateOrder callback for acid transaction in createOrder
+func (database *DbConnection) newCallbackRollbackCreateOrder(order models.Order) func(sessionContext mongo.SessionContext) (interface{}, error) {
+	callback := func(sessionContext mongo.SessionContext) (interface{}, error) {
+		// insert order into order collection
+		_, err := database.orderCollection.DeleteOne(sessionContext, order)
+		return nil, err
 	}
 	return callback
 }
