@@ -30,6 +30,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/services/shipment"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"os"
 )
 
 type configuration struct {
@@ -49,6 +50,9 @@ func createServer(configuration configuration) {
 		configuration.rabbitAddress,
 		configuration.rabbitPort,
 	)
+	if service == nil {
+		os.Exit(1)
+	}
 
 	// start metrics exposer
 	httpRouter.NewServer()
