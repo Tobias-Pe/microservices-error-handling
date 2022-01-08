@@ -65,7 +65,7 @@ func NewService(cacheAddress string, cachePort string, stockAddress string, stoc
 	service.requestsMetric = metrics.NewRequestsMetrics()
 
 	service.database = NewDbConnection(cacheAddress, cachePort)
-	service.initCache(stockAddress, stockPort)
+	go service.initCache(stockAddress, stockPort)
 
 	service.RabbitURL = fmt.Sprintf("amqp://guest:guest@%s:%s/", rabbitAddress, rabbitPort)
 	var err error = nil
