@@ -86,10 +86,10 @@ func (database *DbConnection) createOrder(ctx context.Context, order *models.Ord
 	callback := database.newCallbackCreateOrder(*order)
 	// do the transaction
 	result, err := session.WithTransaction(ctx, callback, txnOpts)
-	if err != nil {
+	if err != nil && result == nil {
 		return err
 	}
-
+	logger.WithError(err).Warn("Error appeared but db returned also a result")
 	orderId := result.(primitive.ObjectID)
 	order.ID = orderId
 	return nil
@@ -101,6 +101,9 @@ func (database *DbConnection) newCallbackCreateOrder(order models.Order) func(se
 		// insert order into order collection
 		orderResult, err := database.orderCollection.InsertOne(sessionContext, order)
 		if err != nil {
+			if orderResult != nil {
+				return orderResult.InsertedID, err
+			}
 			return nil, err
 		}
 		return orderResult.InsertedID, nil
