@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
+	customerrors "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
@@ -160,6 +161,10 @@ func getConnectionToStock(stockAddress string, stockPort string) *grpc.ClientCon
 
 // GetArticles implementation of in the proto file defined interface of catalogue service
 func (service *Service) GetArticles(_ context.Context, req *proto.RequestArticles) (*proto.ResponseArticles, error) {
+	if req != nil {
+		return nil, customerrors.ErrRequestNil
+	}
+
 	articles, err := service.database.getArticles(req.CategoryQuery)
 	service.requestsMetric.Increment(err, methodGetArticles)
 	if err != nil {

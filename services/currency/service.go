@@ -28,6 +28,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
+	customerrors "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/sirupsen/logrus"
@@ -67,6 +68,9 @@ func getMockExchangeRate(targetCurrency string) (float32, error) {
 
 // GetExchangeRate implementation of in the proto file defined interface of currency service
 func (service *Service) GetExchangeRate(_ context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
+	if req != nil {
+		return nil, customerrors.ErrRequestNil
+	}
 	exchangeRate, err := getMockExchangeRate(req.CustomerCurrency)
 	if err != nil {
 		logger.WithFields(logrus.Fields{"request": req.CustomerCurrency}).WithError(err).Warn("requested currency not supported")

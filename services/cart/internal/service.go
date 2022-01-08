@@ -173,6 +173,9 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 
 // CreateCart implementation of in the proto file defined interface of cart service
 func (service *Service) CreateCart(_ context.Context, req *proto.RequestNewCart) (*proto.ResponseNewCart, error) {
+	if req != nil {
+		return nil, customerrors.ErrRequestNil
+	}
 	cart, err := service.database.createCart(req.ArticleId)
 	service.requestsMetric.Increment(err, methodCreateCart)
 
@@ -190,6 +193,9 @@ func (service *Service) CreateCart(_ context.Context, req *proto.RequestNewCart)
 
 // GetCart implementation of in the proto file defined interface of cart service
 func (service *Service) GetCart(_ context.Context, req *proto.RequestCart) (*proto.ResponseCart, error) {
+	if req != nil {
+		return nil, customerrors.ErrRequestNil
+	}
 	cart, err := service.database.getCart(req.CartId)
 	service.requestsMetric.Increment(err, methodGetCart)
 
@@ -204,6 +210,9 @@ func (service *Service) GetCart(_ context.Context, req *proto.RequestCart) (*pro
 
 // PutCart implementation of in the proto file defined interface of cart service
 func (service *Service) PutCart(_ context.Context, req *proto.RequestPutCart) (*proto.Empty, error) {
+	if req != nil {
+		return nil, customerrors.ErrRequestNil
+	}
 	// add the requested item into the cart
 	_, err := service.database.addToCart(req.CartId, req.ArticleId)
 	service.requestsMetric.Increment(err, methodPutCart)
