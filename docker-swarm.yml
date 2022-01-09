@@ -29,6 +29,9 @@ services:
     depends_on:
       - api-gateway
     deploy:
+      placement:
+        constraints:
+          - "node.hostname==ubuntu5"
       restart_policy:
         condition: on-failure
         max_attempts: 10
@@ -54,8 +57,8 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '1.5'
-          memory: 400M
+          cpus: '0.5'
+          memory: 500M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -72,6 +75,9 @@ services:
     depends_on:
       - currency
     deploy:
+      placement:
+        constraints:
+          - "node.hostname==ubuntu1"
       restart_policy:
         condition: on-failure
         max_attempts: 10
@@ -88,10 +94,12 @@ services:
       mode: replicated
       replicas: 2
       placement:
+        constraints:
+          - "node.hostname!=ubuntu5"
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '0.4'
+          cpus: '0.25'
           memory: 100M
         reservations:
           cpus: '0.1'
@@ -109,6 +117,9 @@ services:
     depends_on:
       - stock
     deploy:
+      placement:
+        constraints:
+          - "node.hostname==ubuntu4"
       restart_policy:
         condition: on-failure
         max_attempts: 10
@@ -132,8 +143,8 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '1.0'
-          memory: 200M
+          cpus: '0.5'
+          memory: 400M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -182,6 +193,9 @@ services:
     depends_on:
       - cart
     deploy:
+      placement:
+        constraints:
+          - "node.hostname==ubuntu5"
       restart_policy:
         condition: on-failure
         max_attempts: 10
@@ -204,8 +218,8 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '1.0'
-          memory: 175M
+          cpus: '0.5'
+          memory: 200M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -220,6 +234,9 @@ services:
 #    ports:
 #      - "6379:6379"
     deploy:
+      placement:
+        constraints:
+          - "node.hostname==ubuntu4"
       restart_policy:
         condition: on-failure
         max_attempts: 10
@@ -235,6 +252,9 @@ services:
     depends_on:
       - order
     deploy:
+      placement:
+        constraints:
+          - "node.hostname==ubuntu3"
       restart_policy:
         condition: on-failure
         max_attempts: 10
@@ -257,8 +277,8 @@ services:
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '1.0'
-          memory: 200M
+          cpus: '0.5'
+          memory: 400M
         reservations:
           cpus: '0.25'
           memory: 20M
@@ -301,10 +321,12 @@ services:
       mode: replicated
       replicas: 2
       placement:
+        constraints:
+          - "node.hostname!=ubuntu5"
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '0.40'
+          cpus: '0.25'
           memory: 50M
         reservations:
           cpus: '0.1'
@@ -327,10 +349,12 @@ services:
       mode: replicated
       replicas: 2
       placement:
+        constraints:
+          - "node.hostname!=ubuntu5"
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '0.40'
+          cpus: '0.25'
           memory: 50M
         reservations:
           cpus: '0.1'
@@ -353,10 +377,12 @@ services:
       mode: replicated
       replicas: 2
       placement:
+        constraints:
+          - "node.hostname!=ubuntu5"
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '0.40'
+          cpus: '0.25'
           memory: 50M
         reservations:
           cpus: '0.1'
@@ -379,10 +405,12 @@ services:
       mode: replicated
       replicas: 2
       placement:
+        constraints:
+          - "node.hostname!=ubuntu5"
         max_replicas_per_node: 1
       resources:
         limits:
-          cpus: '0.50'
+          cpus: '0.25'
           memory: 50M
         reservations:
           cpus: '0.1'
