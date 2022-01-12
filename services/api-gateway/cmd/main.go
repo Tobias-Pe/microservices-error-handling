@@ -182,7 +182,7 @@ func (service *service) connectCurrencyClient() {
 	var connection *internal.CurrencyClient
 	for connection == nil {
 		connection = internal.NewCurrencyClient(service.config.currencyAddress, service.config.currencyPort)
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * time.Duration(500))
 	}
 	service.currencyClient = connection
 }
@@ -191,7 +191,7 @@ func (service *service) connectCatalogueClient() {
 	var connection *internal.CatalogueClient
 	for connection == nil {
 		connection = internal.NewCatalogueClient(service.config.catalogueAddress, service.config.cataloguePort)
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * time.Duration(500))
 	}
 	service.catalogueClient = connection
 }
@@ -203,7 +203,7 @@ func (service *service) connectCartClient() {
 			service.config.cartAddress,
 			service.config.cartPort,
 		)
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * time.Duration(500))
 	}
 	service.cartClient = connection
 }
@@ -212,7 +212,7 @@ func (service *service) connectOrderClient() {
 	var connection *internal.OrderClient
 	for connection == nil {
 		connection = internal.NewOrderClient(service.config.orderAddress, service.config.orderPort)
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * time.Duration(500))
 	}
 	service.orderClient = connection
 }

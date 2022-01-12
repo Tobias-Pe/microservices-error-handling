@@ -39,6 +39,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"math"
+	"math/rand"
 	"strconv"
 	"time"
 )
@@ -143,7 +144,12 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	cart, err := service.database.getCart(order.CartID)
 	if err != nil { // there was no such cart in this order --> abort order because wrong information
 		if !errors.Is(err, customerrors.ErrNoCartFound) && !errors.Is(err, customerrors.ErrCartIdInvalid) { // transaction error
-			_ = message.Reject(true) // nack and requeue message
+			// randomize the requeueing
+			go func() {
+				sleepMult := rand.Intn(500)
+				time.Sleep(time.Millisecond * time.Duration(sleepMult))
+				_ = message.Reject(true) // nack and requeue message
+			}()
 			return err
 		}
 
@@ -164,7 +170,12 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	service.requestsMetric.Increment(err, methodPublishOrder)
 	if err != nil {
 		logger.WithFields(logrus.Fields{"response": *order}).WithError(err).Error("Could not publish order update")
-		_ = message.Reject(true) // nack and requeue message
+		// randomize the requeueing
+		go func() {
+			sleepMult := rand.Intn(500)
+			time.Sleep(time.Millisecond * time.Duration(sleepMult))
+			_ = message.Reject(true) // nack and requeue message
+		}()
 		return err
 	}
 

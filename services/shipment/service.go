@@ -174,7 +174,12 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 	service.requestsMetric.Increment(err, methodPublishOrder)
 	if err != nil {
 		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Error("Could not publish order update")
-		_ = message.Reject(true) // nack and requeue message
+		// randomize the requeueing
+		go func() {
+			sleepMult := rand.Intn(500)
+			time.Sleep(time.Millisecond * time.Duration(sleepMult))
+			_ = message.Reject(true) // nack and requeue message
+		}()
 		return err
 	}
 

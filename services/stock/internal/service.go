@@ -42,6 +42,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"math"
+	"math/rand"
 	"time"
 )
 
@@ -387,7 +388,11 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 	if err != nil || price == nil {
 		if err != nil && !errors.Is(err, primitive.ErrInvalidHex) && !errors.Is(err, customerrors.ErrNoModification) && !errors.Is(err, customerrors.ErrLowStock) { // it must be a transaction error
 			logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Retrying...")
-			_ = message.Reject(true) // nack and requeue message
+			go func() {
+				sleepMult := rand.Intn(500)
+				time.Sleep(time.Millisecond * time.Duration(sleepMult))
+				_ = message.Reject(true) // nack and requeue message
+			}()
 			return err
 		}
 		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Aborting order...")
@@ -483,7 +488,12 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 			// there is no rollback needed so ignore the ack error
 			_ = message.Ack(false)
 		} else {
-			_ = message.Reject(true) // nack and requeue message
+			// randomize the requeueing
+			go func() {
+				sleepMult := rand.Intn(500)
+				time.Sleep(time.Millisecond * time.Duration(sleepMult))
+				_ = message.Reject(true) // nack and requeue message
+			}()
 		}
 
 		return err
@@ -557,7 +567,12 @@ func (service *Service) handleCompletedOrder(order *models.Order, message amqp.D
 		if errors.Is(err, customerrors.ErrNoReservation) {
 			_ = message.Ack(false) // nack and requeue message
 		} else {
-			_ = message.Reject(true) // nack and requeue message
+			// randomize the requeueing
+			go func() {
+				sleepMult := rand.Intn(500)
+				time.Sleep(time.Millisecond * time.Duration(sleepMult))
+				_ = message.Reject(true) // nack and requeue message
+			}()
 		}
 
 		return err
@@ -626,7 +641,12 @@ func (service *Service) handleSupply(supply *requests.StockSupplyMessage, messag
 			// there is no rollback needed so ignore the ack error
 			_ = message.Ack(false)
 		} else {
-			_ = message.Reject(true) // nack and requeue message
+			// randomize the requeueing
+			go func() {
+				sleepMult := rand.Intn(500)
+				time.Sleep(time.Millisecond * time.Duration(sleepMult))
+				_ = message.Reject(true) // nack and requeue message
+			}()
 		}
 
 		return err

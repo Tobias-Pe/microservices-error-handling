@@ -46,7 +46,7 @@ func NewServer() {
 			if err != nil {
 				logger.WithError(err).Error("prometheus metrics server stopped listening")
 			}
-			time.Sleep(time.Second * 1)
+			time.Sleep(time.Second * time.Duration(1))
 		}
 	}()
 }

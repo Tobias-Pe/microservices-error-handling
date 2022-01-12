@@ -100,14 +100,14 @@ func (service *Service) initCache(stockAddress string, stockPort string) {
 	for conn == nil {
 		// Set up a connection to the server.
 		conn = getConnectionToStock(stockAddress, stockPort)
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * time.Duration(500))
 	}
 	logger.Infoln("Connection to stock-service successfully!")
 	// retry get articles from stock
 	var response *proto.ResponseArticles
 	for response == nil {
 		response = getArticlesFromStock(conn)
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * time.Duration(500))
 	}
 	logger.WithFields(logrus.Fields{"response": response.Articles}).Infoln("fetched articles from stock-service successfully!")
 	// init cache

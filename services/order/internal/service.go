@@ -41,6 +41,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"math"
+	"math/rand"
 	"strings"
 	"time"
 )
@@ -254,7 +255,12 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 			_ = message.Ack(false)
 			return nil // do not treat this is as an error because of asynchronous communication
 		}
-		_ = message.Reject(true) // nack and requeue message
+		// randomize the requeueing
+		go func() {
+			sleepMult := rand.Intn(500)
+			time.Sleep(time.Millisecond * time.Duration(sleepMult))
+			_ = message.Reject(true) // nack and requeue message
+		}()
 
 		logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not update order. Retrying...")
 

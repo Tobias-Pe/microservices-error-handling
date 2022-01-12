@@ -36,7 +36,7 @@ func TestInitLogger(t *testing.T) {
 	go func() {
 		for i := 0; i < 1000; i++ {
 			go func(i int) {
-				time.Sleep(time.Millisecond * 600)
+				time.Sleep(time.Millisecond * time.Duration(500))
 				prevLogger = logger
 				logger = InitLogger()
 				if logger == nil {

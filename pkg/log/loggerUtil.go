@@ -136,7 +136,7 @@ func InitLogger() *logrus.Logger {
 					logger.Hooks.Add(hook)
 					break
 				} else {
-					time.Sleep(time.Second * 5)
+					time.Sleep(time.Second * time.Duration(5))
 				}
 			}
 			logger.Infof("Connected to Influx!")
