@@ -38,9 +38,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/rabbitmq"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"math"
 	"math/rand"
 	"time"
@@ -260,30 +258,6 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 	return &price, nil
 }
 
-// retryDeleteOrder tries to delete the order repeatedly. 2^i retry rate until maxRetries is reached
-func (service *Service) retryDeleteOrder(order *models.Order, maxRetries int) {
-	var err error
-	var deletion *mongo.DeleteResult
-	i := 0
-	isDeleted := false
-	for !isDeleted && maxRetries <= i {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		deletion, err = service.Database.reservationCollection.DeleteOne(ctx, bson.M{"_id": order.ID})
-		cancel()
-		if deletion != nil {
-			isDeleted = true
-		} else {
-			maxRetries--
-			time.Sleep(time.Duration(int64(math.Pow(2, float64(i)))) * time.Second)
-		}
-	}
-	if err != nil {
-		logger.WithError(err).WithFields(logrus.Fields{"request": *order}).Errorf("Reservation not created. Left overs not deleted.")
-		return
-	}
-	logger.WithFields(logrus.Fields{"request": *order}).Info("Reservation not created. Left overs deleted.")
-}
-
 // orderArticles broadcasts a supply request
 func (service *Service) orderArticles(id primitive.ObjectID, amount int) error {
 	bytes, err := json.Marshal(requests.StockSupplyMessage{
@@ -389,7 +363,7 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 		if err != nil && !errors.Is(err, primitive.ErrInvalidHex) && !errors.Is(err, customerrors.ErrNoModification) && !errors.Is(err, customerrors.ErrLowStock) { // it must be a transaction error
 			logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Retrying...")
 			go func() {
-				sleepMult := rand.Intn(500)
+				sleepMult := rand.Intn(2500)
 				time.Sleep(time.Millisecond * time.Duration(sleepMult))
 				_ = message.Reject(true) // nack and requeue message
 			}()
