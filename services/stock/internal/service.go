@@ -274,7 +274,7 @@ func (service *Service) retryDeleteOrder(order *models.Order, maxRetries int) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		deletion, err = service.Database.reservationCollection.DeleteOne(ctx, bson.M{"_id": order.ID})
 		cancel()
-		if deletion != nil && deletion.DeletedCount == 1 {
+		if deletion != nil {
 			isDeleted = true
 		} else {
 			maxRetries--
