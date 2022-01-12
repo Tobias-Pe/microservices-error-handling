@@ -365,6 +365,7 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 			go func() {
 				sleepMult := rand.Intn(10)
 				time.Sleep(time.Second * time.Duration(sleepMult))
+				logger.WithFields(logrus.Fields{"request": *order, "response": sleepMult}).WithError(err).Info("Could not reserve this order. Requeued.")
 				_ = message.Reject(true) // nack and requeue message
 			}()
 			return err
@@ -389,6 +390,7 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 		go func() {
 			sleepMult := rand.Intn(10)
 			time.Sleep(time.Second * time.Duration(sleepMult))
+			logger.WithFields(logrus.Fields{"request": *order, "response": sleepMult}).WithError(err).Info("Could not publish order update. Requeued.")
 			_ = message.Reject(true) // nack and requeue message
 		}()
 		return err
@@ -470,6 +472,7 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 			go func() {
 				sleepMult := rand.Intn(10)
 				time.Sleep(time.Second * time.Duration(sleepMult))
+				logger.WithFields(logrus.Fields{"request": *order, "response": sleepMult}).WithError(err).Info("Could not delete reservation. Requeued.")
 				_ = message.Reject(true) // nack and requeue message
 			}()
 		}
@@ -549,6 +552,7 @@ func (service *Service) handleCompletedOrder(order *models.Order, message amqp.D
 			go func() {
 				sleepMult := rand.Intn(10)
 				time.Sleep(time.Second * time.Duration(sleepMult))
+				logger.WithFields(logrus.Fields{"request": *order, "response": sleepMult}).WithError(err).Info("Could not delete reservation. Requeued.")
 				_ = message.Reject(true) // nack and requeue message
 			}()
 		}
