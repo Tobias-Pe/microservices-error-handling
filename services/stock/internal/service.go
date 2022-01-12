@@ -363,8 +363,8 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 		if err != nil && !errors.Is(err, primitive.ErrInvalidHex) && !errors.Is(err, customerrors.ErrNoModification) && !errors.Is(err, customerrors.ErrLowStock) { // it must be a transaction error
 			logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Retrying...")
 			go func() {
-				sleepMult := rand.Intn(2500)
-				time.Sleep(time.Millisecond * time.Duration(sleepMult))
+				sleepMult := rand.Intn(10)
+				time.Sleep(time.Second * time.Duration(sleepMult))
 				_ = message.Reject(true) // nack and requeue message
 			}()
 			return err
