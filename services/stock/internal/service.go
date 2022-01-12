@@ -237,6 +237,7 @@ func (service *Service) reserveArticlesAndCalcPrice(order *models.Order) (*float
 		logger.WithError(err).WithFields(logrus.Fields{"request": *order}).Warn("Reservation not created.")
 		// rollback because: https://stackoverflow.com/a/68946337/12786354
 		if strings.Contains(err.Error(), "context") && (strings.Contains(err.Error(), " canceled") || strings.Contains(err.Error(), " deadline exceeded")) {
+			logger.WithError(err).Warn("Rolling back timeout write of mongoDB...")
 			go service.retryDeleteOrder(order, 3)
 		}
 		return nil, err
