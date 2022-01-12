@@ -85,7 +85,9 @@ func (h *InfluxHook) Levels() []logrus.Level {
 
 func (h *InfluxHook) Fire(e *logrus.Entry) error {
 	e.Data["service"] = h.serviceName
-	return h.influxHook.Fire(e)
+	err := h.influxHook.Fire(e)
+	logger.WithError(err).Debug("Could not fire hook")
+	return nil
 }
 
 // logger is a singleton
