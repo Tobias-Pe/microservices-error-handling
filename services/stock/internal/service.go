@@ -386,7 +386,11 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 	service.requestsMetric.Increment(err, methodPublishOrder)
 	if err != nil {
 		logger.WithError(err).Error("Could not publish order update")
-		_ = message.Reject(true) // nack and requeue message
+		go func() {
+			sleepMult := rand.Intn(10)
+			time.Sleep(time.Second * time.Duration(sleepMult))
+			_ = message.Reject(true) // nack and requeue message
+		}()
 		return err
 	}
 
@@ -464,8 +468,8 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 		} else {
 			// randomize the requeueing
 			go func() {
-				sleepMult := rand.Intn(500)
-				time.Sleep(time.Millisecond * time.Duration(sleepMult))
+				sleepMult := rand.Intn(10)
+				time.Sleep(time.Second * time.Duration(sleepMult))
 				_ = message.Reject(true) // nack and requeue message
 			}()
 		}
@@ -543,8 +547,8 @@ func (service *Service) handleCompletedOrder(order *models.Order, message amqp.D
 		} else {
 			// randomize the requeueing
 			go func() {
-				sleepMult := rand.Intn(500)
-				time.Sleep(time.Millisecond * time.Duration(sleepMult))
+				sleepMult := rand.Intn(10)
+				time.Sleep(time.Second * time.Duration(sleepMult))
 				_ = message.Reject(true) // nack and requeue message
 			}()
 		}
@@ -617,8 +621,8 @@ func (service *Service) handleSupply(supply *requests.StockSupplyMessage, messag
 		} else {
 			// randomize the requeueing
 			go func() {
-				sleepMult := rand.Intn(500)
-				time.Sleep(time.Millisecond * time.Duration(sleepMult))
+				sleepMult := rand.Intn(10)
+				time.Sleep(time.Second * time.Duration(sleepMult))
 				_ = message.Reject(true) // nack and requeue message
 			}()
 		}
