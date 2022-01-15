@@ -25,10 +25,13 @@
 package main
 
 import (
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/circuitbreaker"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/services/api-gateway/internal"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"github.com/sony/gobreaker"
 	"github.com/spf13/viper"
 	ginlogrus "github.com/toorop/gin-logrus"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
@@ -64,8 +67,19 @@ func main() {
 
 func newService(configuration configuration) *service {
 	service := &service{
-		config: configuration,
+		config:   configuration,
+		cbMetric: metrics.NewCircuitBreakerMetric(),
 	}
+
+	// register circuit-breakers
+	service.cbCartClient = circuitbreaker.NewCircuitBreaker("CartClient", service.cbMetric)
+	service.cbMetric.InitMetric("CartClient")
+	service.cbCurrencyClient = circuitbreaker.NewCircuitBreaker("CurrencyClient", service.cbMetric)
+	service.cbMetric.InitMetric("CurrencyClient")
+	service.cbCatalogueClient = circuitbreaker.NewCircuitBreaker("CatalogueClient", service.cbMetric)
+	service.cbMetric.InitMetric("CatalogueClient")
+	service.cbOrderClient = circuitbreaker.NewCircuitBreaker("OrderClient", service.cbMetric)
+	service.cbMetric.InitMetric("OrderClient")
 
 	// retry connect to all clients repeatedly
 	go func() { service.connectCartClient() }()
@@ -171,11 +185,16 @@ func createRouter(service *service, configuration configuration) {
 }
 
 type service struct {
-	currencyClient  *internal.CurrencyClient
-	catalogueClient *internal.CatalogueClient
-	cartClient      *internal.CartClient
-	orderClient     *internal.OrderClient
-	config          configuration
+	currencyClient    *internal.CurrencyClient
+	cbCurrencyClient  *gobreaker.CircuitBreaker
+	catalogueClient   *internal.CatalogueClient
+	cbCatalogueClient *gobreaker.CircuitBreaker
+	cartClient        *internal.CartClient
+	cbCartClient      *gobreaker.CircuitBreaker
+	orderClient       *internal.OrderClient
+	cbOrderClient     *gobreaker.CircuitBreaker
+	cbMetric          *metrics.CircuitBreakerMetric
+	config            configuration
 }
 
 func (service *service) connectCurrencyClient() {
@@ -220,7 +239,7 @@ func (service *service) connectOrderClient() {
 func (service *service) GetExchangeRateHandler() gin.HandlerFunc {
 	return func(context *gin.Context) {
 		if service.currencyClient != nil {
-			service.currencyClient.GetExchangeRate(context)
+			service.currencyClient.GetExchangeRate(context, service.cbCurrencyClient)
 		} else {
 			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "currency service not available"})
 		}
@@ -230,7 +249,7 @@ func (service *service) GetExchangeRateHandler() gin.HandlerFunc {
 func (service *service) GetArticles() gin.HandlerFunc {
 	return func(context *gin.Context) {
 		if service.catalogueClient != nil {
-			service.catalogueClient.GetArticles(context)
+			service.catalogueClient.GetArticles(context, service.cbCatalogueClient)
 		} else {
 			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "catalogue service not available"})
 		}
@@ -240,7 +259,7 @@ func (service *service) GetArticles() gin.HandlerFunc {
 func (service *service) CreateCart() gin.HandlerFunc {
 	return func(context *gin.Context) {
 		if service.cartClient != nil {
-			service.cartClient.CreateCart(context)
+			service.cartClient.CreateCart(context, service.cbCartClient)
 		} else {
 			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "cart service not available"})
 		}
@@ -251,7 +270,7 @@ func (service *service) GetCart() gin.HandlerFunc {
 	return func(context *gin.Context) {
 		logger.Infof("%v", service)
 		if service.cartClient != nil {
-			service.cartClient.GetCart(context)
+			service.cartClient.GetCart(context, service.cbCartClient)
 		} else {
 			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "cart service not available"})
 		}
@@ -261,7 +280,7 @@ func (service *service) GetCart() gin.HandlerFunc {
 func (service *service) AddToCart() gin.HandlerFunc {
 	return func(context *gin.Context) {
 		if service.cartClient != nil {
-			service.cartClient.AddToCart(context)
+			service.cartClient.AddToCart(context, service.cbCartClient)
 		} else {
 			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "cart service not available"})
 		}
@@ -271,7 +290,7 @@ func (service *service) AddToCart() gin.HandlerFunc {
 func (service *service) GetOrder() gin.HandlerFunc {
 	return func(context *gin.Context) {
 		if service.orderClient != nil {
-			service.orderClient.GetOrder(context)
+			service.orderClient.GetOrder(context, service.cbOrderClient)
 		} else {
 			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "order service not available"})
 		}
@@ -281,7 +300,7 @@ func (service *service) GetOrder() gin.HandlerFunc {
 func (service *service) CreateOrder() gin.HandlerFunc {
 	return func(context *gin.Context) {
 		if service.orderClient != nil {
-			service.orderClient.CreateOrder(context)
+			service.orderClient.CreateOrder(context, service.cbOrderClient)
 		} else {
 			context.JSON(http.StatusServiceUnavailable, gin.H{"error:": "order service not available"})
 		}

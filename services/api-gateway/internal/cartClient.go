@@ -30,6 +30,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/sony/gobreaker"
 	"google.golang.org/grpc"
 	"net/http"
 	"time"
@@ -74,61 +75,64 @@ func (cartClient *CartClient) initGrpcConnection(cartAddress string, cartPort st
 }
 
 // CreateCart sends grpc request to create a cart to the cart service
-func (cartClient CartClient) CreateCart(c *gin.Context) {
-	// bind json to restBody struct type
-	objArticleId := restBody{}
-	if err := c.ShouldBindWith(&objArticleId, binding.JSON); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	request := proto.RequestNewCart{}
-	request.ArticleId = objArticleId.ArticleId
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	response, err := cartClient.grpcClient.CreateCart(ctx, &request)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	} else {
-		c.JSON(http.StatusCreated, gin.H{"cart": response})
-	}
+func (cartClient CartClient) CreateCart(c *gin.Context, cb *gobreaker.CircuitBreaker) {
+	_, _ = cb.Execute(func() (interface{}, error) {
+		// bind json to restBody struct type
+		objArticleId := restBody{}
+		if err := c.ShouldBindWith(&objArticleId, binding.JSON); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return nil, nil
+		}
+		request := proto.RequestNewCart{}
+		request.ArticleId = objArticleId.ArticleId
+		response, err := cartClient.grpcClient.CreateCart(c, &request)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusCreated, gin.H{"cart": response})
+		}
+		return response, err
+	})
 }
 
 // GetCart sends grpc request to get all articleID's inside the requested cartID
-func (cartClient CartClient) GetCart(c *gin.Context) {
-	// fetch cartID from url parameter --> cart/${id}
-	cartID := c.Param("id")
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	response, err := cartClient.grpcClient.GetCart(ctx, &proto.RequestCart{CartId: cartID})
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	} else {
-		c.JSON(http.StatusOK, gin.H{"article_ids": response.ArticleIds})
-	}
+func (cartClient CartClient) GetCart(c *gin.Context, cb *gobreaker.CircuitBreaker) {
+	_, _ = cb.Execute(func() (interface{}, error) {
+		// fetch cartID from url parameter --> cart/${id}
+		cartID := c.Param("id")
+		response, err := cartClient.grpcClient.GetCart(c, &proto.RequestCart{CartId: cartID})
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusOK, gin.H{"article_ids": response.ArticleIds})
+		}
+		return response, err
+	})
 }
 
 // AddToCart sends amqp message to insert an articleID into an existing cart
-func (cartClient CartClient) AddToCart(c *gin.Context) {
-	// fetch cartID from url parameter --> cart/${id}
-	cartID := c.Param("id")
-	if len(cartID) == 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("the id parameter is required after /cart/")})
-		return
-	}
+func (cartClient CartClient) AddToCart(c *gin.Context, cb *gobreaker.CircuitBreaker) {
+	_, _ = cb.Execute(func() (interface{}, error) {
+		// fetch cartID from url parameter --> cart/${id}
+		cartID := c.Param("id")
+		if len(cartID) == 0 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("the id parameter is required after /cart/")})
+			return nil, nil
+		}
 
-	// bind json to restBody struct type
-	objArticleId := restBody{}
-	if err := c.ShouldBindWith(&objArticleId, binding.JSON); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+		// bind json to restBody struct type
+		objArticleId := restBody{}
+		if err := c.ShouldBindWith(&objArticleId, binding.JSON); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return nil, nil
+		}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	_, err := cartClient.grpcClient.PutCart(ctx, &proto.RequestPutCart{CartId: cartID, ArticleId: objArticleId.ArticleId})
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	} else {
-		c.JSON(http.StatusCreated, nil)
-	}
+		_, err := cartClient.grpcClient.PutCart(c, &proto.RequestPutCart{CartId: cartID, ArticleId: objArticleId.ArticleId})
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusCreated, nil)
+		}
+		return nil, err
+	})
 }
