@@ -71,7 +71,9 @@ func (currencyClient CurrencyClient) GetExchangeRate(c *gin.Context, cb *gobreak
 			return nil, nil
 		}
 		targetCurrency := &proto.RequestExchangeRate{CustomerCurrency: currency}
-		response, err := currencyClient.client.GetExchangeRate(c, targetCurrency)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(Timeout)*time.Second)
+		defer cancel()
+		response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		} else {
