@@ -57,20 +57,19 @@ func NewCatalogueClient(catalogueAddress string, cataloguePort string) *Catalogu
 
 // GetArticles creates a grpc request to fetch all articles from the catalogue service
 func (catalogueClient CatalogueClient) GetArticles(c *gin.Context, cb *gobreaker.CircuitBreaker) {
-	_, _ = cb.Execute(func() (interface{}, error) {
-		// get the optional category parameter --> articles/${category}
-		queryCategory := strings.Trim(c.Param("category"), "/")
-		request := &proto.RequestArticles{
-			CategoryQuery: queryCategory,
-		}
+	// get the optional category parameter --> articles/${category}
+	queryCategory := strings.Trim(c.Param("category"), "/")
+	request := &proto.RequestArticles{
+		CategoryQuery: queryCategory,
+	}
+	response, err := cb.Execute(func() (interface{}, error) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(Timeout)*time.Second)
 		defer cancel()
-		response, err := catalogueClient.client.GetArticles(ctx, request)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		} else {
-			c.JSON(http.StatusOK, gin.H{"articles": response.Articles})
-		}
-		return response, err
+		return catalogueClient.client.GetArticles(ctx, request)
 	})
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	} else {
+		c.JSON(http.StatusOK, gin.H{"articles": response.(*proto.ResponseArticles).Articles})
+	}
 }

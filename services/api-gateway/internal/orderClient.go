@@ -61,56 +61,53 @@ func NewOrderClient(orderAddress string, orderPort string) *OrderClient {
 
 // GetOrder sends grpc request to fetch an order from order service
 func (orderClient OrderClient) GetOrder(c *gin.Context, cb *gobreaker.CircuitBreaker) {
-	_, _ = cb.Execute(func() (interface{}, error) {
-		orderId := c.Param("id")
+	orderId := c.Param("id")
+	response, err := cb.Execute(func() (interface{}, error) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(Timeout)*time.Second)
 		defer cancel()
-		response, err := orderClient.client.GetOrder(ctx, &proto.RequestOrder{OrderId: orderId})
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		} else {
-			c.JSON(http.StatusOK, gin.H{"order": response})
-		}
-		return response, err
+		return orderClient.client.GetOrder(ctx, &proto.RequestOrder{OrderId: orderId})
 	})
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	} else {
+		c.JSON(http.StatusOK, gin.H{"order": response.(*proto.OrderObject)})
+	}
 }
 
 // CreateOrder sends grpc request to create an order with the required data
 func (orderClient OrderClient) CreateOrder(c *gin.Context, cb *gobreaker.CircuitBreaker) {
-	_, _ = cb.Execute(func() (interface{}, error) {
-
-		// bind json body to an order object
-		order := models.Order{}
-		if err := c.ShouldBindWith(&order, binding.JSON); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return nil, nil
-		}
-		// validate that all required fields are populated
-		if len(order.CartID) == 0 || len(order.CustomerAddress) == 0 || len(order.CustomerName) == 0 || len(order.CustomerCreditCard) == 0 || len(order.CustomerEmail) == 0 {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("invalid order request, values missing").Error()})
-			return nil, nil
-		}
-		// validate email address
-		_, err := mail.ParseAddress(order.CustomerEmail)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return nil, nil
-		}
+	// bind json body to an order object
+	order := models.Order{}
+	if err := c.ShouldBindWith(&order, binding.JSON); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// validate that all required fields are populated
+	if len(order.CartID) == 0 || len(order.CustomerAddress) == 0 || len(order.CustomerName) == 0 || len(order.CustomerCreditCard) == 0 || len(order.CustomerEmail) == 0 {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("invalid order request, values missing").Error()})
+		return
+	}
+	// validate email address
+	_, err := mail.ParseAddress(order.CustomerEmail)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	response, err := cb.Execute(func() (interface{}, error) {
 		// send request to order service
 		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(Timeout)*time.Second)
 		defer cancel()
-		response, err := orderClient.client.CreateOrder(ctx, &proto.RequestNewOrder{
+		return orderClient.client.CreateOrder(ctx, &proto.RequestNewOrder{
 			CartId:             order.CartID,
 			CustomerAddress:    order.CustomerAddress,
 			CustomerName:       order.CustomerName,
 			CustomerCreditCard: order.CustomerCreditCard,
 			CustomerEmail:      order.CustomerEmail,
 		})
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		} else {
-			c.JSON(http.StatusOK, gin.H{"order": response})
-		}
-		return response, err
 	})
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	} else {
+		c.JSON(http.StatusOK, gin.H{"order": response.(*proto.OrderObject)})
+	}
 }
