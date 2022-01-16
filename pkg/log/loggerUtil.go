@@ -98,7 +98,7 @@ func InitLogger() *logrus.Logger {
 	once.Do(func() {
 		logger = logrus.New()
 		logger.Out = os.Stdout
-		logger.SetLevel(logrus.DebugLevel)
+		logger.SetLevel(logrus.InfoLevel)
 		logger.SetFormatter(&logrus.TextFormatter{
 			ForceColors:      true,
 			DisableColors:    false,
@@ -122,7 +122,7 @@ func InitLogger() *logrus.Logger {
 			AppName:       "Microservices-Errorhandling",
 			Tags:          []string{"logrus-logs"},
 			BatchInterval: 5 * time.Second,
-			BatchCount:    100, // set to "0" to disable batching
+			BatchCount:    200, // set to "0" to disable batching
 		}
 
 		// influx hook should log constantly service name field

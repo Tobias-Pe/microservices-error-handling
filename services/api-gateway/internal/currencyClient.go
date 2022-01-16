@@ -77,7 +77,7 @@ func (currencyClient CurrencyClient) GetExchangeRate(c *gin.Context, cb *gobreak
 		defer cancel()
 		response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)
 		elapsed := time.Since(start)
-		logger.WithFields(logrus.Fields{"response": elapsed}).Debug("GetExchangeRate time")
+		logger.WithFields(logrus.Fields{"response": elapsed}).Info("GetExchangeRate time")
 		return response, err
 	})
 	if err != nil {
