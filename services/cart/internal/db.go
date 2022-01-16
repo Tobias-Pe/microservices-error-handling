@@ -25,6 +25,7 @@
 package internal
 
 import (
+	"context"
 	customerrors "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/gomodule/redigo/redis"
@@ -68,7 +69,7 @@ func NewDbConnection(cacheAddress string, cachePort string) *DbConnection {
 	return database
 }
 
-func (database DbConnection) getCart(strCartId string) (*models.Cart, error) {
+func (database DbConnection) getCart(ctx context.Context, strCartId string) (*models.Cart, error) {
 	tmpId, err := strconv.Atoi(strCartId)
 	if err != nil {
 		return nil, errors.Wrap(customerrors.ErrCartIdInvalid, err.Error())
@@ -80,7 +81,10 @@ func (database DbConnection) getCart(strCartId string) (*models.Cart, error) {
 	}
 
 	// get a client out of the connection pool
-	client := database.connPool.Get()
+	client, err := database.connPool.GetContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	defer func(client redis.Conn) {
 		err := client.Close()
 		if err != nil {
@@ -106,14 +110,17 @@ func (database DbConnection) getCart(strCartId string) (*models.Cart, error) {
 	return &fetchedCart, nil
 }
 
-func (database DbConnection) createCart(strArticleId string) (*models.Cart, error) {
+func (database DbConnection) createCart(ctx context.Context, strArticleId string) (*models.Cart, error) {
 	newCart := models.Cart{
 		ID:         -1,
 		ArticleIDs: []string{strArticleId},
 	}
 
 	// get a client out of the connection pool
-	client := database.connPool.Get()
+	client, err := database.connPool.GetContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	defer func(client redis.Conn) {
 		err := client.Close()
 		if err != nil {
@@ -142,7 +149,7 @@ func (database DbConnection) createCart(strArticleId string) (*models.Cart, erro
 	return &newCart, nil
 }
 
-func (database DbConnection) addToCart(strCartId string, strArticleId string) (*int64, error) {
+func (database DbConnection) addToCart(ctx context.Context, strCartId string, strArticleId string) (*int64, error) {
 	iCartID, err := strconv.Atoi(strCartId)
 	if err != nil {
 		return nil, err
@@ -150,7 +157,10 @@ func (database DbConnection) addToCart(strCartId string, strArticleId string) (*
 	cartID := int64(iCartID)
 
 	// get a client out of the connection pool
-	client := database.connPool.Get()
+	client, err := database.connPool.GetContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	defer func(client redis.Conn) {
 		err := client.Close()
 		if err != nil {

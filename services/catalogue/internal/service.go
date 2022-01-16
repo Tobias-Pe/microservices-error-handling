@@ -164,12 +164,12 @@ func getConnectionToStock(stockAddress string, stockPort string) *grpc.ClientCon
 }
 
 // GetArticles implementation of in the proto file defined interface of catalogue service
-func (service *Service) GetArticles(_ context.Context, req *proto.RequestArticles) (*proto.ResponseArticles, error) {
+func (service *Service) GetArticles(ctx context.Context, req *proto.RequestArticles) (*proto.ResponseArticles, error) {
 	if req == nil {
 		return nil, customerrors.ErrRequestNil
 	}
 
-	articles, err := service.database.getArticles(req.CategoryQuery)
+	articles, err := service.database.getArticles(ctx, req.CategoryQuery)
 	service.requestsMetric.Increment(err, methodGetArticles)
 	if err != nil {
 		logger.WithFields(logrus.Fields{"request": req.String()}).WithError(err).Error("could not get articles")

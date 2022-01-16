@@ -25,6 +25,7 @@
 package internal
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/gomodule/redigo/redis"
@@ -105,9 +106,12 @@ func (database DbConnection) updateArticle(article *models.Article) error {
 }
 
 // getArticles gets all articles if category is empty or the requested categories articles
-func (database DbConnection) getArticles(category string) (*[]models.Article, error) {
+func (database DbConnection) getArticles(ctx context.Context, category string) (*[]models.Article, error) {
 	// get a client out of the connection pool
-	client := database.connPool.Get()
+	client, err := database.connPool.GetContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	defer func(client redis.Conn) {
 		err := client.Close()
 		if err != nil {

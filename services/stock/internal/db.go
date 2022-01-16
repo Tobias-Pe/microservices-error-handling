@@ -113,7 +113,7 @@ func (database *DbConnection) newCallbackGetArticles(category string) func(sessi
 		defer func(cursor *mongo.Cursor, ctx context.Context) {
 			err := cursor.Close(ctx)
 			if err != nil {
-				logger.WithError(err).Warn("cursor could not be closed!")
+				logger.WithError(err).Error("cursor could not be closed!")
 			}
 		}(cursor, sessionContext)
 

@@ -141,7 +141,9 @@ func (service *Service) ListenOrders() {
 
 func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) error {
 	// fetch the cart
-	cart, err := service.database.getCart(order.CartID)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(1)*time.Second)
+	cart, err := service.database.getCart(ctx, order.CartID)
+	cancel()
 	if err != nil { // there was no such cart in this order --> abort order because wrong information
 		if !errors.Is(err, customerrors.ErrNoCartFound) && !errors.Is(err, customerrors.ErrCartIdInvalid) { // transaction error
 			// randomize the requeueing
@@ -188,11 +190,11 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 }
 
 // CreateCart implementation of in the proto file defined interface of cart service
-func (service *Service) CreateCart(_ context.Context, req *proto.RequestNewCart) (*proto.ResponseNewCart, error) {
+func (service *Service) CreateCart(ctx context.Context, req *proto.RequestNewCart) (*proto.ResponseNewCart, error) {
 	if req == nil {
 		return nil, customerrors.ErrRequestNil
 	}
-	cart, err := service.database.createCart(req.ArticleId)
+	cart, err := service.database.createCart(ctx, req.ArticleId)
 	service.requestsMetric.Increment(err, methodCreateCart)
 
 	if err != nil {
@@ -208,11 +210,11 @@ func (service *Service) CreateCart(_ context.Context, req *proto.RequestNewCart)
 }
 
 // GetCart implementation of in the proto file defined interface of cart service
-func (service *Service) GetCart(_ context.Context, req *proto.RequestCart) (*proto.ResponseCart, error) {
+func (service *Service) GetCart(ctx context.Context, req *proto.RequestCart) (*proto.ResponseCart, error) {
 	if req == nil {
 		return nil, customerrors.ErrRequestNil
 	}
-	cart, err := service.database.getCart(req.CartId)
+	cart, err := service.database.getCart(ctx, req.CartId)
 	service.requestsMetric.Increment(err, methodGetCart)
 
 	if err != nil {
@@ -225,12 +227,12 @@ func (service *Service) GetCart(_ context.Context, req *proto.RequestCart) (*pro
 }
 
 // PutCart implementation of in the proto file defined interface of cart service
-func (service *Service) PutCart(_ context.Context, req *proto.RequestPutCart) (*proto.Empty, error) {
+func (service *Service) PutCart(ctx context.Context, req *proto.RequestPutCart) (*proto.Empty, error) {
 	if req == nil {
 		return nil, customerrors.ErrRequestNil
 	}
 	// add the requested item into the cart
-	_, err := service.database.addToCart(req.CartId, req.ArticleId)
+	_, err := service.database.addToCart(ctx, req.CartId, req.ArticleId)
 	service.requestsMetric.Increment(err, methodPutCart)
 	if err != nil {
 		logger.WithFields(logrus.Fields{"request": req.String()}).WithError(err).Warn("Could not add to cart.")
