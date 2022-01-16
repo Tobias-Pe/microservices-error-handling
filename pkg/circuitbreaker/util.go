@@ -15,7 +15,7 @@ func NewCircuitBreaker(name string, cbMetric *metrics.CircuitBreakerMetric) *gob
 	}
 	st.Timeout = time.Duration(3) * time.Second
 	st.OnStateChange = func(_ string, from gobreaker.State, to gobreaker.State) {
-		cbMetric.Increment(to, name)
+		cbMetric.Update(from, to, name)
 	}
 	cbMetric.InitMetric(name)
 

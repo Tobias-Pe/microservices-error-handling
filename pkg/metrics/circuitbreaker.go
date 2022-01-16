@@ -31,13 +31,13 @@ import (
 )
 
 type CircuitBreakerMetric struct {
-	circuitBreakerCounterVec *prometheus.CounterVec
+	circuitBreakerGaugeVec *prometheus.GaugeVec
 }
 
 func NewCircuitBreakerMetric() *CircuitBreakerMetric {
 	metric := CircuitBreakerMetric{}
-	metric.circuitBreakerCounterVec = promauto.NewCounterVec(
-		prometheus.CounterOpts{
+	metric.circuitBreakerGaugeVec = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
 			Name: "circuit_breaker_states",
 			Help: "The number of circuit breaker states by name and state.",
 		},
@@ -47,15 +47,22 @@ func NewCircuitBreakerMetric() *CircuitBreakerMetric {
 }
 
 func (metric *CircuitBreakerMetric) InitMetric(name string) {
-	_, _ = metric.circuitBreakerCounterVec.GetMetricWith(prometheus.Labels{"name": name, "status": "closed"})
-	_, _ = metric.circuitBreakerCounterVec.GetMetricWith(prometheus.Labels{"name": name, "status": "half-open"})
-	_, _ = metric.circuitBreakerCounterVec.GetMetricWith(prometheus.Labels{"name": name, "status": "open"})
+	_, _ = metric.circuitBreakerGaugeVec.GetMetricWith(prometheus.Labels{"name": name, "status": "closed"})
+	_, _ = metric.circuitBreakerGaugeVec.GetMetricWith(prometheus.Labels{"name": name, "status": "half-open"})
+	_, _ = metric.circuitBreakerGaugeVec.GetMetricWith(prometheus.Labels{"name": name, "status": "open"})
 }
 
-func (metric *CircuitBreakerMetric) Increment(state gobreaker.State, name string) {
-	if counter, err := metric.circuitBreakerCounterVec.GetMetricWith(prometheus.Labels{"name": name, "status": state.String()}); err == nil {
-		counter.Inc()
-	} else {
+func (metric *CircuitBreakerMetric) Update(from gobreaker.State, to gobreaker.State, name string) {
+	counterDec, err := metric.circuitBreakerGaugeVec.GetMetricWith(prometheus.Labels{"name": name, "status": from.String()})
+	if err != nil {
 		logger.WithError(err).Warn("Could not increment")
+		return
 	}
+	counterInc, err := metric.circuitBreakerGaugeVec.GetMetricWith(prometheus.Labels{"name": name, "status": to.String()})
+	if err != nil {
+		logger.WithError(err).Warn("Could not increment")
+		return
+	}
+	counterDec.Dec()
+	counterInc.Inc()
 }
