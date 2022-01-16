@@ -599,6 +599,37 @@
           "color": {
             "mode": "palette-classic"
           },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
           "displayName": "${__series.name}",
           "mappings": [],
           "thresholds": {
@@ -614,26 +645,21 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
-        "w": 24,
+        "h": 15,
+        "w": 12,
         "x": 0,
         "y": 40
       },
       "id": 33,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
         },
-        "text": {},
-        "textMode": "auto"
+        "tooltip": {
+          "mode": "multi"
+        }
       },
       "pluginVersion": "8.2.6",
       "targets": [
@@ -646,7 +672,7 @@
         }
       ],
       "title": "Increase Circuit Breaker Status",
-      "type": "stat"
+      "type": "timeseries"
     },
     {
       "datasource": null,
@@ -670,10 +696,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 45
+        "h": 15,
+        "w": 12,
+        "x": 12,
+        "y": 40
       },
       "id": 18,
       "options": {
@@ -1674,7 +1700,7 @@
       "type": "table"
     }
   ],
-  "refresh": "5s",
+  "refresh": false,
   "schemaVersion": 32,
   "style": "dark",
   "tags": [],
@@ -1682,12 +1708,12 @@
     "list": []
   },
   "time": {
-    "from": "now-5m",
-    "to": "now"
+    "from": "2022-01-16T12:43:14.242Z",
+    "to": "2022-01-16T12:51:22.086Z"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Service Stats",
   "uid": "GY4_Bn0nz",
-  "version": 1
+  "version": 7
 }
