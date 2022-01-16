@@ -148,7 +148,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 		if !errors.Is(err, customerrors.ErrNoCartFound) && !errors.Is(err, customerrors.ErrCartIdInvalid) { // transaction error
 			// randomize the requeueing
 			go func() {
-				sleepMult := rand.Intn(10)
+				sleepMult := rand.Intn(8) + 2
 				time.Sleep(time.Second * time.Duration(sleepMult))
 				logger.WithFields(logrus.Fields{"request": *order, "response": sleepMult}).WithError(err).Info("Could not reserve get cart. Requeued.")
 				_ = message.Reject(true) // nack and requeue message
@@ -175,7 +175,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 		logger.WithFields(logrus.Fields{"response": *order}).WithError(err).Error("Could not publish order update")
 		// randomize the requeueing
 		go func() {
-			sleepMult := rand.Intn(10)
+			sleepMult := rand.Intn(8) + 2
 			time.Sleep(time.Second * time.Duration(sleepMult))
 			logger.WithFields(logrus.Fields{"request": *order, "response": sleepMult}).WithError(err).Info("Could not publish order update. Requeued.")
 			_ = message.Reject(true) // nack and requeue message

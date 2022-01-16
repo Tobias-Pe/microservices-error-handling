@@ -257,7 +257,7 @@ func (service *Service) handleOrder(order *models.Order, message amqp.Delivery) 
 		}
 		// randomize the requeueing
 		go func() {
-			sleepMult := rand.Intn(10)
+			sleepMult := rand.Intn(8) + 2
 			time.Sleep(time.Second * time.Duration(sleepMult))
 			logger.WithFields(logrus.Fields{"request": *order, "response": sleepMult}).WithError(err).Info("Could not update order. Requeued.")
 			_ = message.Reject(true) // nack and requeue message

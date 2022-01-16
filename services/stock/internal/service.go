@@ -363,7 +363,7 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 		if err != nil && !errors.Is(err, primitive.ErrInvalidHex) && !errors.Is(err, customerrors.ErrNoModification) && !errors.Is(err, customerrors.ErrLowStock) { // it must be a transaction error
 			logger.WithFields(logrus.Fields{"request": *order}).WithError(err).Warn("Could not reserve this order. Retrying...")
 			go func() {
-				sleepMult := rand.Intn(10)
+				sleepMult := rand.Intn(8) + 2
 				time.Sleep(time.Second * time.Duration(sleepMult))
 				logger.WithFields(logrus.Fields{"request": *order, "response": sleepMult}).WithError(err).Info("Could not reserve this order. Requeued.")
 				_ = message.Reject(true) // nack and requeue message
@@ -388,7 +388,7 @@ func (service *Service) handleReservationOrder(order *models.Order, message amqp
 	if err != nil {
 		logger.WithError(err).Error("Could not publish order update")
 		go func() {
-			sleepMult := rand.Intn(10)
+			sleepMult := rand.Intn(8) + 2
 			time.Sleep(time.Second * time.Duration(sleepMult))
 			logger.WithFields(logrus.Fields{"request": *order, "response": sleepMult}).WithError(err).Info("Could not publish order update. Requeued.")
 			_ = message.Reject(true) // nack and requeue message
@@ -470,7 +470,7 @@ func (service *Service) handleAbortedOrder(order *models.Order, message amqp.Del
 		} else {
 			// randomize the requeueing
 			go func() {
-				sleepMult := rand.Intn(10)
+				sleepMult := rand.Intn(8) + 2
 				time.Sleep(time.Second * time.Duration(sleepMult))
 				logger.WithFields(logrus.Fields{"request": *order, "response": sleepMult}).WithError(err).Info("Could not delete reservation. Requeued.")
 				_ = message.Reject(true) // nack and requeue message
@@ -550,7 +550,7 @@ func (service *Service) handleCompletedOrder(order *models.Order, message amqp.D
 		} else {
 			// randomize the requeueing
 			go func() {
-				sleepMult := rand.Intn(10)
+				sleepMult := rand.Intn(8) + 2
 				time.Sleep(time.Second * time.Duration(sleepMult))
 				logger.WithFields(logrus.Fields{"request": *order, "response": sleepMult}).WithError(err).Info("Could not delete reservation. Requeued.")
 				_ = message.Reject(true) // nack and requeue message
@@ -625,7 +625,7 @@ func (service *Service) handleSupply(supply *requests.StockSupplyMessage, messag
 		} else {
 			// randomize the requeueing
 			go func() {
-				sleepMult := rand.Intn(10)
+				sleepMult := rand.Intn(8) + 2
 				time.Sleep(time.Second * time.Duration(sleepMult))
 				_ = message.Reject(true) // nack and requeue message
 			}()
