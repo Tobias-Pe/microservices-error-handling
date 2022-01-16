@@ -98,7 +98,7 @@ func InitLogger() *logrus.Logger {
 	once.Do(func() {
 		logger = logrus.New()
 		logger.Out = os.Stdout
-		logger.SetLevel(logrus.InfoLevel)
+		logger.SetLevel(logrus.DebugLevel)
 		logger.SetFormatter(&logrus.TextFormatter{
 			ForceColors:      true,
 			DisableColors:    false,

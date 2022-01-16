@@ -30,6 +30,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"github.com/sony/gobreaker"
 	"google.golang.org/grpc"
 	"net/http"
@@ -71,7 +72,13 @@ func (currencyClient CurrencyClient) GetExchangeRate(c *gin.Context, cb *gobreak
 	}
 	targetCurrency := &proto.RequestExchangeRate{CustomerCurrency: currency}
 	response, err := cb.Execute(func() (interface{}, error) {
-		return currencyClient.client.GetExchangeRate(c.Request.Context(), targetCurrency)
+		start := time.Now()
+		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(2500)*time.Millisecond)
+		defer cancel()
+		response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)
+		elapsed := time.Since(start)
+		logger.WithFields(logrus.Fields{"response": elapsed}).Debug("GetExchangeRate time")
+		return response, err
 	})
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
