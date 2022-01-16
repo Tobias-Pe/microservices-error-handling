@@ -63,9 +63,7 @@ func (catalogueClient CatalogueClient) GetArticles(c *gin.Context, cb *gobreaker
 		CategoryQuery: queryCategory,
 	}
 	response, err := cb.Execute(func() (interface{}, error) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(Timeout)*time.Second)
-		defer cancel()
-		return catalogueClient.client.GetArticles(ctx, request)
+		return catalogueClient.client.GetArticles(c.Request.Context(), request)
 	})
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})

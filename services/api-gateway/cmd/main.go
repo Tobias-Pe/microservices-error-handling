@@ -34,6 +34,7 @@ import (
 	"github.com/sony/gobreaker"
 	"github.com/spf13/viper"
 	ginlogrus "github.com/toorop/gin-logrus"
+	timeout "github.com/vearne/gin-timeout"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 	"net/http"
 	"strings"
@@ -161,6 +162,19 @@ func createRouter(service *service, configuration configuration) {
 		return url
 	}
 	promRouter.Use(router)
+
+	// config timeout middleware
+	router.Use(timeout.Timeout(
+		timeout.WithTimeout(time.Duration(2500)*time.Millisecond),
+		timeout.WithErrorHttpCode(http.StatusRequestTimeout),        // optional
+		timeout.WithDefaultMsg(`{"error":"http: Handler timeout"}`), // optional
+		timeout.WithCallBack(
+			func(r *http.Request) {
+				logger.WithFields(logrus.Fields{"request": r.Method + "->" + r.URL.String()}).Warn("timeout happened")
+			},
+		), // optional
+	),
+	)
 
 	router.StaticFile("/favicon.ico", "./assets/favicon.ico")
 	router.LoadHTMLGlob("./assets/index.html")

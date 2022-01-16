@@ -67,9 +67,12 @@ func getMockExchangeRate(targetCurrency string) (float32, error) {
 }
 
 // GetExchangeRate implementation of in the proto file defined interface of currency service
-func (service *Service) GetExchangeRate(_ context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
+func (service *Service) GetExchangeRate(ctx context.Context, req *proto.RequestExchangeRate) (*proto.ReplyExchangeRate, error) {
 	if req == nil {
 		return nil, customerrors.ErrRequestNil
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 	exchangeRate, err := getMockExchangeRate(req.CustomerCurrency)
 	if err != nil {

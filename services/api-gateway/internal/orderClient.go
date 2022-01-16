@@ -63,9 +63,7 @@ func NewOrderClient(orderAddress string, orderPort string) *OrderClient {
 func (orderClient OrderClient) GetOrder(c *gin.Context, cb *gobreaker.CircuitBreaker) {
 	orderId := c.Param("id")
 	response, err := cb.Execute(func() (interface{}, error) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(Timeout)*time.Second)
-		defer cancel()
-		return orderClient.client.GetOrder(ctx, &proto.RequestOrder{OrderId: orderId})
+		return orderClient.client.GetOrder(c.Request.Context(), &proto.RequestOrder{OrderId: orderId})
 	})
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -95,9 +93,7 @@ func (orderClient OrderClient) CreateOrder(c *gin.Context, cb *gobreaker.Circuit
 	}
 	response, err := cb.Execute(func() (interface{}, error) {
 		// send request to order service
-		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(Timeout)*time.Second)
-		defer cancel()
-		return orderClient.client.CreateOrder(ctx, &proto.RequestNewOrder{
+		return orderClient.client.CreateOrder(c.Request.Context(), &proto.RequestNewOrder{
 			CartId:             order.CartID,
 			CustomerAddress:    order.CustomerAddress,
 			CustomerName:       order.CustomerName,
