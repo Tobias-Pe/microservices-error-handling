@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/Abramovic/logrus_influxdb v0.0.0-20191225071031-ec7855d61bb9
+	github.com/RobinUS2/golang-moving-average v1.0.0
 	github.com/gin-gonic/gin v1.7.7
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
