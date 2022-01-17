@@ -39,8 +39,9 @@ import (
 const ConnectionTimeSecs = 60
 
 type CartClient struct {
-	GrpcConn   *grpc.ClientConn
-	grpcClient proto.CartClient
+	GrpcConn        *grpc.ClientConn
+	grpcClient      proto.CartClient
+	timeoutDuration time.Duration
 }
 
 // restBody is a temporary struct for json binding
@@ -48,8 +49,11 @@ type restBody struct {
 	ArticleId string `json:"article_id"`
 }
 
-func NewCartClient(cartAddress string, cartPort string) *CartClient {
+func NewCartClient(cartAddress string, cartPort string, staticTimeoutMillis *int) *CartClient {
 	cc := &CartClient{}
+	if staticTimeoutMillis != nil {
+		cc.timeoutDuration = time.Duration(*staticTimeoutMillis) * time.Millisecond
+	}
 	err := cc.initGrpcConnection(cartAddress, cartPort)
 	if err != nil {
 		return nil
@@ -84,11 +88,21 @@ func (cartClient CartClient) CreateCart(c *gin.Context, cb *gobreaker.CircuitBre
 	}
 	request := proto.RequestNewCart{}
 	request.ArticleId = objArticleId.ArticleId
-	response, err := cb.Execute(func() (interface{}, error) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(2500)*time.Millisecond)
-		defer cancel()
-		return cartClient.grpcClient.CreateCart(ctx, &request)
-	})
+
+	var response interface{}
+	var err error
+	if cb != nil {
+		response, err = cb.Execute(func() (interface{}, error) {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDuration)
+			defer cancel()
+			return cartClient.grpcClient.CreateCart(ctx, &request)
+		})
+	} else {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDuration)
+		response, err = cartClient.grpcClient.CreateCart(ctx, &request)
+		cancel()
+	}
+
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	} else {
@@ -100,11 +114,21 @@ func (cartClient CartClient) CreateCart(c *gin.Context, cb *gobreaker.CircuitBre
 func (cartClient CartClient) GetCart(c *gin.Context, cb *gobreaker.CircuitBreaker) {
 	// fetch cartID from url parameter --> cart/${id}
 	cartID := c.Param("id")
-	response, err := cb.Execute(func() (interface{}, error) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(2500)*time.Millisecond)
-		defer cancel()
-		return cartClient.grpcClient.GetCart(ctx, &proto.RequestCart{CartId: cartID})
-	})
+
+	var response interface{}
+	var err error
+	if cb != nil {
+		response, err = cb.Execute(func() (interface{}, error) {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDuration)
+			defer cancel()
+			return cartClient.grpcClient.GetCart(ctx, &proto.RequestCart{CartId: cartID})
+		})
+	} else {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDuration)
+		response, err = cartClient.grpcClient.GetCart(ctx, &proto.RequestCart{CartId: cartID})
+		cancel()
+	}
+
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	} else {
@@ -128,11 +152,19 @@ func (cartClient CartClient) AddToCart(c *gin.Context, cb *gobreaker.CircuitBrea
 		return
 	}
 
-	_, err := cb.Execute(func() (interface{}, error) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(2500)*time.Millisecond)
-		defer cancel()
-		return cartClient.grpcClient.PutCart(ctx, &proto.RequestPutCart{CartId: cartID, ArticleId: objArticleId.ArticleId})
-	})
+	var err error
+	if cb != nil {
+		_, err = cb.Execute(func() (interface{}, error) {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDuration)
+			defer cancel()
+			return cartClient.grpcClient.PutCart(ctx, &proto.RequestPutCart{CartId: cartID, ArticleId: objArticleId.ArticleId})
+		})
+	} else {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDuration)
+		_, err = cartClient.grpcClient.PutCart(ctx, &proto.RequestPutCart{CartId: cartID, ArticleId: objArticleId.ArticleId})
+		cancel()
+	}
+
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	} else {

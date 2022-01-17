@@ -447,6 +447,7 @@ services:
       placement:
         constraints:
           - "node.hostname!=ubuntu5"
+          - "node.hostname!=ubuntu1"
         max_replicas_per_node: 1
       resources:
         limits:

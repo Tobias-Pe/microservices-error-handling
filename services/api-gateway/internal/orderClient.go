@@ -39,11 +39,12 @@ import (
 )
 
 type OrderClient struct {
-	Conn   *grpc.ClientConn
-	client proto.OrderClient
+	Conn            *grpc.ClientConn
+	client          proto.OrderClient
+	timeoutDuration time.Duration
 }
 
-func NewOrderClient(orderAddress string, orderPort string) *OrderClient {
+func NewOrderClient(orderAddress string, orderPort string, staticTimeoutMillis *int) *OrderClient {
 	logger.Infof("connecting to order: %s", orderAddress+":"+orderPort)
 	// Set up a connection to the server.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ConnectionTimeSecs)
@@ -56,17 +57,31 @@ func NewOrderClient(orderAddress string, orderPort string) *OrderClient {
 	logger.Infoln("Connection to order-service successfully!")
 
 	client := proto.NewOrderClient(conn)
-	return &OrderClient{Conn: conn, client: client}
+	orderClient := OrderClient{Conn: conn, client: client}
+	if staticTimeoutMillis != nil {
+		orderClient.timeoutDuration = time.Duration(*staticTimeoutMillis) * time.Millisecond
+	}
+	return &orderClient
 }
 
 // GetOrder sends grpc request to fetch an order from order service
 func (orderClient OrderClient) GetOrder(c *gin.Context, cb *gobreaker.CircuitBreaker) {
 	orderId := c.Param("id")
-	response, err := cb.Execute(func() (interface{}, error) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(2500)*time.Millisecond)
-		defer cancel()
-		return orderClient.client.GetOrder(ctx, &proto.RequestOrder{OrderId: orderId})
-	})
+
+	var response interface{}
+	var err error
+	if cb != nil {
+		response, err = cb.Execute(func() (interface{}, error) {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), orderClient.timeoutDuration)
+			defer cancel()
+			return orderClient.client.GetOrder(ctx, &proto.RequestOrder{OrderId: orderId})
+		})
+	} else {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), orderClient.timeoutDuration)
+		response, err = orderClient.client.GetOrder(ctx, &proto.RequestOrder{OrderId: orderId})
+		cancel()
+	}
+
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	} else {
@@ -93,18 +108,34 @@ func (orderClient OrderClient) CreateOrder(c *gin.Context, cb *gobreaker.Circuit
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	response, err := cb.Execute(func() (interface{}, error) {
+
+	var response interface{}
+	if cb != nil {
+		response, err = cb.Execute(func() (interface{}, error) {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(2500)*time.Millisecond)
+			defer cancel()
+			// send request to order service
+			return orderClient.client.CreateOrder(ctx, &proto.RequestNewOrder{
+				CartId:             order.CartID,
+				CustomerAddress:    order.CustomerAddress,
+				CustomerName:       order.CustomerName,
+				CustomerCreditCard: order.CustomerCreditCard,
+				CustomerEmail:      order.CustomerEmail,
+			})
+		})
+	} else {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(2500)*time.Millisecond)
-		defer cancel()
 		// send request to order service
-		return orderClient.client.CreateOrder(ctx, &proto.RequestNewOrder{
+		response, err = orderClient.client.CreateOrder(ctx, &proto.RequestNewOrder{
 			CartId:             order.CartID,
 			CustomerAddress:    order.CustomerAddress,
 			CustomerName:       order.CustomerName,
 			CustomerCreditCard: order.CustomerCreditCard,
 			CustomerEmail:      order.CustomerEmail,
 		})
-	})
+		cancel()
+	}
+
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	} else {

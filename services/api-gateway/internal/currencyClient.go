@@ -41,11 +41,12 @@ import (
 var logger = loggingUtil.InitLogger()
 
 type CurrencyClient struct {
-	Conn   *grpc.ClientConn
-	client proto.CurrencyClient
+	Conn            *grpc.ClientConn
+	client          proto.CurrencyClient
+	timeoutDuration time.Duration
 }
 
-func NewCurrencyClient(currencyAddress string, currencyPort string) *CurrencyClient {
+func NewCurrencyClient(currencyAddress string, currencyPort string, staticTimeoutMillis *int) *CurrencyClient {
 	// Set up a connection to the server.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ConnectionTimeSecs)
 	defer cancel()
@@ -57,7 +58,11 @@ func NewCurrencyClient(currencyAddress string, currencyPort string) *CurrencyCli
 	logger.Infoln("Connection to currency-service successfully!")
 
 	client := proto.NewCurrencyClient(conn)
-	return &CurrencyClient{Conn: conn, client: client}
+	currencyClient := CurrencyClient{Conn: conn, client: client}
+	if staticTimeoutMillis != nil {
+		currencyClient.timeoutDuration = time.Duration(*staticTimeoutMillis) * time.Millisecond
+	}
+	return &currencyClient
 }
 
 // GetExchangeRate validates client request and creates grpc request to the service
@@ -71,15 +76,24 @@ func (currencyClient CurrencyClient) GetExchangeRate(c *gin.Context, cb *gobreak
 		return
 	}
 	targetCurrency := &proto.RequestExchangeRate{CustomerCurrency: currency}
-	response, err := cb.Execute(func() (interface{}, error) {
-		start := time.Now()
-		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(2500)*time.Millisecond)
-		defer cancel()
-		response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)
-		elapsed := time.Since(start)
-		logger.WithFields(logrus.Fields{"response": elapsed}).Info("GetExchangeRate time")
-		return response, err
-	})
+
+	var response interface{}
+	var err error
+	if cb != nil {
+		response, err = cb.Execute(func() (interface{}, error) {
+			start := time.Now()
+			ctx, cancel := context.WithTimeout(c.Request.Context(), currencyClient.timeoutDuration)
+			defer cancel()
+			response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)
+			elapsed := time.Since(start)
+			logger.WithFields(logrus.Fields{"response": elapsed}).Info("GetExchangeRate time")
+			return response, err
+		})
+	} else {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), currencyClient.timeoutDuration)
+		response, err = currencyClient.client.GetExchangeRate(ctx, targetCurrency)
+		cancel()
+	}
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	} else {

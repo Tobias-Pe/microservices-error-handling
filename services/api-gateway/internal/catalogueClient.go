@@ -36,11 +36,12 @@ import (
 )
 
 type CatalogueClient struct {
-	Conn   *grpc.ClientConn
-	client proto.CatalogueClient
+	Conn            *grpc.ClientConn
+	client          proto.CatalogueClient
+	timeoutDuration time.Duration
 }
 
-func NewCatalogueClient(catalogueAddress string, cataloguePort string) *CatalogueClient {
+func NewCatalogueClient(catalogueAddress string, cataloguePort string, staticTimeoutMillis *int) *CatalogueClient {
 	// Set up a connection to the server.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ConnectionTimeSecs)
 	defer cancel()
@@ -52,7 +53,11 @@ func NewCatalogueClient(catalogueAddress string, cataloguePort string) *Catalogu
 	logger.Infoln("Connection to catalogue-service successfully!")
 
 	client := proto.NewCatalogueClient(conn)
-	return &CatalogueClient{Conn: conn, client: client}
+	catalogueClient := CatalogueClient{Conn: conn, client: client}
+	if staticTimeoutMillis != nil {
+		catalogueClient.timeoutDuration = time.Duration(*staticTimeoutMillis) * time.Millisecond
+	}
+	return &catalogueClient
 }
 
 // GetArticles creates a grpc request to fetch all articles from the catalogue service
@@ -62,11 +67,21 @@ func (catalogueClient CatalogueClient) GetArticles(c *gin.Context, cb *gobreaker
 	request := &proto.RequestArticles{
 		CategoryQuery: queryCategory,
 	}
-	response, err := cb.Execute(func() (interface{}, error) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(2500)*time.Millisecond)
-		defer cancel()
-		return catalogueClient.client.GetArticles(ctx, request)
-	})
+
+	var response interface{}
+	var err error
+	if cb != nil {
+		response, err = cb.Execute(func() (interface{}, error) {
+			ctx, cancel := context.WithTimeout(c.Request.Context(), catalogueClient.timeoutDuration)
+			defer cancel()
+			return catalogueClient.client.GetArticles(ctx, request)
+		})
+	} else {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), catalogueClient.timeoutDuration)
+		response, err = catalogueClient.client.GetArticles(ctx, request)
+		cancel()
+	}
+
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	} else {

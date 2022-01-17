@@ -41,18 +41,21 @@ import (
 )
 
 type configuration struct {
-	port             string
-	address          string
-	currencyAddress  string
-	currencyPort     string
-	catalogueAddress string
-	cataloguePort    string
-	cartAddress      string
-	cartPort         string
-	orderAddress     string
-	orderPort        string
-	rabbitAddress    string
-	rabbitPort       string
+	port                        string
+	address                     string
+	currencyAddress             string
+	currencyPort                string
+	catalogueAddress            string
+	cataloguePort               string
+	cartAddress                 string
+	cartPort                    string
+	orderAddress                string
+	orderPort                   string
+	rabbitAddress               string
+	rabbitPort                  string
+	shouldAddCircuitBreaker     bool
+	isAdaptiveTimeout           bool
+	staticTimeoutDurationMillis int
 }
 
 var logger = loggingUtil.InitLogger()
@@ -71,15 +74,17 @@ func newService(configuration configuration) *service {
 		cbMetric: metrics.NewCircuitBreakerMetric(),
 	}
 
-	// register circuit-breakers
-	service.cbCartClient = circuitbreaker.NewCircuitBreaker("CartClient", service.cbMetric)
-	service.cbMetric.InitMetric("CartClient")
-	service.cbCurrencyClient = circuitbreaker.NewCircuitBreaker("CurrencyClient", service.cbMetric)
-	service.cbMetric.InitMetric("CurrencyClient")
-	service.cbCatalogueClient = circuitbreaker.NewCircuitBreaker("CatalogueClient", service.cbMetric)
-	service.cbMetric.InitMetric("CatalogueClient")
-	service.cbOrderClient = circuitbreaker.NewCircuitBreaker("OrderClient", service.cbMetric)
-	service.cbMetric.InitMetric("OrderClient")
+	if configuration.shouldAddCircuitBreaker {
+		// register circuit-breakers
+		service.cbCartClient = circuitbreaker.NewCircuitBreaker("CartClient", service.cbMetric)
+		service.cbMetric.InitMetric("CartClient")
+		service.cbCurrencyClient = circuitbreaker.NewCircuitBreaker("CurrencyClient", service.cbMetric)
+		service.cbMetric.InitMetric("CurrencyClient")
+		service.cbCatalogueClient = circuitbreaker.NewCircuitBreaker("CatalogueClient", service.cbMetric)
+		service.cbMetric.InitMetric("CatalogueClient")
+		service.cbOrderClient = circuitbreaker.NewCircuitBreaker("OrderClient", service.cbMetric)
+		service.cbMetric.InitMetric("OrderClient")
+	}
 
 	// retry connect to all clients repeatedly
 	go func() { service.connectCartClient() }()
@@ -114,20 +119,26 @@ func readConfig() configuration {
 	orderPort := viper.GetString("ORDER_PORT")
 	rabbitAddress := viper.GetString("RABBIT_MQ_ADDRESS")
 	rabbitPort := viper.GetString("RABBIT_MQ_PORT")
+	shouldAddCircuitBreaker := viper.GetBool("API_GATEWAY_ADD_CIRCUIT_BREAKER")
+	isAdaptiveTimeout := viper.GetBool("API_GATEWAY_ADD_ADAPTIVE_TIMEOUT")
+	staticTimeoutDurationMillis := viper.GetInt("API_GATEWAY_STATIC_TIMEOUT")
 
 	config := configuration{
-		address:          serverAddress,
-		port:             serverPort,
-		currencyAddress:  currencyAddress,
-		currencyPort:     currencyPort,
-		catalogueAddress: catalogueAddress,
-		cataloguePort:    cataloguePort,
-		cartAddress:      cartAddress,
-		cartPort:         cartPort,
-		orderPort:        orderPort,
-		orderAddress:     orderAddress,
-		rabbitAddress:    rabbitAddress,
-		rabbitPort:       rabbitPort,
+		port:                        serverPort,
+		address:                     serverAddress,
+		currencyAddress:             currencyAddress,
+		currencyPort:                currencyPort,
+		catalogueAddress:            catalogueAddress,
+		cataloguePort:               cataloguePort,
+		cartAddress:                 cartAddress,
+		cartPort:                    cartPort,
+		orderAddress:                orderAddress,
+		orderPort:                   orderPort,
+		rabbitAddress:               rabbitAddress,
+		rabbitPort:                  rabbitPort,
+		shouldAddCircuitBreaker:     shouldAddCircuitBreaker,
+		isAdaptiveTimeout:           isAdaptiveTimeout,
+		staticTimeoutDurationMillis: staticTimeoutDurationMillis,
 	}
 
 	logger.WithFields(logrus.Fields{
@@ -198,29 +209,42 @@ type service struct {
 }
 
 func (service *service) connectCurrencyClient() {
+	timeout := &service.config.staticTimeoutDurationMillis
+	if service.config.isAdaptiveTimeout {
+		timeout = nil
+	}
 	var connection *internal.CurrencyClient
 	for connection == nil {
-		connection = internal.NewCurrencyClient(service.config.currencyAddress, service.config.currencyPort)
+		connection = internal.NewCurrencyClient(service.config.currencyAddress, service.config.currencyPort, timeout)
 		time.Sleep(time.Millisecond * time.Duration(500))
 	}
 	service.currencyClient = connection
 }
 
 func (service *service) connectCatalogueClient() {
+	timeout := &service.config.staticTimeoutDurationMillis
+	if service.config.isAdaptiveTimeout {
+		timeout = nil
+	}
 	var connection *internal.CatalogueClient
 	for connection == nil {
-		connection = internal.NewCatalogueClient(service.config.catalogueAddress, service.config.cataloguePort)
+		connection = internal.NewCatalogueClient(service.config.catalogueAddress, service.config.cataloguePort, timeout)
 		time.Sleep(time.Millisecond * time.Duration(500))
 	}
 	service.catalogueClient = connection
 }
 
 func (service *service) connectCartClient() {
+	timeout := &service.config.staticTimeoutDurationMillis
+	if service.config.isAdaptiveTimeout {
+		timeout = nil
+	}
 	var connection *internal.CartClient
 	for connection == nil {
 		connection = internal.NewCartClient(
 			service.config.cartAddress,
 			service.config.cartPort,
+			timeout,
 		)
 		time.Sleep(time.Millisecond * time.Duration(500))
 	}
@@ -228,9 +252,13 @@ func (service *service) connectCartClient() {
 }
 
 func (service *service) connectOrderClient() {
+	timeout := &service.config.staticTimeoutDurationMillis
+	if service.config.isAdaptiveTimeout {
+		timeout = nil
+	}
 	var connection *internal.OrderClient
 	for connection == nil {
-		connection = internal.NewOrderClient(service.config.orderAddress, service.config.orderPort)
+		connection = internal.NewOrderClient(service.config.orderAddress, service.config.orderPort, timeout)
 		time.Sleep(time.Millisecond * time.Duration(500))
 	}
 	service.orderClient = connection
