@@ -27,10 +27,10 @@ package internal
 import (
 	"context"
 	"fmt"
+	movingaverage "github.com/RobinUS2/golang-moving-average"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 	"github.com/sony/gobreaker"
 	"google.golang.org/grpc"
 	"net/http"
@@ -40,10 +40,13 @@ import (
 
 var logger = loggingUtil.InitLogger()
 
+const movingWindowSize = 100
+
 type CurrencyClient struct {
 	Conn            *grpc.ClientConn
 	client          proto.CurrencyClient
 	timeoutDuration time.Duration
+	movingTimeout   *movingaverage.ConcurrentMovingAverage
 }
 
 func NewCurrencyClient(currencyAddress string, currencyPort string, staticTimeoutMillis *int) *CurrencyClient {
@@ -61,6 +64,9 @@ func NewCurrencyClient(currencyAddress string, currencyPort string, staticTimeou
 	currencyClient := CurrencyClient{Conn: conn, client: client}
 	if staticTimeoutMillis != nil {
 		currencyClient.timeoutDuration = time.Duration(*staticTimeoutMillis) * time.Millisecond
+	} else {
+		currencyClient.timeoutDuration = time.Duration(1000) * time.Millisecond
+		currencyClient.movingTimeout = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
 	}
 	return &currencyClient
 }
@@ -77,16 +83,14 @@ func (currencyClient CurrencyClient) GetExchangeRate(c *gin.Context, cb *gobreak
 	}
 	targetCurrency := &proto.RequestExchangeRate{CustomerCurrency: currency}
 
+	start := time.Now()
 	var response interface{}
 	var err error
 	if cb != nil {
 		response, err = cb.Execute(func() (interface{}, error) {
-			start := time.Now()
 			ctx, cancel := context.WithTimeout(c.Request.Context(), currencyClient.timeoutDuration)
 			defer cancel()
 			response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)
-			elapsed := time.Since(start)
-			logger.WithFields(logrus.Fields{"response": elapsed}).Info("GetExchangeRate time")
 			return response, err
 		})
 	} else {
@@ -94,9 +98,21 @@ func (currencyClient CurrencyClient) GetExchangeRate(c *gin.Context, cb *gobreak
 		response, err = currencyClient.client.GetExchangeRate(ctx, targetCurrency)
 		cancel()
 	}
+	elapsed := time.Since(start)
+	currencyClient.calcTimeout(elapsed)
+
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	} else {
 		c.JSON(http.StatusOK, gin.H{"exchangeRate": response.(*proto.ReplyExchangeRate).ExchangeRate})
+	}
+}
+
+func (currencyClient *CurrencyClient) calcTimeout(elapsed time.Duration) {
+	if currencyClient.movingTimeout != nil {
+		currencyClient.movingTimeout.Add(elapsed.Seconds())
+		if currencyClient.movingTimeout.Count() >= movingWindowSize {
+			currencyClient.timeoutDuration = time.Duration(currencyClient.movingTimeout.Avg()*1000) * time.Millisecond
+		}
 	}
 }

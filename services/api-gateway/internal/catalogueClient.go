@@ -26,6 +26,7 @@ package internal
 
 import (
 	"context"
+	movingaverage "github.com/RobinUS2/golang-moving-average"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/gin-gonic/gin"
 	"github.com/sony/gobreaker"
@@ -39,6 +40,7 @@ type CatalogueClient struct {
 	Conn            *grpc.ClientConn
 	client          proto.CatalogueClient
 	timeoutDuration time.Duration
+	movingTimeout   *movingaverage.ConcurrentMovingAverage
 }
 
 func NewCatalogueClient(catalogueAddress string, cataloguePort string, staticTimeoutMillis *int) *CatalogueClient {
@@ -56,7 +58,11 @@ func NewCatalogueClient(catalogueAddress string, cataloguePort string, staticTim
 	catalogueClient := CatalogueClient{Conn: conn, client: client}
 	if staticTimeoutMillis != nil {
 		catalogueClient.timeoutDuration = time.Duration(*staticTimeoutMillis) * time.Millisecond
+	} else {
+		catalogueClient.timeoutDuration = time.Duration(1000) * time.Millisecond
+		catalogueClient.movingTimeout = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
 	}
+
 	return &catalogueClient
 }
 
@@ -68,6 +74,7 @@ func (catalogueClient CatalogueClient) GetArticles(c *gin.Context, cb *gobreaker
 		CategoryQuery: queryCategory,
 	}
 
+	start := time.Now()
 	var response interface{}
 	var err error
 	if cb != nil {
@@ -81,10 +88,21 @@ func (catalogueClient CatalogueClient) GetArticles(c *gin.Context, cb *gobreaker
 		response, err = catalogueClient.client.GetArticles(ctx, request)
 		cancel()
 	}
+	elapsed := time.Since(start)
+	catalogueClient.calcTimeout(elapsed)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	} else {
 		c.JSON(http.StatusOK, gin.H{"articles": response.(*proto.ResponseArticles).Articles})
+	}
+}
+
+func (catalogueClient *CatalogueClient) calcTimeout(elapsed time.Duration) {
+	if catalogueClient.movingTimeout != nil {
+		catalogueClient.movingTimeout.Add(elapsed.Seconds())
+		if catalogueClient.movingTimeout.Count() >= movingWindowSize {
+			catalogueClient.timeoutDuration = time.Duration(catalogueClient.movingTimeout.Avg()*1000) * time.Millisecond
+		}
 	}
 }

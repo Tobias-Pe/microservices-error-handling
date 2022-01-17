@@ -27,6 +27,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	movingaverage "github.com/RobinUS2/golang-moving-average"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/gin-gonic/gin"
@@ -39,9 +40,12 @@ import (
 )
 
 type OrderClient struct {
-	Conn            *grpc.ClientConn
-	client          proto.OrderClient
-	timeoutDuration time.Duration
+	Conn                       *grpc.ClientConn
+	client                     proto.OrderClient
+	timeoutDurationGetOrder    time.Duration
+	movingTimeoutGetOrder      *movingaverage.ConcurrentMovingAverage
+	timeoutDurationCreateOrder time.Duration
+	movingTimeoutCreateOrder   *movingaverage.ConcurrentMovingAverage
 }
 
 func NewOrderClient(orderAddress string, orderPort string, staticTimeoutMillis *int) *OrderClient {
@@ -59,8 +63,15 @@ func NewOrderClient(orderAddress string, orderPort string, staticTimeoutMillis *
 	client := proto.NewOrderClient(conn)
 	orderClient := OrderClient{Conn: conn, client: client}
 	if staticTimeoutMillis != nil {
-		orderClient.timeoutDuration = time.Duration(*staticTimeoutMillis) * time.Millisecond
+		orderClient.timeoutDurationCreateOrder = time.Duration(*staticTimeoutMillis) * time.Millisecond
+		orderClient.timeoutDurationGetOrder = time.Duration(*staticTimeoutMillis) * time.Millisecond
+	} else {
+		orderClient.timeoutDurationGetOrder = time.Duration(1000) * time.Millisecond
+		orderClient.timeoutDurationCreateOrder = time.Duration(1000) * time.Millisecond
+		orderClient.movingTimeoutGetOrder = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
+		orderClient.movingTimeoutCreateOrder = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
 	}
+
 	return &orderClient
 }
 
@@ -68,19 +79,22 @@ func NewOrderClient(orderAddress string, orderPort string, staticTimeoutMillis *
 func (orderClient OrderClient) GetOrder(c *gin.Context, cb *gobreaker.CircuitBreaker) {
 	orderId := c.Param("id")
 
+	start := time.Now()
 	var response interface{}
 	var err error
 	if cb != nil {
 		response, err = cb.Execute(func() (interface{}, error) {
-			ctx, cancel := context.WithTimeout(c.Request.Context(), orderClient.timeoutDuration)
+			ctx, cancel := context.WithTimeout(c.Request.Context(), orderClient.timeoutDurationGetOrder)
 			defer cancel()
 			return orderClient.client.GetOrder(ctx, &proto.RequestOrder{OrderId: orderId})
 		})
 	} else {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), orderClient.timeoutDuration)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), orderClient.timeoutDurationGetOrder)
 		response, err = orderClient.client.GetOrder(ctx, &proto.RequestOrder{OrderId: orderId})
 		cancel()
 	}
+	elapsed := time.Since(start)
+	orderClient.calcTimeoutGetOrder(elapsed)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -109,6 +123,7 @@ func (orderClient OrderClient) CreateOrder(c *gin.Context, cb *gobreaker.Circuit
 		return
 	}
 
+	start := time.Now()
 	var response interface{}
 	if cb != nil {
 		response, err = cb.Execute(func() (interface{}, error) {
@@ -135,10 +150,30 @@ func (orderClient OrderClient) CreateOrder(c *gin.Context, cb *gobreaker.Circuit
 		})
 		cancel()
 	}
+	elapsed := time.Since(start)
+	orderClient.calcTimeoutCreateOrder(elapsed)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	} else {
 		c.JSON(http.StatusOK, gin.H{"order": response.(*proto.OrderObject)})
+	}
+}
+
+func (orderClient *OrderClient) calcTimeoutGetOrder(elapsed time.Duration) {
+	if orderClient.movingTimeoutGetOrder != nil {
+		orderClient.movingTimeoutGetOrder.Add(elapsed.Seconds())
+		if orderClient.movingTimeoutGetOrder.Count() >= movingWindowSize {
+			orderClient.timeoutDurationGetOrder = time.Duration(orderClient.movingTimeoutGetOrder.Avg()*1000) * time.Millisecond
+		}
+	}
+}
+
+func (orderClient *OrderClient) calcTimeoutCreateOrder(elapsed time.Duration) {
+	if orderClient.movingTimeoutCreateOrder != nil {
+		orderClient.movingTimeoutCreateOrder.Add(elapsed.Seconds())
+		if orderClient.movingTimeoutCreateOrder.Count() >= movingWindowSize {
+			orderClient.timeoutDurationCreateOrder = time.Duration(orderClient.movingTimeoutCreateOrder.Avg()*1000) * time.Millisecond
+		}
 	}
 }

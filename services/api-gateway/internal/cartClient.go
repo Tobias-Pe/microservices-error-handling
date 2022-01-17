@@ -27,6 +27,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	movingaverage "github.com/RobinUS2/golang-moving-average"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -39,9 +40,14 @@ import (
 const ConnectionTimeSecs = 60
 
 type CartClient struct {
-	GrpcConn        *grpc.ClientConn
-	grpcClient      proto.CartClient
-	timeoutDuration time.Duration
+	GrpcConn                  *grpc.ClientConn
+	grpcClient                proto.CartClient
+	timeoutDurationCreateCart time.Duration
+	movingTimeoutCreateCart   *movingaverage.ConcurrentMovingAverage
+	timeoutDurationGetCart    time.Duration
+	movingTimeoutGetCart      *movingaverage.ConcurrentMovingAverage
+	timeoutDurationAddToCart  time.Duration
+	movingTimeoutAddToCart    *movingaverage.ConcurrentMovingAverage
 }
 
 // restBody is a temporary struct for json binding
@@ -52,7 +58,16 @@ type restBody struct {
 func NewCartClient(cartAddress string, cartPort string, staticTimeoutMillis *int) *CartClient {
 	cc := &CartClient{}
 	if staticTimeoutMillis != nil {
-		cc.timeoutDuration = time.Duration(*staticTimeoutMillis) * time.Millisecond
+		cc.timeoutDurationCreateCart = time.Duration(*staticTimeoutMillis) * time.Millisecond
+		cc.timeoutDurationGetCart = time.Duration(*staticTimeoutMillis) * time.Millisecond
+		cc.timeoutDurationAddToCart = time.Duration(*staticTimeoutMillis) * time.Millisecond
+	} else {
+		cc.timeoutDurationCreateCart = time.Duration(1000) * time.Millisecond
+		cc.timeoutDurationGetCart = time.Duration(1000) * time.Millisecond
+		cc.timeoutDurationAddToCart = time.Duration(1000) * time.Millisecond
+		cc.movingTimeoutAddToCart = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
+		cc.movingTimeoutGetCart = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
+		cc.movingTimeoutCreateCart = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
 	}
 	err := cc.initGrpcConnection(cartAddress, cartPort)
 	if err != nil {
@@ -89,19 +104,22 @@ func (cartClient CartClient) CreateCart(c *gin.Context, cb *gobreaker.CircuitBre
 	request := proto.RequestNewCart{}
 	request.ArticleId = objArticleId.ArticleId
 
+	start := time.Now()
 	var response interface{}
 	var err error
 	if cb != nil {
 		response, err = cb.Execute(func() (interface{}, error) {
-			ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDuration)
+			ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDurationCreateCart)
 			defer cancel()
 			return cartClient.grpcClient.CreateCart(ctx, &request)
 		})
 	} else {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDuration)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDurationCreateCart)
 		response, err = cartClient.grpcClient.CreateCart(ctx, &request)
 		cancel()
 	}
+	elapsed := time.Since(start)
+	cartClient.calcTimeoutCreateCart(elapsed)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -115,19 +133,22 @@ func (cartClient CartClient) GetCart(c *gin.Context, cb *gobreaker.CircuitBreake
 	// fetch cartID from url parameter --> cart/${id}
 	cartID := c.Param("id")
 
+	start := time.Now()
 	var response interface{}
 	var err error
 	if cb != nil {
 		response, err = cb.Execute(func() (interface{}, error) {
-			ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDuration)
+			ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDurationGetCart)
 			defer cancel()
 			return cartClient.grpcClient.GetCart(ctx, &proto.RequestCart{CartId: cartID})
 		})
 	} else {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDuration)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDurationGetCart)
 		response, err = cartClient.grpcClient.GetCart(ctx, &proto.RequestCart{CartId: cartID})
 		cancel()
 	}
+	elapsed := time.Since(start)
+	cartClient.calcTimeoutGetCart(elapsed)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -152,22 +173,52 @@ func (cartClient CartClient) AddToCart(c *gin.Context, cb *gobreaker.CircuitBrea
 		return
 	}
 
+	start := time.Now()
 	var err error
 	if cb != nil {
 		_, err = cb.Execute(func() (interface{}, error) {
-			ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDuration)
+			ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDurationAddToCart)
 			defer cancel()
 			return cartClient.grpcClient.PutCart(ctx, &proto.RequestPutCart{CartId: cartID, ArticleId: objArticleId.ArticleId})
 		})
 	} else {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDuration)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), cartClient.timeoutDurationAddToCart)
 		_, err = cartClient.grpcClient.PutCart(ctx, &proto.RequestPutCart{CartId: cartID, ArticleId: objArticleId.ArticleId})
 		cancel()
 	}
+	elapsed := time.Since(start)
+	cartClient.calcTimeoutAddToCart(elapsed)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	} else {
 		c.JSON(http.StatusCreated, nil)
+	}
+}
+
+func (cartClient *CartClient) calcTimeoutCreateCart(elapsed time.Duration) {
+	if cartClient.movingTimeoutCreateCart != nil {
+		cartClient.movingTimeoutCreateCart.Add(elapsed.Seconds())
+		if cartClient.movingTimeoutCreateCart.Count() >= movingWindowSize {
+			cartClient.timeoutDurationCreateCart = time.Duration(cartClient.movingTimeoutCreateCart.Avg()*1000) * time.Millisecond
+		}
+	}
+}
+
+func (cartClient *CartClient) calcTimeoutGetCart(elapsed time.Duration) {
+	if cartClient.movingTimeoutGetCart != nil {
+		cartClient.movingTimeoutGetCart.Add(elapsed.Seconds())
+		if cartClient.movingTimeoutGetCart.Count() >= movingWindowSize {
+			cartClient.timeoutDurationGetCart = time.Duration(cartClient.movingTimeoutGetCart.Avg()*1000) * time.Millisecond
+		}
+	}
+}
+
+func (cartClient *CartClient) calcTimeoutAddToCart(elapsed time.Duration) {
+	if cartClient.movingTimeoutAddToCart != nil {
+		cartClient.movingTimeoutAddToCart.Add(elapsed.Seconds())
+		if cartClient.movingTimeoutAddToCart.Count() >= movingWindowSize {
+			cartClient.timeoutDurationAddToCart = time.Duration(cartClient.movingTimeoutAddToCart.Avg()*1000) * time.Millisecond
+		}
 	}
 }
