@@ -30,6 +30,7 @@ import (
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
+	"os"
 	"strconv"
 )
 
@@ -50,6 +51,7 @@ func NewDbConnection(cacheAddress string, cachePort string) *DbConnection {
 			c, err := redis.Dial("tcp", connectionUri)
 			if err != nil {
 				logger.WithError(err).Error("Error appeared on dialing redis!")
+				os.Exit(1)
 			}
 			return c, err
 		},

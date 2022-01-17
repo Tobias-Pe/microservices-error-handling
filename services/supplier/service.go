@@ -157,6 +157,7 @@ func (service *Service) ListenSupplyRequests() {
 	err := service.createSupplyListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for Supply Requests! Could not restart")
+		os.Exit(1)
 	} else {
 		service.ListenSupplyRequests()
 	}

@@ -150,6 +150,7 @@ func (service *Service) ListenOrders() {
 	err := service.createOrderListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for Orders! Could not restart")
+		os.Exit(1)
 	} else {
 		service.ListenOrders()
 	}

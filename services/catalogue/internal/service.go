@@ -40,6 +40,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"google.golang.org/grpc"
 	"math"
+	"os"
 	"time"
 )
 
@@ -241,6 +242,7 @@ func (service *Service) ListenStockUpdates() {
 	err := service.createStockListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for Stock Updates! Could not restart")
+		os.Exit(1)
 	} else {
 		service.ListenStockUpdates()
 	}

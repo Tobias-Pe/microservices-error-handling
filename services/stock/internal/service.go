@@ -41,6 +41,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"math"
 	"math/rand"
+	"os"
 	"time"
 )
 
@@ -352,6 +353,7 @@ func (service *Service) ListenReservationOrders() {
 	err := service.createReservationOrderListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for Orders! Could not restart")
+		os.Exit(1)
 	}
 }
 
@@ -443,6 +445,7 @@ func (service *Service) ListenAbortedOrders() {
 	err := service.createAbortedOrderListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for aborted Orders! Could not restart")
+		os.Exit(1)
 	}
 }
 
@@ -532,6 +535,7 @@ func (service *Service) ListenCompletedOrders() {
 	err := service.createCompletedOrderListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for completed Orders! Could not restart")
+		os.Exit(1)
 	}
 }
 
@@ -606,6 +610,7 @@ func (service *Service) ListenSupply() {
 	err := service.createSupplierListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for Supply! Could not restart")
+		os.Exit(1)
 	}
 }
 

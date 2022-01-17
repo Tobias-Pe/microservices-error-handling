@@ -234,6 +234,7 @@ func (service *Service) ListenAndPersistOrders() {
 	err := service.createOrderListener()
 	if err != nil {
 		logger.WithError(err).Error("Stopped Listening for Orders! Could not restart")
+		os.Exit(1)
 	}
 }
 
