@@ -113,7 +113,7 @@ func (catalogueClient *CatalogueClient) calcTimeout(elapsed time.Duration) {
 		if catalogueClient.movingTimeout.Count() >= movingWindowSize {
 			millis := (catalogueClient.movingTimeout.Avg() * 1000) * 1.5
 			catalogueClient.timeoutDuration = time.Duration(millis) * time.Millisecond
-			catalogueClient.timeoutMetric.Update(int(millis), "GetExchangeRate")
+			catalogueClient.timeoutMetric.Update(int(millis), "GetArticles")
 		}
 	}
 }
