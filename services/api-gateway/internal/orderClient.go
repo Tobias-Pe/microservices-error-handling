@@ -29,6 +29,7 @@ import (
 	"fmt"
 	movingaverage "github.com/RobinUS2/golang-moving-average"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -40,10 +41,14 @@ import (
 )
 
 type OrderClient struct {
-	Conn                       *grpc.ClientConn
-	client                     proto.OrderClient
-	timeoutDurationGetOrder    time.Duration
-	movingTimeoutGetOrder      *movingaverage.ConcurrentMovingAverage
+	Conn   *grpc.ClientConn
+	client proto.OrderClient
+
+	timeoutMetric *metrics.TimeoutMetric
+
+	timeoutDurationGetOrder time.Duration
+	movingTimeoutGetOrder   *movingaverage.ConcurrentMovingAverage
+
 	timeoutDurationCreateOrder time.Duration
 	movingTimeoutCreateOrder   *movingaverage.ConcurrentMovingAverage
 }
@@ -62,12 +67,19 @@ func NewOrderClient(orderAddress string, orderPort string, staticTimeoutMillis *
 
 	client := proto.NewOrderClient(conn)
 	orderClient := OrderClient{Conn: conn, client: client}
+
+	orderClient.timeoutMetric = metrics.NewTimeoutMetric()
+
 	if staticTimeoutMillis != nil {
 		orderClient.timeoutDurationCreateOrder = time.Duration(*staticTimeoutMillis) * time.Millisecond
 		orderClient.timeoutDurationGetOrder = time.Duration(*staticTimeoutMillis) * time.Millisecond
+		orderClient.timeoutMetric.Update(*staticTimeoutMillis, "CreateOrder")
+		orderClient.timeoutMetric.Update(*staticTimeoutMillis, "GetOrder")
 	} else {
 		orderClient.timeoutDurationGetOrder = time.Duration(1000) * time.Millisecond
 		orderClient.timeoutDurationCreateOrder = time.Duration(1000) * time.Millisecond
+		orderClient.timeoutMetric.Update(1000, "CreateOrder")
+		orderClient.timeoutMetric.Update(1000, "GetOrder")
 		orderClient.movingTimeoutGetOrder = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
 		orderClient.movingTimeoutCreateOrder = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
 	}
@@ -164,7 +176,9 @@ func (orderClient *OrderClient) calcTimeoutGetOrder(elapsed time.Duration) {
 	if orderClient.movingTimeoutGetOrder != nil {
 		orderClient.movingTimeoutGetOrder.Add(elapsed.Seconds())
 		if orderClient.movingTimeoutGetOrder.Count() >= movingWindowSize {
-			orderClient.timeoutDurationGetOrder = time.Duration(orderClient.movingTimeoutGetOrder.Avg()*1000) * time.Millisecond
+			timeMillis := (orderClient.movingTimeoutGetOrder.Avg() * 1000) * 1.5
+			orderClient.timeoutDurationGetOrder = time.Duration(timeMillis) * time.Millisecond
+			orderClient.timeoutMetric.Update(int(timeMillis), "GetOrder")
 		}
 	}
 }
@@ -173,7 +187,9 @@ func (orderClient *OrderClient) calcTimeoutCreateOrder(elapsed time.Duration) {
 	if orderClient.movingTimeoutCreateOrder != nil {
 		orderClient.movingTimeoutCreateOrder.Add(elapsed.Seconds())
 		if orderClient.movingTimeoutCreateOrder.Count() >= movingWindowSize {
-			orderClient.timeoutDurationCreateOrder = time.Duration(orderClient.movingTimeoutCreateOrder.Avg()*1000) * time.Millisecond
+			timeMillis := (orderClient.movingTimeoutCreateOrder.Avg() * 1000) * 1.5
+			orderClient.timeoutDurationCreateOrder = time.Duration(timeMillis) * time.Millisecond
+			orderClient.timeoutMetric.Update(int(timeMillis), "CreateOrder")
 		}
 	}
 }

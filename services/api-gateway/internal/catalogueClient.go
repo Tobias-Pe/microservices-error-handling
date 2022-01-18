@@ -28,6 +28,7 @@ import (
 	"context"
 	movingaverage "github.com/RobinUS2/golang-moving-average"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/gin-gonic/gin"
 	"github.com/sony/gobreaker"
 	"google.golang.org/grpc"
@@ -37,10 +38,13 @@ import (
 )
 
 type CatalogueClient struct {
-	Conn            *grpc.ClientConn
-	client          proto.CatalogueClient
+	Conn   *grpc.ClientConn
+	client proto.CatalogueClient
+
 	timeoutDuration time.Duration
 	movingTimeout   *movingaverage.ConcurrentMovingAverage
+
+	timeoutMetric *metrics.TimeoutMetric
 }
 
 func NewCatalogueClient(catalogueAddress string, cataloguePort string, staticTimeoutMillis *int) *CatalogueClient {
@@ -56,10 +60,15 @@ func NewCatalogueClient(catalogueAddress string, cataloguePort string, staticTim
 
 	client := proto.NewCatalogueClient(conn)
 	catalogueClient := CatalogueClient{Conn: conn, client: client}
+
+	catalogueClient.timeoutMetric = metrics.NewTimeoutMetric()
+
 	if staticTimeoutMillis != nil {
 		catalogueClient.timeoutDuration = time.Duration(*staticTimeoutMillis) * time.Millisecond
+		catalogueClient.timeoutMetric.Update(*staticTimeoutMillis, "GetArticles")
 	} else {
 		catalogueClient.timeoutDuration = time.Duration(1000) * time.Millisecond
+		catalogueClient.timeoutMetric.Update(1000, "GetArticles")
 		catalogueClient.movingTimeout = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
 	}
 
@@ -102,7 +111,9 @@ func (catalogueClient *CatalogueClient) calcTimeout(elapsed time.Duration) {
 	if catalogueClient.movingTimeout != nil {
 		catalogueClient.movingTimeout.Add(elapsed.Seconds())
 		if catalogueClient.movingTimeout.Count() >= movingWindowSize {
-			catalogueClient.timeoutDuration = time.Duration(catalogueClient.movingTimeout.Avg()*1000) * time.Millisecond
+			millis := (catalogueClient.movingTimeout.Avg() * 1000) * 1.5
+			catalogueClient.timeoutDuration = time.Duration(millis) * time.Millisecond
+			catalogueClient.timeoutMetric.Update(int(millis), "GetExchangeRate")
 		}
 	}
 }

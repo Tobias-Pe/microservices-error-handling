@@ -30,6 +30,7 @@ import (
 	movingaverage "github.com/RobinUS2/golang-moving-average"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
 	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/gin-gonic/gin"
 	"github.com/sony/gobreaker"
 	"google.golang.org/grpc"
@@ -43,10 +44,13 @@ var logger = loggingUtil.InitLogger()
 const movingWindowSize = 100
 
 type CurrencyClient struct {
-	Conn            *grpc.ClientConn
-	client          proto.CurrencyClient
+	Conn   *grpc.ClientConn
+	client proto.CurrencyClient
+
 	timeoutDuration time.Duration
 	movingTimeout   *movingaverage.ConcurrentMovingAverage
+
+	timeoutMetric *metrics.TimeoutMetric
 }
 
 func NewCurrencyClient(currencyAddress string, currencyPort string, staticTimeoutMillis *int) *CurrencyClient {
@@ -62,12 +66,18 @@ func NewCurrencyClient(currencyAddress string, currencyPort string, staticTimeou
 
 	client := proto.NewCurrencyClient(conn)
 	currencyClient := CurrencyClient{Conn: conn, client: client}
+
+	currencyClient.timeoutMetric = metrics.NewTimeoutMetric()
+
 	if staticTimeoutMillis != nil {
 		currencyClient.timeoutDuration = time.Duration(*staticTimeoutMillis) * time.Millisecond
+		currencyClient.timeoutMetric.Update(*staticTimeoutMillis, "GetExchangeRate")
 	} else {
 		currencyClient.timeoutDuration = time.Duration(1000) * time.Millisecond
+		currencyClient.timeoutMetric.Update(1000, "GetExchangeRate")
 		currencyClient.movingTimeout = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
 	}
+
 	return &currencyClient
 }
 
@@ -112,7 +122,9 @@ func (currencyClient *CurrencyClient) calcTimeout(elapsed time.Duration) {
 	if currencyClient.movingTimeout != nil {
 		currencyClient.movingTimeout.Add(elapsed.Seconds())
 		if currencyClient.movingTimeout.Count() >= movingWindowSize {
-			currencyClient.timeoutDuration = time.Duration(currencyClient.movingTimeout.Avg()*1000) * time.Millisecond
+			millis := (currencyClient.movingTimeout.Avg() * 1000) * 1.5
+			currencyClient.timeoutDuration = time.Duration(millis) * time.Millisecond
+			currencyClient.timeoutMetric.Update(int(millis), "GetExchangeRate")
 		}
 	}
 }

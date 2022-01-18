@@ -29,6 +29,7 @@ import (
 	"fmt"
 	movingaverage "github.com/RobinUS2/golang-moving-average"
 	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
+	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/sony/gobreaker"
@@ -40,14 +41,19 @@ import (
 const ConnectionTimeSecs = 60
 
 type CartClient struct {
-	GrpcConn                  *grpc.ClientConn
-	grpcClient                proto.CartClient
+	GrpcConn   *grpc.ClientConn
+	grpcClient proto.CartClient
+
+	timeoutMetric *metrics.TimeoutMetric
+
 	timeoutDurationCreateCart time.Duration
 	movingTimeoutCreateCart   *movingaverage.ConcurrentMovingAverage
-	timeoutDurationGetCart    time.Duration
-	movingTimeoutGetCart      *movingaverage.ConcurrentMovingAverage
-	timeoutDurationAddToCart  time.Duration
-	movingTimeoutAddToCart    *movingaverage.ConcurrentMovingAverage
+
+	timeoutDurationGetCart time.Duration
+	movingTimeoutGetCart   *movingaverage.ConcurrentMovingAverage
+
+	timeoutDurationAddToCart time.Duration
+	movingTimeoutAddToCart   *movingaverage.ConcurrentMovingAverage
 }
 
 // restBody is a temporary struct for json binding
@@ -57,14 +63,23 @@ type restBody struct {
 
 func NewCartClient(cartAddress string, cartPort string, staticTimeoutMillis *int) *CartClient {
 	cc := &CartClient{}
+
+	cc.timeoutMetric = metrics.NewTimeoutMetric()
+
 	if staticTimeoutMillis != nil {
 		cc.timeoutDurationCreateCart = time.Duration(*staticTimeoutMillis) * time.Millisecond
 		cc.timeoutDurationGetCart = time.Duration(*staticTimeoutMillis) * time.Millisecond
 		cc.timeoutDurationAddToCart = time.Duration(*staticTimeoutMillis) * time.Millisecond
+		cc.timeoutMetric.Update(*staticTimeoutMillis, "AddToCart")
+		cc.timeoutMetric.Update(*staticTimeoutMillis, "GetCart")
+		cc.timeoutMetric.Update(*staticTimeoutMillis, "CreateCart")
 	} else {
 		cc.timeoutDurationCreateCart = time.Duration(1000) * time.Millisecond
 		cc.timeoutDurationGetCart = time.Duration(1000) * time.Millisecond
 		cc.timeoutDurationAddToCart = time.Duration(1000) * time.Millisecond
+		cc.timeoutMetric.Update(1000, "AddToCart")
+		cc.timeoutMetric.Update(1000, "GetCart")
+		cc.timeoutMetric.Update(1000, "CreateCart")
 		cc.movingTimeoutAddToCart = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
 		cc.movingTimeoutGetCart = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
 		cc.movingTimeoutCreateCart = movingaverage.Concurrent(movingaverage.New(movingWindowSize))
@@ -200,7 +215,9 @@ func (cartClient *CartClient) calcTimeoutCreateCart(elapsed time.Duration) {
 	if cartClient.movingTimeoutCreateCart != nil {
 		cartClient.movingTimeoutCreateCart.Add(elapsed.Seconds())
 		if cartClient.movingTimeoutCreateCart.Count() >= movingWindowSize {
-			cartClient.timeoutDurationCreateCart = time.Duration(cartClient.movingTimeoutCreateCart.Avg()*1000) * time.Millisecond
+			timeMillis := (cartClient.movingTimeoutCreateCart.Avg() * 1000) * 1.5
+			cartClient.timeoutDurationCreateCart = time.Duration(timeMillis) * time.Millisecond
+			cartClient.timeoutMetric.Update(int(timeMillis), "CreateCart")
 		}
 	}
 }
@@ -209,7 +226,9 @@ func (cartClient *CartClient) calcTimeoutGetCart(elapsed time.Duration) {
 	if cartClient.movingTimeoutGetCart != nil {
 		cartClient.movingTimeoutGetCart.Add(elapsed.Seconds())
 		if cartClient.movingTimeoutGetCart.Count() >= movingWindowSize {
-			cartClient.timeoutDurationGetCart = time.Duration(cartClient.movingTimeoutGetCart.Avg()*1000) * time.Millisecond
+			timeMillis := (cartClient.movingTimeoutGetCart.Avg() * 1000) * 1.5
+			cartClient.timeoutDurationGetCart = time.Duration(timeMillis) * time.Millisecond
+			cartClient.timeoutMetric.Update(int(timeMillis), "GetCart")
 		}
 	}
 }
@@ -218,7 +237,9 @@ func (cartClient *CartClient) calcTimeoutAddToCart(elapsed time.Duration) {
 	if cartClient.movingTimeoutAddToCart != nil {
 		cartClient.movingTimeoutAddToCart.Add(elapsed.Seconds())
 		if cartClient.movingTimeoutAddToCart.Count() >= movingWindowSize {
-			cartClient.timeoutDurationAddToCart = time.Duration(cartClient.movingTimeoutAddToCart.Avg()*1000) * time.Millisecond
+			timeMillis := (cartClient.movingTimeoutAddToCart.Avg() * 1000) * 1.5
+			cartClient.timeoutDurationAddToCart = time.Duration(timeMillis) * time.Millisecond
+			cartClient.timeoutMetric.Update(int(timeMillis), "AddToCart")
 		}
 	}
 }
