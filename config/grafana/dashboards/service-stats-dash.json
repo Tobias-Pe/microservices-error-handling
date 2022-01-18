@@ -679,7 +679,38 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-GrYlRd"
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "displayName": "${__series.name}",
           "mappings": [],
@@ -700,6 +731,57 @@
         "w": 12,
         "x": 12,
         "y": 40
+      },
+      "id": 38,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "pluginVersion": "8.2.6",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "avg by(method) (timeout_value{})",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Average Timeout API-Gateway Methods",
+      "type": "timeseries"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-GrYlRd"
+          },
+          "displayName": "${__series.name}",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 55
       },
       "id": 18,
       "options": {
@@ -784,7 +866,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 55
+        "y": 63
       },
       "id": 5,
       "interval": "10s",
@@ -871,7 +953,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 55
+        "y": 63
       },
       "id": 8,
       "options": {
@@ -954,7 +1036,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 65
+        "y": 73
       },
       "id": 9,
       "options": {
@@ -1036,7 +1118,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 65
+        "y": 73
       },
       "id": 15,
       "options": {
@@ -1118,7 +1200,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 75
+        "y": 83
       },
       "id": 14,
       "options": {
@@ -1200,7 +1282,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 75
+        "y": 83
       },
       "id": 31,
       "options": {
@@ -1282,7 +1364,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 85
+        "y": 93
       },
       "id": 13,
       "options": {
@@ -1364,7 +1446,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 85
+        "y": 93
       },
       "id": 12,
       "options": {
@@ -1446,7 +1528,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 95
+        "y": 103
       },
       "id": 11,
       "options": {
@@ -1528,7 +1610,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 95
+        "y": 103
       },
       "id": 10,
       "options": {
@@ -1610,7 +1692,7 @@
         "h": 15,
         "w": 12,
         "x": 0,
-        "y": 105
+        "y": 113
       },
       "id": 34,
       "options": {
@@ -1692,7 +1774,7 @@
         "h": 15,
         "w": 12,
         "x": 12,
-        "y": 105
+        "y": 113
       },
       "id": 35,
       "options": {
@@ -1774,7 +1856,7 @@
         "h": 15,
         "w": 12,
         "x": 0,
-        "y": 120
+        "y": 128
       },
       "id": 37,
       "options": {
@@ -1856,7 +1938,7 @@
         "h": 15,
         "w": 12,
         "x": 12,
-        "y": 120
+        "y": 128
       },
       "id": 36,
       "options": {
@@ -1907,7 +1989,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 135
+        "y": 143
       },
       "id": 21,
       "options": {
@@ -1965,7 +2047,7 @@
         "h": 13,
         "w": 24,
         "x": 0,
-        "y": 144
+        "y": 152
       },
       "id": 27,
       "options": {
@@ -2028,7 +2110,7 @@
       "type": "table"
     }
   ],
-  "refresh": false,
+  "refresh": "5s",
   "schemaVersion": 32,
   "style": "dark",
   "tags": [],
@@ -2036,12 +2118,12 @@
     "list": []
   },
   "time": {
-    "from": "2022-01-17T09:14:02.864Z",
-    "to": "2022-01-17T09:27:45.105Z"
+    "from": "now-5m",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Service Stats",
   "uid": "GY4_Bn0nz",
-  "version": 8
+  "version": 9
 }
