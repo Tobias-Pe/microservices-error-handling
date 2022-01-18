@@ -53,7 +53,7 @@ type OrderClient struct {
 	movingTimeoutCreateOrder   *movingaverage.ConcurrentMovingAverage
 }
 
-func NewOrderClient(orderAddress string, orderPort string, staticTimeoutMillis *int) *OrderClient {
+func NewOrderClient(orderAddress string, orderPort string, staticTimeoutMillis *int, metric *metrics.TimeoutMetric) *OrderClient {
 	logger.Infof("connecting to order: %s", orderAddress+":"+orderPort)
 	// Set up a connection to the server.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ConnectionTimeSecs)
@@ -68,7 +68,7 @@ func NewOrderClient(orderAddress string, orderPort string, staticTimeoutMillis *
 	client := proto.NewOrderClient(conn)
 	orderClient := OrderClient{Conn: conn, client: client}
 
-	orderClient.timeoutMetric = metrics.NewTimeoutMetric()
+	orderClient.timeoutMetric = metric
 
 	if staticTimeoutMillis != nil {
 		orderClient.timeoutDurationCreateOrder = time.Duration(*staticTimeoutMillis) * time.Millisecond

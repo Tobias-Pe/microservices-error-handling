@@ -47,7 +47,7 @@ type CatalogueClient struct {
 	timeoutMetric *metrics.TimeoutMetric
 }
 
-func NewCatalogueClient(catalogueAddress string, cataloguePort string, staticTimeoutMillis *int) *CatalogueClient {
+func NewCatalogueClient(catalogueAddress string, cataloguePort string, staticTimeoutMillis *int, metric *metrics.TimeoutMetric) *CatalogueClient {
 	// Set up a connection to the server.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ConnectionTimeSecs)
 	defer cancel()
@@ -61,7 +61,7 @@ func NewCatalogueClient(catalogueAddress string, cataloguePort string, staticTim
 	client := proto.NewCatalogueClient(conn)
 	catalogueClient := CatalogueClient{Conn: conn, client: client}
 
-	catalogueClient.timeoutMetric = metrics.NewTimeoutMetric()
+	catalogueClient.timeoutMetric = metric
 
 	if staticTimeoutMillis != nil {
 		catalogueClient.timeoutDuration = time.Duration(*staticTimeoutMillis) * time.Millisecond

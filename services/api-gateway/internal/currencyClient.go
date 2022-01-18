@@ -53,7 +53,7 @@ type CurrencyClient struct {
 	timeoutMetric *metrics.TimeoutMetric
 }
 
-func NewCurrencyClient(currencyAddress string, currencyPort string, staticTimeoutMillis *int) *CurrencyClient {
+func NewCurrencyClient(currencyAddress string, currencyPort string, staticTimeoutMillis *int, metric *metrics.TimeoutMetric) *CurrencyClient {
 	// Set up a connection to the server.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ConnectionTimeSecs)
 	defer cancel()
@@ -67,7 +67,7 @@ func NewCurrencyClient(currencyAddress string, currencyPort string, staticTimeou
 	client := proto.NewCurrencyClient(conn)
 	currencyClient := CurrencyClient{Conn: conn, client: client}
 
-	currencyClient.timeoutMetric = metrics.NewTimeoutMetric()
+	currencyClient.timeoutMetric = metric
 
 	if staticTimeoutMillis != nil {
 		currencyClient.timeoutDuration = time.Duration(*staticTimeoutMillis) * time.Millisecond

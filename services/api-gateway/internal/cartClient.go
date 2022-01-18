@@ -61,10 +61,10 @@ type restBody struct {
 	ArticleId string `json:"article_id"`
 }
 
-func NewCartClient(cartAddress string, cartPort string, staticTimeoutMillis *int) *CartClient {
+func NewCartClient(cartAddress string, cartPort string, staticTimeoutMillis *int, metric *metrics.TimeoutMetric) *CartClient {
 	cc := &CartClient{}
 
-	cc.timeoutMetric = metrics.NewTimeoutMetric()
+	cc.timeoutMetric = metric
 
 	if staticTimeoutMillis != nil {
 		cc.timeoutDurationCreateCart = time.Duration(*staticTimeoutMillis) * time.Millisecond
