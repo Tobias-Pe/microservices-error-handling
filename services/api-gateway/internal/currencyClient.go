@@ -41,7 +41,7 @@ import (
 
 var logger = loggingUtil.InitLogger()
 
-const movingWindowSize = 100
+const movingWindowSize = 50
 
 type CurrencyClient struct {
 	Conn   *grpc.ClientConn
