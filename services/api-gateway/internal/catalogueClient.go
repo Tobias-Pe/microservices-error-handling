@@ -89,16 +89,19 @@ func (catalogueClient CatalogueClient) GetArticles(c *gin.Context, cb *gobreaker
 	if cb != nil {
 		response, err = cb.Execute(func() (interface{}, error) {
 			ctx, cancel := context.WithTimeout(c.Request.Context(), catalogueClient.timeoutDuration)
-			defer cancel()
-			return catalogueClient.client.GetArticles(ctx, request)
+			articles, err2 := catalogueClient.client.GetArticles(ctx, request)
+			cancel()
+			elapsed := time.Since(start)
+			catalogueClient.calcTimeout(elapsed)
+			return articles, err2
 		})
 	} else {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), catalogueClient.timeoutDuration)
 		response, err = catalogueClient.client.GetArticles(ctx, request)
 		cancel()
+		elapsed := time.Since(start)
+		catalogueClient.calcTimeout(elapsed)
 	}
-	elapsed := time.Since(start)
-	catalogueClient.calcTimeout(elapsed)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})

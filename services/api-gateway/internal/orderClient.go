@@ -97,16 +97,19 @@ func (orderClient OrderClient) GetOrder(c *gin.Context, cb *gobreaker.CircuitBre
 	if cb != nil {
 		response, err = cb.Execute(func() (interface{}, error) {
 			ctx, cancel := context.WithTimeout(c.Request.Context(), orderClient.timeoutDurationGetOrder)
-			defer cancel()
-			return orderClient.client.GetOrder(ctx, &proto.RequestOrder{OrderId: orderId})
+			order, err2 := orderClient.client.GetOrder(ctx, &proto.RequestOrder{OrderId: orderId})
+			cancel()
+			elapsed := time.Since(start)
+			orderClient.calcTimeoutGetOrder(elapsed)
+			return order, err2
 		})
 	} else {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), orderClient.timeoutDurationGetOrder)
 		response, err = orderClient.client.GetOrder(ctx, &proto.RequestOrder{OrderId: orderId})
 		cancel()
+		elapsed := time.Since(start)
+		orderClient.calcTimeoutGetOrder(elapsed)
 	}
-	elapsed := time.Since(start)
-	orderClient.calcTimeoutGetOrder(elapsed)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -139,19 +142,22 @@ func (orderClient OrderClient) CreateOrder(c *gin.Context, cb *gobreaker.Circuit
 	var response interface{}
 	if cb != nil {
 		response, err = cb.Execute(func() (interface{}, error) {
-			ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(2500)*time.Millisecond)
-			defer cancel()
+			ctx, cancel := context.WithTimeout(c.Request.Context(), orderClient.timeoutDurationCreateOrder)
 			// send request to order service
-			return orderClient.client.CreateOrder(ctx, &proto.RequestNewOrder{
+			createOrder, err2 := orderClient.client.CreateOrder(ctx, &proto.RequestNewOrder{
 				CartId:             order.CartID,
 				CustomerAddress:    order.CustomerAddress,
 				CustomerName:       order.CustomerName,
 				CustomerCreditCard: order.CustomerCreditCard,
 				CustomerEmail:      order.CustomerEmail,
 			})
+			cancel()
+			elapsed := time.Since(start)
+			orderClient.calcTimeoutCreateOrder(elapsed)
+			return createOrder, err2
 		})
 	} else {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(2500)*time.Millisecond)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), orderClient.timeoutDurationCreateOrder)
 		// send request to order service
 		response, err = orderClient.client.CreateOrder(ctx, &proto.RequestNewOrder{
 			CartId:             order.CartID,
@@ -161,9 +167,9 @@ func (orderClient OrderClient) CreateOrder(c *gin.Context, cb *gobreaker.Circuit
 			CustomerEmail:      order.CustomerEmail,
 		})
 		cancel()
+		elapsed := time.Since(start)
+		orderClient.calcTimeoutCreateOrder(elapsed)
 	}
-	elapsed := time.Since(start)
-	orderClient.calcTimeoutCreateOrder(elapsed)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})

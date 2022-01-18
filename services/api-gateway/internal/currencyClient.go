@@ -99,17 +99,19 @@ func (currencyClient CurrencyClient) GetExchangeRate(c *gin.Context, cb *gobreak
 	if cb != nil {
 		response, err = cb.Execute(func() (interface{}, error) {
 			ctx, cancel := context.WithTimeout(c.Request.Context(), currencyClient.timeoutDuration)
-			defer cancel()
 			response, err := currencyClient.client.GetExchangeRate(ctx, targetCurrency)
+			cancel()
+			elapsed := time.Since(start)
+			currencyClient.calcTimeout(elapsed)
 			return response, err
 		})
 	} else {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), currencyClient.timeoutDuration)
 		response, err = currencyClient.client.GetExchangeRate(ctx, targetCurrency)
 		cancel()
+		elapsed := time.Since(start)
+		currencyClient.calcTimeout(elapsed)
 	}
-	elapsed := time.Since(start)
-	currencyClient.calcTimeout(elapsed)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
