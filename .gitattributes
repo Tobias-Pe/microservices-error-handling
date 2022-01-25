@@ -1,6 +1,6 @@
 # https://github.com/github/linguist/blob/master/docs/overrides.md
 
 # Apply override to all files in the directory
-test/results/** linguist-documentation
+test/results/** linguist-documentation=true
 
-api/proto/*.pb.go linguist-generated
+api/proto/*.pb.go linguist-generated=true
