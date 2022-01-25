@@ -119,7 +119,7 @@ func InitLogger() *logrus.Logger {
 			Database:      "logrus",
 			UseHTTPS:      false,
 			Precision:     "ns",
-			AppName:       "Microservices-Errorhandling",
+			AppName:       "microservices-error-handling",
 			Tags:          []string{"logrus-logs"},
 			BatchInterval: 5 * time.Second,
 			BatchCount:    200, // set to "0" to disable batching

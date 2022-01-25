@@ -27,7 +27,7 @@ package internal
 import (
 	"context"
 	"encoding/json"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
+	"github.com/Tobias-Pe/microservices-error-handling/pkg/models"
 	"github.com/gomodule/redigo/redis"
 	"os"
 )

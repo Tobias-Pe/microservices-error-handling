@@ -27,10 +27,10 @@ package currency
 import (
 	"context"
 	"fmt"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
-	customerrors "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
-	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
+	"github.com/Tobias-Pe/microservices-error-handling/api/proto"
+	customerrors "github.com/Tobias-Pe/microservices-error-handling/pkg/custom-errors"
+	loggingUtil "github.com/Tobias-Pe/microservices-error-handling/pkg/log"
+	"github.com/Tobias-Pe/microservices-error-handling/pkg/metrics"
 	"github.com/sirupsen/logrus"
 	"strings"
 )

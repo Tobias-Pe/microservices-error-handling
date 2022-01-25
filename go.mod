@@ -1,4 +1,4 @@
-module github.com/Tobias-Pe/Microservices-Errorhandling
+module github.com/Tobias-Pe/microservices-error-handling
 
 go 1.17
 

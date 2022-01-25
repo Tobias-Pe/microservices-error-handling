@@ -25,9 +25,9 @@
 package main
 
 import (
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/http-router"
-	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/services/payment"
+	httpRouter "github.com/Tobias-Pe/microservices-error-handling/pkg/http-router"
+	loggingUtil "github.com/Tobias-Pe/microservices-error-handling/pkg/log"
+	"github.com/Tobias-Pe/microservices-error-handling/services/payment"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"os"

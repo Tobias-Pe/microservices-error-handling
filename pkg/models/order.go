@@ -27,8 +27,8 @@ package models
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/api/requests"
-	loggingUtils "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	"github.com/Tobias-Pe/microservices-error-handling/api/requests"
+	loggingUtils "github.com/Tobias-Pe/microservices-error-handling/pkg/log"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"go.mongodb.org/mongo-driver/bson/primitive"

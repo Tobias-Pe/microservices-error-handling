@@ -1,8 +1,8 @@
-# Errorhandling in a Microservice Architecture
+# Error Handling in a Microservice Architecture
 
-[![MIT License](https://img.shields.io/github/license/Tobias-Pe/Microservices-Errorhandling)](https://github.com/Tobias-Pe/Microservices-Errorhandling/blob/main/LICENSE)
+[![MIT License](https://img.shields.io/github/license/Tobias-Pe/microservices-error-handling)](https://github.com/Tobias-Pe/microservices-error-handling/blob/main/LICENSE)
 [![Gitmoji](https://img.shields.io/badge/gitmoji-%20😜%20😍-FFDD67.svg)](https://gitmoji.dev)
-![Go-Version](https://img.shields.io/github/go-mod/go-version/Tobias-Pe/Microservices-Errorhandling)
+![Go-Version](https://img.shields.io/github/go-mod/go-version/Tobias-Pe/microservices-error-handling)
 
 The application is a Demo-Webshop, where 10 Services communicate using synchronous and asynchronous communication.
 
@@ -127,9 +127,9 @@ Look at the current status of your order.
 
 **Metrics-Exporter:** cAdvisor (Containers), Node Exporter (Hardware) _(To make these docker swarm compatible, some configurations were orientated on https://github.com/stefanprodan/swarmprom)_
 
-## Errorhandling Methods 🧯
+## Error Handling Methods 🧯
 
-These are the used errorhandling methods to make the application more resilient:
+These are the used error handling methods to make the application more resilient:
 
 - Saga-Pattern: 
   - Order Transaction-Chain
@@ -173,13 +173,13 @@ Inside this Test-Setup the following Testdata was collected:
 Clone the project
 
 ```bash
-  git clone https://github.com/Tobias-Pe/Microservices-Errorhandling
+  git clone https://github.com/Tobias-Pe/microservices-error-handling
 ```
 
 Go to the project directory
 
 ```bash
-  cd Microservices-Errorhandling
+  cd microservices-error-handling
 ```
 
 Start all containers with compose

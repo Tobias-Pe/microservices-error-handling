@@ -27,8 +27,8 @@ package internal
 import (
 	"context"
 	movingaverage "github.com/RobinUS2/golang-moving-average"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
+	"github.com/Tobias-Pe/microservices-error-handling/api/proto"
+	"github.com/Tobias-Pe/microservices-error-handling/pkg/metrics"
 	"github.com/gin-gonic/gin"
 	"github.com/sony/gobreaker"
 	"google.golang.org/grpc"

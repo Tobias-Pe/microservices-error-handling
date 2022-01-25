@@ -25,7 +25,7 @@
 package main
 
 import (
-	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	loggingUtil "github.com/Tobias-Pe/microservices-error-handling/pkg/log"
 	"time"
 )
 

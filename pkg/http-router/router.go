@@ -25,7 +25,7 @@
 package httpRouter
 
 import (
-	loggingUtils "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
+	loggingUtils "github.com/Tobias-Pe/microservices-error-handling/pkg/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"time"

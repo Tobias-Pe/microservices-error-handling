@@ -26,8 +26,8 @@ package internal
 
 import (
 	"context"
-	customerrors "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
+	customerrors "github.com/Tobias-Pe/microservices-error-handling/pkg/custom-errors"
+	"github.com/Tobias-Pe/microservices-error-handling/pkg/models"
 	"github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
 	"os"

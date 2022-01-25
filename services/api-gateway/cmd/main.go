@@ -25,10 +25,10 @@
 package main
 
 import (
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/circuitbreaker"
-	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/services/api-gateway/internal"
+	"github.com/Tobias-Pe/microservices-error-handling/pkg/circuitbreaker"
+	loggingUtil "github.com/Tobias-Pe/microservices-error-handling/pkg/log"
+	"github.com/Tobias-Pe/microservices-error-handling/pkg/metrics"
+	"github.com/Tobias-Pe/microservices-error-handling/services/api-gateway/internal"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"github.com/sony/gobreaker"

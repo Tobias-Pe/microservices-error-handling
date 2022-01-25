@@ -27,8 +27,8 @@ package internal
 import (
 	"context"
 	"fmt"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/custom-errors"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/models"
+	customerrors "github.com/Tobias-Pe/microservices-error-handling/pkg/custom-errors"
+	"github.com/Tobias-Pe/microservices-error-handling/pkg/models"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"

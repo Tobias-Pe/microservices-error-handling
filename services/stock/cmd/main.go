@@ -26,10 +26,10 @@ package main
 
 import (
 	"context"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/api/proto"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/http-router"
-	loggingUtil "github.com/Tobias-Pe/Microservices-Errorhandling/pkg/log"
-	"github.com/Tobias-Pe/Microservices-Errorhandling/services/stock/internal"
+	"github.com/Tobias-Pe/microservices-error-handling/api/proto"
+	httpRouter "github.com/Tobias-Pe/microservices-error-handling/pkg/http-router"
+	loggingUtil "github.com/Tobias-Pe/microservices-error-handling/pkg/log"
+	"github.com/Tobias-Pe/microservices-error-handling/services/stock/internal"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"

@@ -1,7 +1,7 @@
 package circuitbreaker
 
 import (
-	"github.com/Tobias-Pe/Microservices-Errorhandling/pkg/metrics"
+	"github.com/Tobias-Pe/microservices-error-handling/pkg/metrics"
 	"github.com/sony/gobreaker"
 	"time"
 )
