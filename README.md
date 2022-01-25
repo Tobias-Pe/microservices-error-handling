@@ -222,6 +222,23 @@ Optional steps:
 
 [Config docker to publish metrics](https://docs.docker.com/config/daemon/prometheus/#configure-docker)
 
+## Known Issues 🦺
+
+#### Exceptions in Locust Testrun ?
+
+The Nginx-Server will abort connections if there are too many.   
+Feel free to play around with the configuration of it, if you'd need [more concurrent connections](https://nginx.org/en/docs/ngx_core_module.html#worker_connections).
+
+#### Metric is not shown or zero on manual tests ?
+
+Some metrics, which can not be initialized to Zero at launch (e.g. all API-Service Webserver Requests with all possible outcomes can not be initialized at launch), 
+will not show up in Grafana the first time such a metric will be recorded. 
+
+The reason behind it is that, when the metric is increased or set, it will be initialised to zero and then instantly changed.  
+This change from 0 to X will very probably not be recorded by Prometheus separately (current scrape intervall 5 Sec).  
+Therefore, if the dashboard panel uses the increase() query, it will think there is no increase from 0 to X.
+
+
 ## Author ✍️
 
 [@Tobias Peslalz](https://github.com/Tobias-Pe)
