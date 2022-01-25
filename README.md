@@ -128,6 +128,47 @@ Look at the current status of your order.
 
 **Metrics-Exporter:** cAdvisor (Containers), Node Exporter (Hardware) _(To make these docker swarm compatible, some configurations were orientated on https://github.com/stefanprodan/swarmprom)_
 
+## Errorhandling Methods 🧯
+
+These are the used errorhandling methods to make the application more resilient:
+
+- Saga-Pattern: 
+  - Order Transaction-Chain
+- Retry-Mechanism with Backoff-Algorithm: 
+  - All asynchronous Services
+- Stateless Services: 
+  - All Services are stateless (only metrics data is stored in memory)
+- Redundancy:
+  - Round Robin Loadbalancing using Docker's DNS-Server
+  - Service replication using Compose
+- Bulkheads: 
+  - Stock Service was split into two Services to separate Order-Duties and Catalogue-Duties
+  - Limits inside Compose-File
+- Circuit Breakers: 
+  - 4 Circuit Breakers inside each API-Gateway Instance
+- Adaptive Timeouts:
+  - Moving Average for every request-type inside API-Gateway's request-handlers
+
+_Configuration for some methods can be made under config/docker.env_
+
+## Analysis of the Demo-Application 🧪
+
+The locust load tests were launched using docker on a single pc, using 5 worker container and a manager container.
+
+The Demo-Application was started using the docker-swarm.yml on a Docker-Swarm-Cluster of 5 Raspberry Pi 4 Model B Rev 1.1, running Ubuntu 20.04.3 LTS.
+
+All 6 computers are connected via a Gbit-Ethernet Switch.
+
+_All images for this application are build for amd64 and arm64._
+
+Inside this Test-Setup the following Testdata was collected:
+
+- [Testrun1 - Basic Application](./test/results/Testrun1-BasicApplication)
+- [Testrun2 - Improve Resource Usage](./test/results/Testrun2-ManualDistribution)
+- [Testrun3 - Establish a Bulkhead](./test/results/Testrun3-AddedCatalogue)
+- [Testrun4 - Usage of Circuit Breakers](./test/results/Testrun4-CircuitBreaker)
+- [Testrun5 - Adaptive Timeouts](./test/results/Testrun5-AdaptiveTimeouts)
+
 ## Run Locally 🏃
 
 Clone the project
@@ -162,7 +203,7 @@ On worker nodes paste command from output of ``init`` command
   docker swarm join ...
 ```
 
-Deploy stack on to swarm cluster on manager node
+Deploy stack onto swarm cluster on manager node
 ```bash
   docker stack deploy --compose-file docker-swarm.yml app
 ```
