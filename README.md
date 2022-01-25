@@ -224,6 +224,10 @@ Optional steps:
 
 ## Known Issues 🦺
 
+#### Circuit Breaker Statechange is not displayed on Dashboard ?
+
+If the Circuit Breaker recovers from the open state faster than Prometheus can scrape the metrics of it, then Prometheus will not observe a change in the Circuit Breaker state. 
+
 #### Exceptions in Locust Testrun ?
 
 The Nginx-Server will abort connections if there are too many.   
