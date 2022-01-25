@@ -16,4 +16,4 @@ Locust-Report:
 Through the new Catalogue Service, which is distributed globally on all nodes of the testing setup, more resources are used.
 Therefore, the RPS dropped.
 
-Now if the Catalogue Service is flooded with requests, it will not slow down the Order-Transaction flow.
+Despite that, now if the Catalogue Service is flooded with requests, it will not slow down the Order-Transaction flow.
