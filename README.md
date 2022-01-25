@@ -3,7 +3,6 @@
 [![MIT License](https://img.shields.io/github/license/Tobias-Pe/Microservices-Errorhandling)](https://github.com/Tobias-Pe/Microservices-Errorhandling/blob/main/LICENSE)
 [![Gitmoji](https://img.shields.io/badge/gitmoji-%20😜%20😍-FFDD67.svg)](https://gitmoji.dev)
 ![Go-Version](https://img.shields.io/github/go-mod/go-version/Tobias-Pe/Microservices-Errorhandling)
-![Development-state](https://img.shields.io/badge/state-under%20development-orange)
 
 The application is a Demo-Webshop, where 10 Services communicate using synchronous and asynchronous communication.
 
@@ -223,6 +222,10 @@ Optional steps:
 [Config docker to publish metrics](https://docs.docker.com/config/daemon/prometheus/#configure-docker)
 
 ## Known Issues 🦺
+
+#### Circuit Breaker Statechange is not displayed on Dashboard ?
+
+If the Circuit Breaker recovers from the open state faster than Prometheus can scrape the metrics of it, then Prometheus will not observe a change in the Circuit Breaker state. 
 
 #### Exceptions in Locust Testrun ?
 
